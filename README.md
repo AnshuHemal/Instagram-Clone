@@ -1,56 +1,104 @@
-# Welcome to your Expo app 👋
+# Instagram Clone Mobile Application
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A high-fidelity, high-performance Instagram Clone mobile client built with **React Native (Expo SDK 51+)** and **TypeScript**. Features a zero-delay Reels player, direct messaging, interactive animations, and a dynamic theme system.
 
-## Get started
+---
 
-1. Install dependencies
+## Architecture Overview
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+├── app/                  # File-based routing (Expo Router)
+│   ├── (auth)/           # Authentication Flow (Login, Register Complete, OTP)
+│   ├── (chat)/           # Direct Messaging details screen
+│   ├── (tabs)/           # Main App tabs (Home, Search, Create, Reels, Profile)
+│   └── _layout.tsx       # Core navigation entry point
+├── components/           # Reusable UI widgets
+│   ├── ReelItem.tsx      # Video Player container with seekbar
+│   ├── ReelShimmer.tsx   # Video Skeleton loader
+│   ├── PostCard.tsx      # Home Feed detailed post card
+│   └── ...
+├── contexts/             # Global state providers
+│   ├── AuthContext.tsx   # Login/Register state, token storage
+│   ├── ReelsContext.tsx  # Video player caching pools & feed state
+│   └── ThemeContext.tsx  # Dynamic Dark & Light mode
+├── services/             # API layer
+│   └── api.ts            # Axios configuration with JWT headers
+└── constants/            # Styling, Colors, & Mock data
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## Key Features
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### 1. Zero-Delay Reels Player (Instagram Fidelity)
+- **Video Caching Pool**: Pre-warms and preloads the current ($N$), previous ($N-1$), and next ($N+1$) videos using `expo-video`. Automatically releases and pauses players outside this window to prevent decoder starvation.
+- **Zero-Flash Shimmer Loader**: Features custom skeleton shimmers ([ReelShimmer.tsx](file:///c:/Users/MobileDev-05/Desktop/Projects/Instagram%20Clone/insta-frontend/src/components/ReelShimmer.tsx)) that utilize synchronous state guards to instantly bypass loading states if the video is already cached in memory.
+- **Interactive Seekbar**: Micro-animated progress bar that scales up in height and pops a scrub handle on touch, supporting dragging to seek.
+- **HUD Controls**: Double-tap to like with springing center heart animation, hold-to-pause gestures, and custom mute status indicator overlays.
+- **System Media Lock**: Explicitly disables `showNowPlayingNotification` so playback doesn't clutter the system notification drawer with "Unknown Song" cards.
 
-## Learn more
+### 2. Home Feed & Stories
+- **Dynamic Headers**: Auto-hiding header layouts with shortcuts to messaging and alerts.
+- **Story Circles**: Visual story rings displaying user avatars on the home feed.
+- **Detailed Posts**: Support for rich content displays, like/unlike animations, expand/collapse caption text blocks, and comment overlays.
 
-To learn more about developing your project with Expo, look at the following resources:
+### 3. Full Authentication Flow
+- **Email Registration**: Implements multi-step signup (Email Input $\rightarrow$ OTP Code Verification $\rightarrow$ Password Definition $\rightarrow$ Username Selection $\rightarrow$ Birthday Entry $\rightarrow$ Terms Acceptance).
+- **Secure Token Caching**: Local secure storage of JWT keys for automatic session recovery.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 4. Direct Messaging (Chat)
+- **Chats List Tab**: Real-time listing of active direct message conversations.
+- **Detail View**: Interactive, responsive message thread window with chat bubbles.
 
-## Join the community
+### 5. Dynamic Themes
+- Supports dynamic Switching between a clean **Light Mode** and a premium **Dark Mode** utilizing a unified color token palette.
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Technical Stack
+
+- **Framework**: Expo (SDK 51+)
+- **Language**: TypeScript
+- **Routing**: Expo Router (File-based navigation)
+- **Video Player**: `expo-video` (Core engine)
+- **HTTP Client**: Axios with automatic interceptors for JWT token attachment
+- **Icons**: Vector Icons (Ionicons, Feather)
+- **Layouts**: React Native Safe Area Context
+
+---
+
+## Quick Start
+
+### 1. Clone & Install Dependencies
+```bash
+npm install
+```
+
+### 2. Configure Environment Variables
+Create a `.env` file in the root directory:
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3000/api
+```
+*(Replace `localhost` with your local machine's IP address if testing on a physical iOS or Android device).*
+
+### 3. Start Metro Bundler
+```bash
+# Clear caches and start Expo dev server
+npx expo start --clear
+```
+
+In the terminal output, press:
+- `a` to run on an Android Emulator.
+- `i` to run on an iOS Simulator.
+- Scan the QR code with the **Expo Go** app to run on a physical device.
+
+---
+
+## Reels Optimization Details
+
+### Stable Scrolling Position
+We bypass `onLayout` measurements in the FlatList by providing a stable height derived directly from `useWindowDimensions()`. When navigating between tabs, this keeps item offset calculations constant, preventing visual shifts and maintaining the current scrolling focus.
+
+### Memoized Renders
+Every card in the feed uses a strict prop comparison memoization wrapper (`React.memo`). Instead of passing down the active string ID (which causes all cards to re-render on scroll), we pass down an `isActive` boolean. This confines updates strictly to the card being focused and the card being unfocused, leaving other items untouched and eliminating VirtualizedList lag warnings.
