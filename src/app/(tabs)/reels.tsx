@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, View, FlatList, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useReels } from '@/contexts/ReelsContext';
 import { ReelItem } from '@/components/ReelItem';
@@ -84,6 +85,7 @@ export default function ReelsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: '#000000' }]}>
+      {isFocused && <StatusBar style="light" />}
       <FlatList
         ref={flatListRef}
         data={reels}
