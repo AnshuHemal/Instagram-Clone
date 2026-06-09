@@ -18,13 +18,6 @@ try {
   // Silent fallback
 }
 
-// 2. Dynamic check for legacy expo-av
-let ExpoAV: any = null;
-try {
-  ExpoAV = require('expo-av');
-} catch (e) {
-  // Silent fallback
-}
 
 // Declarative video component using new expo-video standard
 const VideoPlayerExpoVideo = ({ hlsUrl, isPlaying, isActive, isScreenFocused, isMuted, posterUrl, onProgress, onPlayerReady, onStatusChange }: any) => {
@@ -180,62 +173,6 @@ const VideoPlayerExpoVideoPreloaded = ({ player, isPlaying, isActive, isScreenFo
   );
 };
 
-// Declarative video component using legacy expo-av
-const VideoPlayerExpoAV = ({ hlsUrl, isPlaying, isActive, isScreenFocused, isMuted, posterUrl, videoRef, onProgress, onStatusChange }: any) => {
-  const cleanUrl = hlsUrl?.replace('.mp4.m3u8', '.m3u8');
-  const cleanPosterUrl = posterUrl?.replace('.mp4.jpg', '.jpg');
-
-  // Handle play/pause
-  useEffect(() => {
-    if (videoRef?.current) {
-      if (isPlaying) {
-        videoRef.current.playAsync().catch(() => {});
-      } else {
-        videoRef.current.pauseAsync().catch(() => {});
-      }
-    }
-  }, [isPlaying]);
-
-  // Seek back to start ONLY when first focusing or changing active items
-  useEffect(() => {
-    if (videoRef?.current && isActive && isScreenFocused) {
-      videoRef.current.setPositionAsync(0).catch(() => {});
-    }
-  }, [isActive, isScreenFocused]);
-
-  const handlePlaybackStatusUpdate = (status: any) => {
-    if (status.isLoaded) {
-      if (onStatusChange) {
-        onStatusChange(status.isBuffering ? 'loading' : 'readyToPlay');
-      }
-      if (status.durationMillis && onProgress) {
-        onProgress(status.positionMillis / status.durationMillis);
-      }
-    } else {
-      if (onStatusChange) {
-        onStatusChange('loading');
-      }
-    }
-  };
-
-  return (
-    <ExpoAV.Video
-      ref={videoRef}
-      source={{ uri: cleanUrl }}
-      style={StyleSheet.absoluteFill}
-      resizeMode={ExpoAV.ResizeMode?.COVER || 'cover'}
-      shouldPlay={isPlaying}
-      isLooping={true}
-      isMuted={isMuted}
-      useNativeControls={false}
-      posterSource={{ uri: cleanPosterUrl }}
-      usePoster={true}
-      posterStyle={styles.backgroundImage}
-      onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-      progressUpdateIntervalMillis={100} // 100ms updates
-    />
-  );
-};
 
 interface ReelItemProps {
   reel: Reel;
@@ -335,8 +272,6 @@ export const ReelItem = React.memo(({
   // Refs for hold-to-pause timeout
   const holdTimeout = useRef<any>(null);
 
-  // Video Ref for legacy player
-  const avVideoRef = useRef<any>(null);
   
   // Track View Duration
   const viewStartTime = useRef<number | null>(null);
@@ -375,12 +310,6 @@ export const ReelItem = React.memo(({
       if (playerInstance && playerInstance.duration) {
         playerInstance.currentTime = boundedRatio * playerInstance.duration;
       }
-    } else if (ExpoAV && avVideoRef.current) {
-      avVideoRef.current.getStatusAsync().then((status: any) => {
-        if (status.isLoaded && status.durationMillis) {
-          avVideoRef.current.setPositionAsync(boundedRatio * status.durationMillis).catch(() => {});
-        }
-      }).catch(() => {});
     }
   };
 
@@ -431,22 +360,6 @@ export const ReelItem = React.memo(({
     setLocalLikesCount(reel.likesCount);
   }, [reel.isLiked, reel.likesCount]);
 
-  // Audio Mode Setup for legacy expo-av
-  useEffect(() => {
-    const setupAudio = async () => {
-      if (!ExpoAV || !ExpoAV.Audio) return;
-      try {
-        await ExpoAV.Audio.setAudioModeAsync({
-          playsInSilentModeIOS: true,
-          allowsRecordingIOS: false,
-          staysActiveInBackground: false,
-        });
-      } catch (err) {
-        // Suppress audio configuration errors
-      }
-    };
-    setupAudio();
-  }, []);
 
   // Music Disc Spinning Animation
   useEffect(() => {
@@ -609,7 +522,7 @@ export const ReelItem = React.memo(({
     } else {
       setLastTap(now);
       // Only trigger mute animations if a native video player is active
-      const hasNativeVideo = !!ExpoVideo || !!ExpoAV;
+      const hasNativeVideo = !!ExpoVideo;
       if (hasNativeVideo) {
         const nextMuteState = !isMuted;
         setIsMuted(nextMuteState);
@@ -684,21 +597,6 @@ export const ReelItem = React.memo(({
       );
     }
 
-    if (ExpoAV) {
-      return (
-        <VideoPlayerExpoAV
-          hlsUrl={reel.hlsUrl}
-          isPlaying={isPlaying}
-          isActive={isActive}
-          isScreenFocused={isScreenFocused}
-          isMuted={isMuted}
-          posterUrl={reel.imageUrl}
-          videoRef={avVideoRef}
-          onProgress={handleProgressUpdate}
-          onStatusChange={setPlayerStatus}
-        />
-      );
-    }
 
     // Default static image fallback
     return <Image source={{ uri: reel.imageUrl }} style={styles.backgroundImage} />;
