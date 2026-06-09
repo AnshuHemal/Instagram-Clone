@@ -1,77 +1,52 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, Modal, Image, Animated, Pressable } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, FlatList, RefreshControl, Modal, Image, Animated, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FeedHeader } from '@/components/FeedHeader';
 import { StoryCircle } from '@/components/StoryCircle';
 import { PostCard } from '@/components/PostCard';
 import { ThemedText } from '@/components/themed-text';
-import { MOCK_POSTS, MOCK_STORIES, Post, Story } from '@/constants/mockData';
+import { MOCK_STORIES, Story } from '@/constants/mockData';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { usePosts } from '@/contexts/PostsContext';
 
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Sync posts with global MOCK_POSTS when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      setPosts([...MOCK_POSTS]);
-    }, [])
-  );
+  const {
+    posts,
+    isLoading,
+    isRefreshing,
+    hasMore,
+    cursor,
+    fetchPosts,
+    handleLikeToggle,
+    handleAddComment,
+  } = usePosts();
   
+  const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
+
+  // Initial load
+  useEffect(() => {
+    fetchPosts(null, true);
+  }, []);
+
   // Story Modal State
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const storyProgress = useRef(new Animated.Value(0)).current;
   const storyTimerRef = useRef<any>(null);
 
-  // Sync mock posts when navigating or updates happen
-  // To keep state consistency, we store it in local React state
-
   const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      // Prepend a mock refreshed post if needed, or reset
-      setRefreshing(false);
-    }, 1500);
+    fetchPosts(null, true);
   };
 
-  const handleLikeToggle = (id: string) => {
-    const postIndex = MOCK_POSTS.findIndex((p) => p.id === id);
-    if (postIndex !== -1) {
-      const isLiked = !MOCK_POSTS[postIndex].isLiked;
-      MOCK_POSTS[postIndex].isLiked = isLiked;
-      MOCK_POSTS[postIndex].likesCount = isLiked
-        ? MOCK_POSTS[postIndex].likesCount + 1
-        : MOCK_POSTS[postIndex].likesCount - 1;
-      setPosts([...MOCK_POSTS]);
+  const handleLoadMore = () => {
+    if (hasMore && !isLoading && !isRefreshing && cursor) {
+      fetchPosts(cursor, false);
     }
   };
 
   const handleBookmarkToggle = (id: string) => {
-    const postIndex = MOCK_POSTS.findIndex((p) => p.id === id);
-    if (postIndex !== -1) {
-      MOCK_POSTS[postIndex].isBookmarked = !MOCK_POSTS[postIndex].isBookmarked;
-      setPosts([...MOCK_POSTS]);
-    }
-  };
-
-  const handleAddComment = (postId: string, text: string) => {
-    const postIndex = MOCK_POSTS.findIndex((p) => p.id === postId);
-    if (postIndex !== -1) {
-      const newCommentObj = {
-        id: `c_${postId}_${Date.now()}`,
-        username: 'antigravity_coder',
-        text,
-        timestamp: 'Now',
-      };
-      MOCK_POSTS[postIndex].comments = [newCommentObj, ...MOCK_POSTS[postIndex].comments];
-      MOCK_POSTS[postIndex].commentsCount = MOCK_POSTS[postIndex].commentsCount + 1;
-      setPosts([...MOCK_POSTS]);
-    }
+    // Bookmarks are handled locally in individual PostCards since they are not in schema
   };
 
   // Story Viewer Controls
@@ -135,6 +110,15 @@ export default function FeedScreen() {
     </View>
   );
 
+  const renderFooter = () => {
+    if (!isLoading || isRefreshing) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.primary} />
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <FeedHeader />
@@ -152,9 +136,19 @@ export default function FeedScreen() {
           />
         )}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.text} />
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.text} />
         }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         contentContainerStyle={styles.feedScroll}
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.emptyFeed}>
+              <ThemedText style={{ color: colors.textSecondary }}>No posts available. Be the first to create one!</ThemedText>
+            </View>
+          ) : null
+        }
       />
 
       {/* Fullscreen Story Viewer Modal */}
@@ -211,6 +205,17 @@ const styles = StyleSheet.create({
   },
   storiesList: {
     paddingHorizontal: 15,
+  },
+  footerLoader: {
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  emptyFeed: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 100,
+    paddingHorizontal: 30,
   },
   // Story View Modal
   storyOverlay: {

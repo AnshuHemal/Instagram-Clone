@@ -1,46 +1,123 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, ScrollView, Pressable, Image, Dimensions, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TextInput, ScrollView, Pressable, Image, Dimensions, RefreshControl, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { Post, usePosts } from '@/contexts/PostsContext';
+import { api } from '@/services/api';
+import { PostCard } from '@/components/PostCard';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width / 3;
 
-interface ExploreItem {
-  id: string;
-  imageUrl: string;
-  size: 'small' | 'large';
-  category: string;
-}
-
-const EXPLORE_ITEMS: ExploreItem[] = [
-  { id: 'e1', imageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400', size: 'small', category: 'nature' },
-  { id: 'e2', imageUrl: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=400', size: 'small', category: 'nature' },
-  { id: 'e3', imageUrl: 'https://images.unsplash.com/photo-1472214222541-d510753a8707?w=600', size: 'large', category: 'nature' }, // large
-  { id: 'e4', imageUrl: 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=400', size: 'small', category: 'sunset' },
-  { id: 'e5', imageUrl: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400', size: 'small', category: 'nature' },
-  { id: 'e6', imageUrl: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400', size: 'small', category: 'nature' },
-  { id: 'e7', imageUrl: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=600', size: 'large', category: 'coding' }, // large
-  { id: 'e8', imageUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400', size: 'small', category: 'coding' },
-  { id: 'e9', imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400', size: 'small', category: 'coding' },
-  { id: 'e10', imageUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400', size: 'small', category: 'music' },
-  { id: 'e11', imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400', size: 'small', category: 'music' },
-  { id: 'e12', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400', size: 'small', category: 'music' },
-];
-
 export default function ExploreScreen() {
   const { colors, isDark } = useTheme();
   const [search, setSearch] = useState('');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
-  const filteredItems = EXPLORE_ITEMS.filter(item => 
-    item.category.toLowerCase().includes(search.toLowerCase())
-  );
+  const { handleLikeToggle, handleAddComment } = usePosts();
 
-  // Layout calculations: We render using a Flex Wrap Container to create custom sized elements
-  // Standard square size: COLUMN_WIDTH x COLUMN_WIDTH
-  // Large square size: (COLUMN_WIDTH * 2) x (COLUMN_WIDTH * 2)
+  const loadExplorePosts = async (isRef = false) => {
+    if (isRef) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    try {
+      const response = await api.get('/posts/feed', {
+        params: {
+          limit: 30,
+        },
+      });
+      setPosts(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to load explore posts:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadExplorePosts();
+  }, []);
+
+  const filteredPosts = posts.filter(post => {
+    const term = search.toLowerCase();
+    const captionMatches = post.caption?.toLowerCase().includes(term);
+    const usernameMatches = post.user?.username.toLowerCase().includes(term);
+    const locationMatches = post.location?.toLowerCase().includes(term);
+    return captionMatches || usernameMatches || locationMatches;
+  });
+
+  const getGridItemSize = (index: number): 'large' | 'small' => {
+    // 0, 1 small. 2 large. 3, 4, 5, 6 small. 7 large. 8, 9 small.
+    const modulo = index % 10;
+    if (modulo === 2 || modulo === 7) {
+      return 'large';
+    }
+    return 'small';
+  };
+
+  const onExploreLikeToggle = async (postId: string) => {
+    await handleLikeToggle(postId);
+    
+    // Sync local explore state
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        const isLiked = !p.isLiked;
+        return {
+          ...p,
+          isLiked,
+          likesCount: isLiked ? p.likesCount + 1 : p.likesCount - 1
+        };
+      }
+      return p;
+    }));
+    
+    // Sync active modal details
+    if (selectedPost && selectedPost.id === postId) {
+      setSelectedPost(prev => {
+        if (!prev) return null;
+        const isLiked = !prev.isLiked;
+        return {
+          ...prev,
+          isLiked,
+          likesCount: isLiked ? prev.likesCount + 1 : prev.likesCount - 1
+        };
+      });
+    }
+  };
+
+  const onExploreCommentAdd = async (postId: string, text: string) => {
+    const comment = await handleAddComment(postId, text);
+    
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return {
+          ...p,
+          commentsCount: p.commentsCount + 1
+        };
+      }
+      return p;
+    }));
+
+    if (selectedPost && selectedPost.id === postId) {
+      setSelectedPost(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          commentsCount: prev.commentsCount + 1
+        };
+      });
+    }
+
+    return comment;
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
@@ -49,7 +126,7 @@ export default function ExploreScreen() {
         <View style={[styles.searchBar, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
           <Ionicons name="search-outline" size={18} color={isDark ? '#A8A8A8' : '#737373'} style={styles.searchIcon} />
           <TextInput
-            placeholder="Search"
+            placeholder="Search posts, users or location"
             placeholderTextColor={isDark ? '#A8A8A8' : '#737373'}
             value={search}
             onChangeText={setSearch}
@@ -59,32 +136,91 @@ export default function ExploreScreen() {
       </View>
 
       {/* Explore Grid Scroll */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.gridContainer}>
-          {filteredItems.map((item, index) => {
-            // Customize styling dynamically based on size
-            if (item.size === 'large') {
-              return (
-                <View key={item.id} style={[styles.largeCardContainer, { width: COLUMN_WIDTH * 2, height: COLUMN_WIDTH * 2 }]}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.gridImage} />
-                  <View style={styles.overlayCategory}>
-                    <ThemedText type="smallBold" style={styles.overlayText}>#{item.category}</ThemedText>
-                  </View>
-                </View>
-              );
-            } else {
-              return (
-                <View key={item.id} style={[styles.smallCardContainer, { width: COLUMN_WIDTH, height: COLUMN_WIDTH }]}>
-                  <Image source={{ uri: item.imageUrl }} style={styles.gridImage} />
-                  <View style={styles.overlayCategory}>
-                    <ThemedText type="smallBold" style={styles.overlayText}>#{item.category}</ThemedText>
-                  </View>
-                </View>
-              );
-            }
-          })}
+      {loading && posts.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </ScrollView>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => loadExplorePosts(true)} tintColor={colors.text} />
+          }
+        >
+          <View style={styles.gridContainer}>
+            {filteredPosts.map((post, index) => {
+              const size = getGridItemSize(index);
+              const firstMedia = post.media && post.media.length > 0 ? post.media[0] : null;
+              const imageUrl = firstMedia?.mediaUrl || 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400';
+              const isVideo = firstMedia?.mediaType === 'VIDEO';
+
+              const cardStyle = size === 'large'
+                ? [styles.largeCardContainer, { width: COLUMN_WIDTH * 2, height: COLUMN_WIDTH * 2 }]
+                : [styles.smallCardContainer, { width: COLUMN_WIDTH, height: COLUMN_WIDTH }];
+
+              return (
+                <Pressable
+                  key={post.id}
+                  onPress={() => setSelectedPost(post)}
+                  style={cardStyle}
+                >
+                  <Image source={{ uri: imageUrl }} style={styles.gridImage} />
+                  
+                  {/* Indicators overlay */}
+                  <View style={styles.indicatorsOverlay}>
+                    {isVideo && (
+                      <Ionicons name="play" size={14} color="#FFFFFF" style={styles.indicatorIcon} />
+                    )}
+                    {post.media.length > 1 && (
+                      <Ionicons name="copy" size={12} color="#FFFFFF" style={styles.indicatorIcon} />
+                    )}
+                  </View>
+                  
+                  {post.caption ? (
+                    <View style={styles.overlayCategory}>
+                      <ThemedText type="smallBold" numberOfLines={1} style={styles.overlayText}>
+                        {post.caption}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+          {filteredPosts.length === 0 && !loading && (
+            <View style={styles.emptyContainer}>
+              <ThemedText style={{ color: colors.textSecondary }}>No posts found matching search query.</ThemedText>
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* Post Detail Modal */}
+      {selectedPost && (
+        <Modal visible={selectedPost !== null} animationType="slide" transparent={false} onRequestClose={() => setSelectedPost(null)}>
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+            {/* Modal Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <Pressable onPress={() => setSelectedPost(null)} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
+              </Pressable>
+              <ThemedText type="subtitle" style={styles.modalTitle}>Explore</ThemedText>
+              <View style={{ width: 40 }} />
+            </View>
+            
+            {/* Detail Scroll */}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <PostCard
+                post={selectedPost}
+                onLikeToggle={onExploreLikeToggle}
+                onBookmarkToggle={() => {}}
+                onAddComment={onExploreCommentAdd}
+              />
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -133,10 +269,24 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
+  indicatorsOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  indicatorIcon: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 4,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
   overlayCategory: {
     position: 'absolute',
     bottom: 8,
     left: 8,
+    right: 8,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 6,
     paddingVertical: 3,
@@ -145,5 +295,31 @@ const styles = StyleSheet.create({
   overlayText: {
     color: '#FFFFFF',
     fontSize: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    paddingVertical: 100,
+    alignItems: 'center',
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+  },
+  backButton: {
+    padding: 5,
+  },
+  modalTitle: {
+    fontWeight: 'bold',
   },
 });

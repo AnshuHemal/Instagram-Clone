@@ -1,16 +1,83 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Image, Pressable, Animated, TextInput, Keyboard, Platform, Modal, FlatList } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Image, Pressable, Animated, TextInput, Keyboard, Platform, Modal, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
-import { Post, Comment } from '@/constants/mockData';
+import { Post, Comment } from '@/contexts/PostsContext';
+import { api } from '@/services/api';
+
+const WINDOW_WIDTH = Dimensions.get('window').width;
+
+// Dynamic check for expo-video
+let ExpoVideo: any = null;
+try {
+  ExpoVideo = require('expo-video');
+} catch (e) {
+  // Silent fallback
+}
 
 interface PostCardProps {
   post: Post;
   onLikeToggle: (id: string) => void;
   onBookmarkToggle: (id: string) => void;
-  onAddComment: (postId: string, text: string) => void;
+  onAddComment: (postId: string, text: string) => Promise<any>;
 }
+
+// Inline Video Player Component
+const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ mediaUrl, isActive }) => {
+  const [isMuted, setIsMuted] = useState(true);
+
+  if (!ExpoVideo) {
+    return (
+      <View style={styles.videoPlaceholder}>
+        <Ionicons name="play-circle" size={48} color="#FFFFFF" />
+      </View>
+    );
+  }
+
+  const player = ExpoVideo.useVideoPlayer(mediaUrl, (p: any) => {
+    p.loop = true;
+    p.muted = isMuted;
+    p.showNowPlayingNotification = false;
+    if (isActive) {
+      p.play();
+    } else {
+      p.pause();
+    }
+  });
+
+  // Sync play/pause with isActive
+  useEffect(() => {
+    if (isActive) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isActive, player]);
+
+  // Sync mute state
+  useEffect(() => {
+    player.muted = isMuted;
+  }, [isMuted, player]);
+
+  return (
+    <Pressable onPress={() => setIsMuted(!isMuted)} style={styles.videoPressable}>
+      <ExpoVideo.VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+      />
+      <View style={styles.volumeIconContainer}>
+        <Ionicons
+          name={isMuted ? 'volume-mute' : 'volume-high'}
+          size={16}
+          color="#FFFFFF"
+        />
+      </View>
+    </Pressable>
+  );
+};
 
 export const PostCard: React.FC<PostCardProps> = ({
   post,
@@ -20,8 +87,15 @@ export const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [lastTap, setLastTap] = useState(0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
+  // Carousel animation
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // Animation values for double tap
   const heartScale = useRef(new Animated.Value(0)).current;
@@ -29,6 +103,25 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   // Animation values for like button click
   const likeScale = useRef(new Animated.Value(1)).current;
+
+  // Load comments when showComments modal opens
+  useEffect(() => {
+    if (showComments) {
+      loadComments();
+    }
+  }, [showComments]);
+
+  const loadComments = async () => {
+    setLoadingComments(true);
+    try {
+      const response = await api.get(`/posts/${post.id}/comments`);
+      setComments(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to load comments:', err);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
 
   const triggerLikeAnim = () => {
     Animated.sequence([
@@ -46,11 +139,9 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   const triggerDoubleTapHeart = () => {
-    // Reset scale and opacity
     heartScale.setValue(0);
     heartOpacity.setValue(1);
 
-    // Scale up and fade out
     Animated.parallel([
       Animated.spring(heartScale, {
         toValue: 1.2,
@@ -88,23 +179,57 @@ export const PostCard: React.FC<PostCardProps> = ({
     triggerLikeAnim();
   };
 
-  const handleSendComment = () => {
+  const handleSendComment = async () => {
     if (!newComment.trim()) return;
-    onAddComment(post.id, newComment.trim());
-    setNewComment('');
-    Keyboard.dismiss();
+    try {
+      const addedComment = await onAddComment(post.id, newComment.trim());
+      if (addedComment) {
+        setComments((prev) => [addedComment, ...prev]);
+      }
+      setNewComment('');
+      Keyboard.dismiss();
+    } catch (err) {
+      console.error('Failed to post comment:', err);
+    }
   };
+
+  const formatTimeAgo = (dateString: string) => {
+    if (!dateString) return '';
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSecs < 60) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Safe fallback for user data
+  const username = post.user?.username || 'user';
+  const avatarUrl = post.user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  const displayName = post.user?.displayName || username;
 
   return (
     <View style={[styles.container, { borderBottomColor: colors.border }]}>
       {/* Post Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image source={{ uri: post.user.avatar }} style={styles.avatar} />
+          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
           <View style={styles.userInfo}>
-            <ThemedText type="smallBold" style={{ color: colors.text }}>
-              {post.user.username}
-            </ThemedText>
+            <View style={styles.usernameRow}>
+              <ThemedText type="smallBold" style={{ color: colors.text }}>
+                {username}
+              </ThemedText>
+              {post.user?.isVerified && (
+                <Ionicons name="checkmark-circle" size={12} color="#0095F6" style={{ marginLeft: 3 }} />
+              )}
+            </View>
             {post.location && (
               <ThemedText type="small" style={[styles.location, { color: colors.textSecondary }]}>
                 {post.location}
@@ -117,9 +242,40 @@ export const PostCard: React.FC<PostCardProps> = ({
         </Pressable>
       </View>
 
-      {/* Post Image Container with Double Tap Heart */}
-      <Pressable onPress={handleImagePress} style={styles.imageContainer}>
-        <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
+      {/* Post Media horizontal carousel */}
+      <View style={styles.carouselWrapper}>
+        <Animated.FlatList
+          data={post.media}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.id}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            {
+              useNativeDriver: false,
+              listener: (event: any) => {
+                const width = event.nativeEvent.layoutMeasurement.width;
+                const offset = event.nativeEvent.contentOffset.x;
+                const index = Math.round(offset / width);
+                if (index !== activeIndex) {
+                  setActiveIndex(index);
+                }
+              },
+            }
+          )}
+          renderItem={({ item, index }) => (
+            <Pressable onPress={handleImagePress} style={styles.mediaContainer}>
+              {item.mediaType === 'VIDEO' ? (
+                <VideoItem mediaUrl={item.mediaUrl} isActive={index === activeIndex} />
+              ) : (
+                <Image source={{ uri: item.mediaUrl }} style={styles.postImage} />
+              )}
+            </Pressable>
+          )}
+        />
+
+        {/* Double Tap Heart */}
         <Animated.View
           style={[
             styles.doubleTapHeart,
@@ -128,10 +284,47 @@ export const PostCard: React.FC<PostCardProps> = ({
               opacity: heartOpacity,
             },
           ]}
+          pointerEvents="none"
         >
-          <Ionicons name="heart" size={100} color="#FFFFFF" />
+          <Ionicons name="heart" size={90} color="#FFFFFF" />
         </Animated.View>
-      </Pressable>
+
+        {/* Scale/Opacity Animated Dot Indicators */}
+        {post.media.length > 1 && (
+          <View style={styles.dotsContainer}>
+            {post.media.map((_, i) => {
+              const inputRange = [
+                (i - 1) * WINDOW_WIDTH,
+                i * WINDOW_WIDTH,
+                (i + 1) * WINDOW_WIDTH,
+              ];
+              const scale = scrollX.interpolate({
+                inputRange,
+                outputRange: [0.8, 1.2, 0.8],
+                extrapolate: 'clamp',
+              });
+              const opacity = scrollX.interpolate({
+                inputRange,
+                outputRange: [0.4, 1.0, 0.4],
+                extrapolate: 'clamp',
+              });
+              return (
+                <Animated.View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      opacity,
+                      transform: [{ scale }],
+                      backgroundColor: colors.primary,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+        )}
+      </View>
 
       {/* Action Buttons */}
       <View style={styles.actionsBar}>
@@ -152,10 +345,9 @@ export const PostCard: React.FC<PostCardProps> = ({
             <Feather name="send" size={23} color={colors.text} />
           </Pressable>
         </View>
-        <Pressable onPress={() => onBookmarkToggle(post.id)} style={styles.actionButton}>
-          <Feather
-            name={post.isBookmarked ? 'bookmark' : 'bookmark'}
-            style={post.isBookmarked && { color: colors.text }}
+        <Pressable onPress={() => setIsBookmarked(!isBookmarked)} style={styles.actionButton}>
+          <Ionicons
+            name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
             size={24}
             color={colors.text}
           />
@@ -170,16 +362,18 @@ export const PostCard: React.FC<PostCardProps> = ({
       </View>
 
       {/* Caption */}
-      <View style={styles.captionContainer}>
-        <ThemedText type="small" style={{ color: colors.text, lineHeight: 18 }}>
-          <ThemedText type="smallBold" style={{ color: colors.text }}>
-            {post.user.username}{' '}
+      {post.caption ? (
+        <View style={styles.captionContainer}>
+          <ThemedText type="small" style={{ color: colors.text, lineHeight: 18 }}>
+            <ThemedText type="smallBold" style={{ color: colors.text }}>
+              {username}{' '}
+            </ThemedText>
+            {post.caption}
           </ThemedText>
-          {post.caption}
-        </ThemedText>
-      </View>
+        </View>
+      ) : null}
 
-      {/* Comments Preview */}
+      {/* Comments Preview Link */}
       {post.commentsCount > 0 && (
         <Pressable onPress={() => setShowComments(true)} style={styles.commentsPreviewContainer}>
           <ThemedText type="small" style={{ color: colors.textSecondary }}>
@@ -188,25 +382,15 @@ export const PostCard: React.FC<PostCardProps> = ({
         </Pressable>
       )}
 
-      {/* Recent comments list (displays top 2) */}
-      <View style={styles.recentComments}>
-        {post.comments.slice(0, 2).map((comment) => (
-          <ThemedText key={comment.id} type="small" style={styles.commentItem}>
-            <ThemedText type="smallBold">{comment.username} </ThemedText>
-            {comment.text}
-          </ThemedText>
-        ))}
-      </View>
-
       {/* Timestamp */}
       <View style={styles.timestampContainer}>
         <ThemedText style={[styles.timestamp, { color: colors.textSecondary }]}>
-          {post.timestamp.toUpperCase()}
+          {formatTimeAgo(post.createdAt).toUpperCase()}
         </ThemedText>
       </View>
 
       {/* Interactive Comments Modal */}
-      <Modal visible={showComments} animationType="slide" transparent>
+      <Modal visible={showComments} animationType="slide" transparent onRequestClose={() => setShowComments(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
             {/* Modal Header */}
@@ -221,31 +405,45 @@ export const PostCard: React.FC<PostCardProps> = ({
             </View>
 
             {/* Comments Scrollable Area */}
-            <FlatList
-              data={post.comments}
-              keyExtractor={(item: any) => item.id}
-              contentContainerStyle={styles.commentsList}
-              renderItem={({ item }: { item: any }) => (
-                <View style={styles.modalCommentItem}>
-                  <View style={styles.commentUserRow}>
-                    <ThemedText type="smallBold" style={{ color: colors.text }}>
-                      {item.username}
-                    </ThemedText>
-                    <ThemedText type="small" style={[styles.commentTime, { color: colors.textSecondary }]}>
-                      {item.timestamp}
-                    </ThemedText>
+            {loadingComments ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : (
+              <FlatList
+                data={comments}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.commentsList}
+                renderItem={({ item }) => (
+                  <View style={styles.modalCommentItem}>
+                    <View style={styles.commentUserRow}>
+                      <Image
+                        source={{ uri: item.user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' }}
+                        style={styles.commentAvatar}
+                      />
+                      <View style={styles.commentTextColumn}>
+                        <View style={styles.commentMetaRow}>
+                          <ThemedText type="smallBold" style={{ color: colors.text }}>
+                            {item.user?.username || 'user'}
+                          </ThemedText>
+                          <ThemedText type="small" style={[styles.commentTime, { color: colors.textSecondary }]}>
+                            {formatTimeAgo(item.createdAt)}
+                          </ThemedText>
+                        </View>
+                        <ThemedText type="small" style={[styles.commentText, { color: colors.text }]}>
+                          {item.text}
+                        </ThemedText>
+                      </View>
+                    </View>
                   </View>
-                  <ThemedText type="small" style={[styles.commentText, { color: colors.text }]}>
-                    {item.text}
-                  </ThemedText>
-                </View>
-              )}
-              ListEmptyComponent={
-                <View style={styles.emptyComments}>
-                  <ThemedText style={{ color: colors.textSecondary }}>No comments yet.</ThemedText>
-                </View>
-              }
-            />
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyComments}>
+                    <ThemedText style={{ color: colors.textSecondary }}>No comments yet.</ThemedText>
+                  </View>
+                }
+              />
+            )}
 
             {/* Comment Input Box */}
             <View style={[styles.modalInputContainer, { borderTopColor: colors.border }]}>
@@ -306,6 +504,10 @@ const styles = StyleSheet.create({
   userInfo: {
     justifyContent: 'center',
   },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   location: {
     fontSize: 11,
     marginTop: 1,
@@ -313,26 +515,69 @@ const styles = StyleSheet.create({
   headerRight: {
     padding: 5,
   },
-  imageContainer: {
+  carouselWrapper: {
     position: 'relative',
     width: '100%',
     aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  mediaContainer: {
+    width: WINDOW_WIDTH,
+    height: WINDOW_WIDTH,
+    backgroundColor: '#000000',
   },
   postImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
+  videoPlaceholder: {
+    flex: 1,
+    backgroundColor: '#1c1c1c',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoPressable: {
+    flex: 1,
+  },
+  volumeIconContainer: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
   doubleTapHeart: {
     position: 'absolute',
     alignSelf: 'center',
-    zIndex: 10,
+    top: '50%',
+    marginTop: -45,
+    zIndex: 20,
     shadowColor: '#000000',
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+  },
+  dotsContainer: {
+    position: 'absolute',
+    bottom: 12,
+    flexDirection: 'row',
+    alignSelf: 'center',
+    zIndex: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 3,
   },
   actionsBar: {
     flexDirection: 'row',
@@ -360,14 +605,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginTop: 6,
   },
-  recentComments: {
-    paddingHorizontal: 12,
-    marginTop: 4,
-    gap: 2,
-  },
-  commentItem: {
-    fontSize: 13,
-  },
   timestampContainer: {
     paddingHorizontal: 12,
     marginTop: 6,
@@ -377,7 +614,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.2,
   },
-  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -416,14 +652,33 @@ const styles = StyleSheet.create({
     padding: 5,
     marginLeft: 'auto',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   commentsList: {
     padding: 15,
     gap: 15,
   },
   modalCommentItem: {
-    gap: 4,
+    paddingVertical: 4,
   },
   commentUserRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  commentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  commentTextColumn: {
+    flex: 1,
+    gap: 2,
+  },
+  commentMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -432,8 +687,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   commentText: {
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 17,
   },
   emptyComments: {
     alignItems: 'center',
@@ -448,9 +703,9 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     flex: 1,
-    height: 44,
+    height: 40,
     borderWidth: 1,
-    borderRadius: 22,
+    borderRadius: 20,
     paddingHorizontal: 15,
     fontSize: 14,
   },
@@ -459,3 +714,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
 });
+

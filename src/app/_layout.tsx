@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { ReelsProvider } from '@/contexts/ReelsContext';
+import { PostsProvider } from '@/contexts/PostsContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -45,7 +46,9 @@ export default function RootLayout() {
       <AuthProvider>
         <ThemeProvider>
           <ReelsProvider>
-            <RootLayoutContent />
+            <PostsProvider>
+              <RootLayoutContent />
+            </PostsProvider>
           </ReelsProvider>
         </ThemeProvider>
       </AuthProvider>

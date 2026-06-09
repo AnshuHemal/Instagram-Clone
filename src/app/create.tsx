@@ -80,8 +80,9 @@ export default function CreatePostScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       style={[styles.container, { backgroundColor: colors.background }]}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 90}
     >
       <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
         {/* Header */}
