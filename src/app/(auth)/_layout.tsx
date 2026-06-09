@@ -10,6 +10,10 @@ export default function AuthLayout() {
       <Stack.Screen name="birthday" />
       <Stack.Screen name="username" />
       <Stack.Screen name="terms" />
+      <Stack.Screen name="permissions" />
+      <Stack.Screen name="profile-picture" />
+      <Stack.Screen name="add-contact" />
+      <Stack.Screen name="follow-suggestions" />
       <Stack.Screen name="forgot" />
     </Stack>
   );

@@ -84,8 +84,11 @@ export default function TermsScreen() {
     try {
       const success = await registerComplete(signupToken, password, birthday, name, username);
       if (success) {
-        // Clear navigation stack and go to main tab application
-        router.replace('/(tabs)');
+        // Redirect to device permissions screen passing parameter
+        router.replace({
+          pathname: '/permissions',
+          params: { isPhone: isPhoneMode ? 'true' : 'false' }
+        });
       } else {
         setError('Signup failed. Please try again.');
         setIsLoading(false);

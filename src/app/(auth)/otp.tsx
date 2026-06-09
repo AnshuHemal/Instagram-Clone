@@ -13,7 +13,7 @@ export default function OtpScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showLoading, hideLoading } = useLoading();
-  const params = useLocalSearchParams<{ target?: string; isPhone?: string }>();
+  const params = useLocalSearchParams<{ target?: string; isPhone?: string; fromAddContact?: string }>();
 
   const [target, setTarget] = useState(params.target || '');
   const [isPhoneMode, setIsPhoneMode] = useState(params.isPhone === 'true');
@@ -78,14 +78,22 @@ export default function OtpScreen() {
       
       const { signupToken } = res.data;
       setIsLoading(false);
-      router.push({
-        pathname: '/password',
-        params: {
-          phoneOrEmail: target,
-          isPhone: isPhoneMode ? 'true' : 'false',
-          signupToken,
-        },
-      });
+      
+      if (params.fromAddContact === 'true') {
+        router.push({
+          pathname: '/follow-suggestions',
+          params: { isPhone: isPhoneMode ? 'true' : 'false' }
+        });
+      } else {
+        router.push({
+          pathname: '/password',
+          params: {
+            phoneOrEmail: target,
+            isPhone: isPhoneMode ? 'true' : 'false',
+            signupToken,
+          },
+        });
+      }
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Invalid or expired confirmation code.';
       setError(errorMsg);

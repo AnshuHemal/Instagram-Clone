@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, FlatList, RefreshControl, Modal, Image, Animated, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, FlatList, RefreshControl, Modal, Image, Animated, Pressable, ActivityIndicator, Platform, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FeedHeader } from '@/components/FeedHeader';
@@ -9,6 +9,9 @@ import { ThemedText } from '@/components/themed-text';
 import { MOCK_STORIES, Story } from '@/constants/mockData';
 import { Ionicons } from '@expo/vector-icons';
 import { usePosts } from '@/contexts/PostsContext';
+import * as SecureStore from 'expo-secure-store';
+import ReAnimated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { Fonts } from '@/constants/theme';
 
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
@@ -24,11 +27,33 @@ export default function FeedScreen() {
   } = usePosts();
   
   const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Initial load
   useEffect(() => {
     fetchPosts(null, true);
+
+    const checkTutorial = async () => {
+      try {
+        const val = await SecureStore.getItemAsync('tutorialShown');
+        if (!val) {
+          setShowTutorial(true);
+        }
+      } catch (err) {
+        console.error('Failed to read tutorial viewed state:', err);
+      }
+    };
+    checkTutorial();
   }, []);
+
+  const handleCloseTutorial = async () => {
+    setShowTutorial(false);
+    try {
+      await SecureStore.setItemAsync('tutorialShown', 'true');
+    } catch (err) {
+      console.error('Failed to write tutorial viewed state:', err);
+    }
+  };
 
   // Story Modal State
   const [activeStory, setActiveStory] = useState<Story | null>(null);
@@ -188,6 +213,48 @@ export default function FeedScreen() {
           </View>
         </Modal>
       )}
+
+      {/* Tutorial Modal */}
+      {showTutorial && (
+        <Modal transparent visible={showTutorial} animationType="none" onRequestClose={handleCloseTutorial}>
+          <View style={styles.tutorialOverlay}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={handleCloseTutorial}>
+              <ReAnimated.View 
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(200)}
+                style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.6)' }]}
+              />
+            </Pressable>
+
+            <ReAnimated.View 
+              entering={SlideInDown.duration(350)}
+              exiting={SlideOutDown.duration(250)}
+              style={[
+                styles.tutorialCard,
+                { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }
+              ]}
+            >
+              <Image 
+                source={require('@/assets/images/navigation_tutorial.png')} 
+                style={styles.tutorialImage}
+                resizeMode="contain"
+              />
+
+              <Text style={[styles.tutorialTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+                Swipe to easily access Reels and messages
+              </Text>
+
+              <Text style={[styles.tutorialSubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                We\'ve simplified our navigation to help you find and enjoy your favorite parts of Instagram.
+              </Text>
+
+              <Pressable style={styles.tutorialButton} onPress={handleCloseTutorial}>
+                <Text style={styles.tutorialButtonText}>Got it</Text>
+              </Pressable>
+            </ReAnimated.View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -266,5 +333,58 @@ const styles = StyleSheet.create({
   storyCloseButton: {
     marginLeft: 'auto',
     padding: 5,
+  },
+  // Tutorial Modal styles
+  tutorialOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  tutorialCard: {
+    width: '100%',
+    borderRadius: 36,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  tutorialImage: {
+    width: '80%',
+    height: 160,
+    marginBottom: 20,
+  },
+  tutorialTitle: {
+    fontSize: 22,
+    fontFamily: Fonts.bold,
+    textAlign: 'center',
+    lineHeight: 28,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+  },
+  tutorialSubtitle: {
+    fontSize: 14.5,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  tutorialButton: {
+    backgroundColor: '#0064E0', // standard brand blue
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tutorialButtonText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 15.5,
   },
 });
