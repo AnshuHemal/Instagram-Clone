@@ -26,7 +26,7 @@ interface AuthContextProps {
     username: string
   ) => Promise<boolean>;
   logout: () => Promise<void>;
-  updateProfile: (name: string, bio: string, avatar: string) => void;
+  updateProfile: (name: string, bio: string, avatar: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -187,14 +187,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   };
 
-  const updateProfile = (name: string, bio: string, avatar: string) => {
-    if (user) {
-      setUser({
-        ...user,
+  const updateProfile = async (name: string, bio: string, avatar: string): Promise<boolean> => {
+    try {
+      const res = await api.patch('/auth/profile', {
         name,
         bio,
-        avatar: avatar || user.avatar,
+        avatarUrl: avatar,
       });
+      if (res.data && res.data.user) {
+        const u = res.data.user;
+        setUser((prev) => prev ? {
+          ...prev,
+          name: u.displayName || prev.name,
+          bio: u.bio || prev.bio,
+          avatar: u.avatarUrl || prev.avatar,
+        } : null);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      // Fallback local update if API fails (offline/mock)
+      if (user) {
+        setUser({
+          ...user,
+          name,
+          bio,
+          avatar: avatar || user.avatar,
+        });
+      }
+      return false;
     }
   };
 

@@ -62,20 +62,9 @@ export default function SignupScreen() {
   useFocusEffect(
     useCallback(() => {
       const backAction = () => {
-        if (step === 'PHONE_OR_EMAIL') {
+        if (step === 'PHONE_OR_EMAIL' || step === 'NAME') {
           setShowConfirmModal(true);
           return true; // prevent default behavior
-        } else if (step === 'NAME') {
-          router.replace({
-            pathname: '/birthday',
-            params: {
-              phoneOrEmail: phoneOrEmail,
-              isPhone: isPhoneMode ? 'true' : 'false',
-              password: password,
-              birthday: birthday,
-            },
-          });
-          return true;
         } else if (step === 'USERNAME') {
           setStep('NAME');
           return true;
@@ -92,9 +81,12 @@ export default function SignupScreen() {
     }, [step, phoneOrEmail, isPhoneMode, password, birthday])
   );
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^\d{7,15}$/;
+
   const isStep1Valid = isPhoneMode
-    ? phoneOrEmail.trim().length >= 8
-    : phoneOrEmail.trim().includes('@') && phoneOrEmail.trim().length > 3;
+    ? phoneRegex.test(phoneOrEmail.trim())
+    : emailRegex.test(phoneOrEmail.trim());
 
   const isNameValid = name.trim().length > 0;
   const isStep4Valid = username.trim().length >= 3;
@@ -110,7 +102,7 @@ export default function SignupScreen() {
     setError('');
     if (step === 'PHONE_OR_EMAIL') {
       if (!isStep1Valid) {
-        setError(isPhoneMode ? 'Please enter a valid mobile number.' : 'Please enter a valid email address.');
+        setError(isPhoneMode ? 'Please enter a valid mobile number (7-15 digits).' : 'Please enter a valid email address.');
         return;
       }
       setIsLoading(true);
@@ -184,18 +176,8 @@ export default function SignupScreen() {
 
   const handleBack = () => {
     setError('');
-    if (step === 'PHONE_OR_EMAIL') {
+    if (step === 'PHONE_OR_EMAIL' || step === 'NAME') {
       setShowConfirmModal(true);
-    } else if (step === 'NAME') {
-      router.replace({
-        pathname: '/birthday',
-        params: {
-          phoneOrEmail: phoneOrEmail,
-          isPhone: isPhoneMode ? 'true' : 'false',
-          password: password,
-          birthday: birthday,
-        },
-      });
     } else if (step === 'USERNAME') {
       setStep('NAME');
     }
@@ -434,7 +416,7 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
   secondaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%', marginTop: 12 },
   secondaryButtonText: { fontFamily: Fonts.bold, fontSize: 15 },
-  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 10 },
+  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
   loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
   // Confirmation Modal Styles
@@ -521,9 +503,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   accountModalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    gap: 18,
     marginTop: 8,
   },
   accountModalButton: {

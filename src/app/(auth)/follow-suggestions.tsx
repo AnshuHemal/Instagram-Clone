@@ -1,11 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { StyleSheet, Pressable, View, Text, TextInput, FlatList, Image, Platform, BackHandler } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { StyleSheet, Pressable, View, Text, TextInput, FlatList, Image, Platform, BackHandler, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Fonts } from '@/constants/theme';
+import { api } from '@/services/api';
 
 interface SuggestionUser {
   id: string;
@@ -16,95 +17,14 @@ interface SuggestionUser {
   checked: boolean;
 }
 
-const MOCK_SUGGESTIONS: SuggestionUser[] = [
-  {
-    id: '1',
-    username: 'mohammedsirajofficial',
-    displayName: 'Mohammed Siraj',
-    avatarUrl: 'https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?w=150',
-    verified: true,
-    checked: true,
-  },
-  {
-    id: '2',
-    username: 'abdevilliers17',
-    displayName: 'AB de Villiers',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-    verified: true,
-    checked: true,
-  },
-  {
-    id: '3',
-    username: 'voompla',
-    displayName: 'Voompla',
-    avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
-    verified: true,
-    checked: true,
-  },
-  {
-    id: '4',
-    username: 'dishapatani',
-    displayName: 'disha patani (paatni) 🦋',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-    verified: true,
-    checked: true,
-  },
-  {
-    id: '5',
-    username: 'saratendulkar',
-    displayName: 'Sara Tendulkar',
-    avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-    verified: true,
-    checked: true,
-  },
-  {
-    id: '6',
-    username: 'therock',
-    displayName: 'Dwayne Johnson',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-    verified: true,
-    checked: false,
-  },
-  {
-    id: '7',
-    username: 'maisamayhoon',
-    displayName: 'Samay Raina',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-    verified: true,
-    checked: false,
-  },
-  {
-    id: '8',
-    username: 'vaibhav_sooryavanshi09',
-    displayName: 'Vaibhav Sooryavanshi',
-    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150',
-    verified: true,
-    checked: false,
-  },
-  {
-    id: '9',
-    username: 'virat.kohli',
-    displayName: 'Virat Kohli',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150',
-    verified: true,
-    checked: false,
-  },
-  {
-    id: '10',
-    username: 'cristiano',
-    displayName: 'Cristiano Ronaldo',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-    verified: true,
-    checked: false,
-  },
-];
 
 export default function FollowSuggestionsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
 
-  const [suggestions, setSuggestions] = useState<SuggestionUser[]>(MOCK_SUGGESTIONS);
+  const [suggestions, setSuggestions] = useState<SuggestionUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Disable hardware back button on Android
   useFocusEffect(
@@ -122,12 +42,51 @@ export default function FollowSuggestionsScreen() {
     }, [])
   );
 
+  const fetchSuggestions = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/auth/users/suggestions');
+      if (res.data && Array.isArray(res.data)) {
+        const mapped = res.data.map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          displayName: u.displayName,
+          avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          verified: u.verified || false,
+          checked: u.checked || false,
+        }));
+        setSuggestions(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch real suggestions:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSuggestions();
+  }, []);
+
   const handleSkip = () => {
     router.replace('/(tabs)');
   };
 
-  const handleFollow = () => {
-    // Navigate home after complete onboarding
+  const handleFollow = async () => {
+    const followingIds = suggestions.filter(u => u.checked).map(u => u.id);
+    
+    if (followingIds.length > 0) {
+      try {
+        setIsLoading(true);
+        await api.post('/auth/users/follow-multiple', { followingIds });
+      } catch (err) {
+        console.error('Failed to follow suggestions:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // Navigate home after completing onboarding
     router.replace('/(tabs)');
   };
 
@@ -186,12 +145,12 @@ export default function FollowSuggestionsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]} edges={['top', 'left', 'right', 'bottom']}>
       {/* Top Header bar */}
       <View style={styles.topBar}>
-        <View style={{ width: 40 }} />
-        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+        <View style={{ width: 60 }} />
+        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]} numberOfLines={1}>
           Try following 5+ people
         </Text>
         <Pressable onPress={handleSkip} style={styles.skipButton}>
-          <Text style={[styles.skipButtonText, { color: isDark ? '#FFFFFF' : '#000000' }]}>Skip</Text>
+          <Text style={[styles.skipButtonText, { color: isDark ? '#FFFFFF' : '#000000' }]} numberOfLines={1}>Skip</Text>
         </Pressable>
       </View>
 
@@ -225,22 +184,43 @@ export default function FollowSuggestionsScreen() {
         </Animated.View>
 
         {/* Accounts List */}
-        <FlatList
-          data={filteredSuggestions}
-          keyExtractor={(item) => item.id}
-          renderItem={renderUserItem}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-        />
+        {isLoading && suggestions.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#0095F6" />
+          </View>
+        ) : suggestions.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
+            <Ionicons name="people-outline" size={48} color={isDark ? '#555555' : '#CCCCCC'} style={{ marginBottom: 12 }} />
+            <Text style={{ fontSize: 16, fontFamily: Fonts.bold, color: isDark ? '#FFFFFF' : '#000000', textAlign: 'center', marginBottom: 6 }}>
+              No Suggestions Found
+            </Text>
+            <Text style={{ fontSize: 14, fontFamily: Fonts.regular, color: isDark ? '#A8A8A8' : '#737373', textAlign: 'center' }}>
+              Check back later for new accounts to follow.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredSuggestions}
+            keyExtractor={(item) => item.id}
+            renderItem={renderUserItem}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
       </View>
 
       {/* Bottom Follow Button */}
       <Animated.View entering={FadeInDown.delay(200).duration(350)} style={styles.bottomArea}>
         <Pressable
-          style={styles.followButton}
+          style={[styles.followButton, isLoading && { opacity: 0.7 }]}
+          disabled={isLoading}
           onPress={handleFollow}
         >
-          <Text style={styles.followButtonText}>Follow</Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.followButtonText}>Follow</Text>
+          )}
         </Pressable>
       </Animated.View>
     </SafeAreaView>
@@ -268,11 +248,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 19.5,
     fontFamily: Fonts.bold,
+    flex: 1,
+    textAlign: 'center',
   },
   skipButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    width: 50,
+    width: 60,
     alignItems: 'flex-end',
   },
   skipButtonText: {

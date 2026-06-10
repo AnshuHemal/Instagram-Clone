@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, Alert, Modal, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -13,6 +13,7 @@ export default function ForgotScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { showLoading, hideLoading } = useLoading();
+  const insets = useSafeAreaInsets();
 
   const [searchVal, setSearchVal] = useState('');
   const [isPhoneMode, setIsPhoneMode] = useState(false);
@@ -183,9 +184,11 @@ export default function ForgotScreen() {
         visible={showHelpModal}
         transparent
         animationType="none"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setShowHelpModal(false)}
       >
-        <View style={styles.helpModalOverlay}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           {/* Backdrop Pressable */}
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -201,7 +204,13 @@ export default function ForgotScreen() {
           <Animated.View
             entering={SlideInDown.duration(250)}
             exiting={SlideOutDown.duration(200)}
-            style={[styles.helpBottomSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+            style={[
+              styles.helpBottomSheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                paddingBottom: Math.max(insets.bottom, 24)
+              }
+            ]}
           >
             {/* Drag Handle */}
             <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />

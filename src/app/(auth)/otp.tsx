@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, Modal, BackHandler, TextInput, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, Modal, BackHandler, TextInput, ActivityIndicator, Alert, ToastAndroid } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -14,6 +14,7 @@ export default function OtpScreen() {
   const { colors, isDark } = useTheme();
   const { showLoading, hideLoading } = useLoading();
   const params = useLocalSearchParams<{ target?: string; isPhone?: string; fromAddContact?: string }>();
+  const insets = useSafeAreaInsets();
 
   const [target, setTarget] = useState(params.target || '');
   const [isPhoneMode, setIsPhoneMode] = useState(params.isPhone === 'true');
@@ -101,12 +102,35 @@ export default function OtpScreen() {
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setError('');
     setCode('');
     setShowBottomSheet(false);
-    console.log(`[SMS/Email] Resent code 123456 to ${target}`);
-    alert(`A new confirmation code has been sent to ${target}`);
+    showLoading();
+    try {
+      await api.post('/auth/register/send-otp', {
+        emailOrPhone: target.trim().toLowerCase(),
+        isPhone: isPhoneMode,
+      });
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(`A new confirmation code has been sent to ${target}.`, ToastAndroid.SHORT);
+      } else {
+        Alert.alert(
+          'Code Sent',
+          `A new confirmation code has been sent to ${target}.`
+        );
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || 'Failed to resend confirmation code. Please try again.';
+      setError(errorMsg);
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(errorMsg, ToastAndroid.LONG);
+      } else {
+        Alert.alert('Error', errorMsg);
+      }
+    } finally {
+      hideLoading();
+    }
   };
 
   const handleChangeContact = () => {
@@ -248,23 +272,33 @@ export default function OtpScreen() {
         visible={showBottomSheet}
         transparent
         animationType="none"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setShowBottomSheet(false)}
       >
-        <Pressable 
-          style={styles.modalOverlay} 
-          onPress={() => setShowBottomSheet(false)}
-        >
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(200)}
-            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
-          />
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          {/* Backdrop Pressable */}
+          <Pressable 
+            style={StyleSheet.absoluteFill} 
+            onPress={() => setShowBottomSheet(false)}
+          >
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
+            />
+          </Pressable>
+
           <Animated.View
             entering={SlideInDown.duration(250)}
             exiting={SlideOutDown.duration(200)}
-            style={[styles.bottomSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
-            onStartShouldSetResponder={() => true}
-            onTouchEnd={(e) => e.stopPropagation()}
+            style={[
+              styles.bottomSheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                paddingBottom: Math.max(insets.bottom, 24)
+              }
+            ]}
           >
             {/* Gray drag indicator bar */}
             <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />
@@ -309,7 +343,7 @@ export default function OtpScreen() {
               </Pressable>
             </View>
           </Animated.View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Custom Exit Confirmation Modal */}
@@ -317,6 +351,7 @@ export default function OtpScreen() {
         visible={showConfirmModal}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setShowConfirmModal(false)}
       >
         <Pressable 

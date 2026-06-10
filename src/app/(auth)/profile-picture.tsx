@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, Pressable, ScrollView, View, Text, Alert, Platform, Image, Modal, ActivityIndicator, BackHandler } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Pressable, ScrollView, View, Text, Alert, Platform, Image, Modal, ActivityIndicator, BackHandler, ToastAndroid } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInRight, FadeInDown, Layout } from 'react-native-reanimated';
+import Animated, { FadeInRight, FadeInDown, FadeIn, FadeOut, SlideInDown, SlideOutDown, Layout } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Fonts } from '@/constants/theme';
+import * as ImagePicker from 'expo-image-picker';
+import { api } from '@/services/api';
 
 const MOCK_AVATARS = [
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', // Female 1
@@ -23,9 +25,11 @@ export default function ProfilePictureScreen() {
   const { colors, isDark } = useTheme();
   const { user, updateProfile } = useAuth();
   
+  const insets = useSafeAreaInsets();
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploaded, setIsUploaded] = useState(false);
 
   // Fallbacks in case user state isn't initialized yet
   const username = user?.username || 'insforgetester';
@@ -56,32 +60,179 @@ export default function ProfilePictureScreen() {
 
   const handleFacebookImport = () => {
     setIsLoading(true);
-    setTimeout(() => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Importing from Facebook...', ToastAndroid.SHORT);
+    } else {
+      console.log('Importing from Facebook...');
+    }
+    setTimeout(async () => {
       // Simulate importing from Facebook
       const randomFacebookAvatar = MOCK_AVATARS[Math.floor(Math.random() * MOCK_AVATARS.length)];
       setAvatarUri(randomFacebookAvatar);
-      setIsLoading(false);
-      Alert.alert("Import Success", "Successfully imported profile picture from Facebook!");
-    }, 1200);
+      
+      try {
+        // Remote URL — update database directly
+        await api.patch('/auth/profile', {
+          name: fullName,
+          bio: user?.bio || 'Welcome to Instagram Clone!',
+          avatarUrl: randomFacebookAvatar,
+        });
+        
+        // Update local auth context
+        updateProfile(fullName, user?.bio || 'Welcome to Instagram Clone!', randomFacebookAvatar);
+        setIsUploaded(true);
+        
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Profile picture imported from Facebook successfully!', ToastAndroid.SHORT);
+        } else {
+          console.log('Profile picture imported from Facebook successfully!');
+        }
+        
+        setTimeout(() => {
+          handleNext();
+        }, 800);
+      } catch (err: any) {
+        console.error('Failed to save profile picture:', err);
+        const errMsg = err.response?.data?.message || 'Failed to save profile picture. Please try again.';
+        if (Platform.OS === 'android') {
+          ToastAndroid.show(errMsg, ToastAndroid.LONG);
+        } else {
+          Alert.alert('Upload Error', errMsg);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }, 800);
   };
 
-  const handleChoosePhoto = (url: string) => {
+  const handleAddPicture = async () => {
+    setShowPicker(false);
+    
+    // Request permission
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Denied',
+        'Sorry, we need camera roll permissions to upload a profile picture.'
+      );
+      return;
+    }
+
+    // Launch Image Library with editing enabled
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setAvatarUri(result.assets[0].uri);
+      setIsUploaded(false); // Reset upload state for new photo
+    }
+  };
+
+  const handleChoosePreset = (url: string) => {
     setAvatarUri(url);
+    setIsUploaded(false); // Reset upload state for new photo
     setShowPicker(false);
   };
 
-  const handleNext = () => {
+  const handleUpload = async () => {
+    if (!avatarUri) return;
     setIsLoading(true);
-    setTimeout(() => {
-      if (avatarUri) {
+
+    try {
+      if (avatarUri.startsWith('http')) {
+        // Remote URL (preset avatar or Facebook import) — update database directly
+        await api.patch('/auth/profile', {
+          name: fullName,
+          bio: user?.bio || 'Welcome to Instagram Clone!',
+          avatarUrl: avatarUri,
+        });
+        
+        // Update local auth context
         updateProfile(fullName, user?.bio || 'Welcome to Instagram Clone!', avatarUri);
+        setIsUploaded(true);
+        
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Profile picture updated successfully!', ToastAndroid.SHORT);
+        } else {
+          console.log('Profile picture updated successfully!');
+        }
+        
+        setTimeout(() => {
+          handleNext();
+        }, 800);
+      } else {
+        // Local file URI — upload via FormData
+        const formData = new FormData();
+        
+        // Extract file extension and name
+        const uriParts = avatarUri.split('/');
+        const fileName = uriParts[uriParts.length - 1];
+        const fileType = fileName.split('.').pop() || 'jpeg';
+
+        formData.append('file', {
+          uri: Platform.OS === 'android' ? avatarUri : avatarUri.replace('file://', ''),
+          name: fileName || 'avatar.jpg',
+          type: `image/${fileType}`,
+        } as any);
+
+        const response = await api.post('/auth/profile/avatar', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (response.data && response.data.avatarUrl) {
+          // Update local auth context
+          updateProfile(fullName, user?.bio || 'Welcome to Instagram Clone!', response.data.avatarUrl);
+          setIsUploaded(true);
+          
+          if (Platform.OS === 'android') {
+            ToastAndroid.show('Profile picture uploaded successfully!', ToastAndroid.SHORT);
+          } else {
+            console.log('Profile picture uploaded successfully!');
+          }
+          
+          setTimeout(() => {
+            handleNext();
+          }, 800);
+        } else {
+          throw new Error('Upload failed');
+        }
       }
+    } catch (err: any) {
+      console.error('Failed to save profile picture:', err);
+      const errMsg = err.response?.data?.message || 'Failed to save profile picture. Please try again.';
+      Alert.alert('Upload Error', errMsg);
+    } finally {
       setIsLoading(false);
-      router.replace({
-        pathname: '/add-contact',
-        params: { isPhone }
-      });
-    }, 600);
+    }
+  };
+
+  const handleNext = () => {
+    router.replace({
+      pathname: '/add-contact',
+      params: { isPhone }
+    });
+  };
+
+  const handlePressPrimary = () => {
+    if (!avatarUri) {
+      setShowPicker(true);
+    } else if (isUploaded) {
+      handleNext();
+    } else {
+      handleUpload();
+    }
+  };
+
+  const getButtonText = () => {
+    if (!avatarUri) return "Add picture";
+    if (isUploaded) return "Next";
+    return "Upload";
   };
 
   return (
@@ -118,13 +269,20 @@ export default function ProfilePictureScreen() {
             ]}
           >
             {/* Avatar Container */}
-            <View style={[styles.avatarCircle, { backgroundColor: isDark ? '#262626' : '#F2F2F7' }]}>
+            <Pressable 
+              onPress={() => setShowPicker(true)}
+              style={[styles.avatarCircle, { backgroundColor: isDark ? '#262626' : '#F2F2F7' }]}
+            >
               {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+                <Animated.Image 
+                  entering={FadeIn.duration(300)}
+                  source={{ uri: avatarUri }} 
+                  style={styles.avatarImage} 
+                />
               ) : (
                 <Ionicons name="person" size={54} color={isDark ? '#8E8E93' : '#AEAEB2'} />
               )}
-            </View>
+            </Pressable>
 
             {/* Username & Name */}
             <Text style={[styles.usernameText, { color: isDark ? '#FFFFFF' : '#000000' }]}>
@@ -141,13 +299,13 @@ export default function ProfilePictureScreen() {
           <Pressable
             style={[styles.primaryButton, { backgroundColor: '#0064E0' }]}
             disabled={isLoading}
-            onPress={avatarUri ? handleNext : () => setShowPicker(true)}
+            onPress={handlePressPrimary}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.primaryButtonText}>
-                {avatarUri ? "Next" : "Add picture"}
+                {getButtonText()}
               </Text>
             )}
           </Pressable>
@@ -164,11 +322,31 @@ export default function ProfilePictureScreen() {
       <Modal
         visible={showPicker}
         transparent
-        animationType="slide"
+        animationType="none"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setShowPicker(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowPicker(false)}>
-          <View style={[styles.modalSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPicker(false)}>
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
+            />
+          </Pressable>
+
+          <Animated.View
+            entering={SlideInDown.duration(250)}
+            exiting={SlideOutDown.duration(200)}
+            style={[
+              styles.modalSheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                paddingBottom: Math.max(insets.bottom, 24)
+              }
+            ]}
+          >
             {/* Grab Handle */}
             <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />
             
@@ -176,12 +354,27 @@ export default function ProfilePictureScreen() {
               Select Profile Photo
             </Text>
 
+            {/* Choose from Library Button */}
+            <Pressable 
+              onPress={handleAddPicture}
+              style={[styles.libraryButton, { backgroundColor: '#0064E0' }]}
+            >
+              <Ionicons name="image-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.libraryButtonText}>Choose from Library</Text>
+            </Pressable>
+
+            <View style={styles.dividerContainer}>
+              <View style={[styles.dividerLine, { backgroundColor: isDark ? '#262626' : '#3A3A3C' }]} />
+              <Text style={[styles.dividerText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Or choose a preset</Text>
+              <View style={[styles.dividerLine, { backgroundColor: isDark ? '#262626' : '#3A3A3C' }]} />
+            </View>
+
             {/* Grid of mock avatars */}
             <View style={styles.avatarsGrid}>
               {MOCK_AVATARS.map((url, idx) => (
                 <Pressable
                   key={idx}
-                  onPress={() => handleChoosePhoto(url)}
+                  onPress={() => handleChoosePreset(url)}
                   style={styles.gridItem}
                 >
                   <Image source={{ uri: url }} style={styles.gridAvatar} />
@@ -197,8 +390,8 @@ export default function ProfilePictureScreen() {
                 Cancel
               </Text>
             </Pressable>
-          </View>
-        </Pressable>
+          </Animated.View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -370,5 +563,34 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontFamily: Fonts.bold,
     fontSize: 15.5,
+  },
+  libraryButton: {
+    height: 48,
+    borderRadius: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+  },
+  libraryButtonText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 15.5,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    fontSize: 13,
+    fontFamily: Fonts.bold,
   },
 });

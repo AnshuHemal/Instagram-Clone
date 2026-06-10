@@ -35,6 +35,7 @@ export default function TermsScreen() {
   const [username, setUsername] = useState(params.username || '');
   const [error, setError] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Sync params when loaded
   useEffect(() => {
@@ -48,18 +49,9 @@ export default function TermsScreen() {
   }, [params.phoneOrEmail, params.isPhone, params.password, params.birthday, params.name, params.username, params.signupToken]);
 
   const handleBack = useCallback(() => {
-    router.replace({
-      pathname: '/username',
-      params: {
-        phoneOrEmail,
-        isPhone: isPhoneMode ? 'true' : 'false',
-        password,
-        birthday,
-        name,
-        username,
-      },
-    });
-  }, [phoneOrEmail, isPhoneMode, password, birthday, name, username]);
+    setError('');
+    setShowConfirmModal(true);
+  }, []);
 
   // Intercept Android hardware back press
   useFocusEffect(
@@ -192,6 +184,59 @@ export default function TermsScreen() {
         </ScrollView>
       </SafeAreaView>
 
+      {/* Custom Exit Confirmation Modal */}
+      <Modal
+        visible={showConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <Pressable 
+          style={styles.confirmModalOverlay} 
+          onPress={() => setShowConfirmModal(false)}
+        >
+          <Pressable 
+            style={[styles.confirmModalCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.confirmModalTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+              Do you want to stop creating your account?
+            </Text>
+            
+            <Text style={[styles.confirmModalSubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+              If you stop now, you'll lose any progress you've made.
+            </Text>
+
+            <View style={styles.confirmModalButtonContainer}>
+              <Pressable 
+                onPress={() => {
+                  setShowConfirmModal(false);
+                  if (router.canGoBack()) {
+                    router.dismissAll();
+                  } else {
+                    router.replace('/login');
+                  }
+                }}
+                style={styles.confirmModalButton}
+              >
+                <Text style={[styles.confirmModalButtonTextBlue, { color: '#0064E0' }]}>
+                  STOP CREATING ACCOUNT
+                </Text>
+              </Pressable>
+
+              <Pressable 
+                onPress={() => setShowConfirmModal(false)}
+                style={styles.confirmModalButton}
+              >
+                <Text style={[styles.confirmModalButtonTextRed, { color: '#FA3E3E' }]}>
+                  CONTINUE CREATING ACCOUNT
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Already Have an Account Confirmation Modal */}
       <Modal
         visible={showAccountModal}
@@ -270,9 +315,56 @@ const styles = StyleSheet.create({
   errorText: { color: '#FF3040', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 12 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
   primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
-  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 10 },
+  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
   loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
+  confirmModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmModalCard: {
+    width: '85%',
+    maxWidth: 320,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  confirmModalTitle: {
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+    marginBottom: 10,
+    lineHeight: 24,
+  },
+  confirmModalSubtitle: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  confirmModalButtonContainer: {
+    alignItems: 'flex-end',
+    gap: 18,
+  },
+  confirmModalButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  confirmModalButtonTextBlue: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
+  },
+  confirmModalButtonTextRed: {
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
+  },
   accountModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -297,9 +389,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   accountModalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    gap: 18,
     marginTop: 8,
   },
   accountModalButton: {

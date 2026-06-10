@@ -54,12 +54,20 @@ export default function PasswordScreen() {
     }, [handleBack])
   );
 
-  const isPasswordValid = password.trim().length >= 6;
+  const hasMinLength = password.length >= 6;
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumberOrSymbol = /[0-9!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  const isPasswordValid = hasMinLength && hasLetter && hasNumberOrSymbol;
 
   const handleNext = () => {
     setError('');
-    if (password.length < 6) {
+    if (!hasMinLength) {
       setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (!hasLetter || !hasNumberOrSymbol) {
+      setError('Password must include a combination of letters and numbers or symbols.');
       return;
     }
 
@@ -109,13 +117,52 @@ export default function PasswordScreen() {
             <InstagramInput
               label="Password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(val) => {
+                setPassword(val);
+                setError('');
+              }}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               autoFocus
               error={error}
             />
+
+            {/* Password Validation Requirements Check list */}
+            <View style={styles.requirementsContainer}>
+              <View style={styles.requirementRow}>
+                <Ionicons 
+                  name={hasMinLength ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={hasMinLength ? "#00A859" : (isDark ? '#8E8E93' : '#737373')} 
+                />
+                <Text style={[styles.requirementText, { color: hasMinLength ? (isDark ? '#FFFFFF' : '#000000') : (isDark ? '#8E8E93' : '#737373') }]}>
+                  At least 6 characters
+                </Text>
+              </View>
+
+              <View style={styles.requirementRow}>
+                <Ionicons 
+                  name={hasLetter ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={hasLetter ? "#00A859" : (isDark ? '#8E8E93' : '#737373')} 
+                />
+                <Text style={[styles.requirementText, { color: hasLetter ? (isDark ? '#FFFFFF' : '#000000') : (isDark ? '#8E8E93' : '#737373') }]}>
+                  Contains at least one letter
+                </Text>
+              </View>
+
+              <View style={styles.requirementRow}>
+                <Ionicons 
+                  name={hasNumberOrSymbol ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={hasNumberOrSymbol ? "#00A859" : (isDark ? '#8E8E93' : '#737373')} 
+                />
+                <Text style={[styles.requirementText, { color: hasNumberOrSymbol ? (isDark ? '#FFFFFF' : '#000000') : (isDark ? '#8E8E93' : '#737373') }]}>
+                  Contains at least one number or symbol
+                </Text>
+              </View>
+            </View>
 
             {/* Checkbox Row */}
             <Pressable
@@ -134,8 +181,8 @@ export default function PasswordScreen() {
 
             {/* Action Button */}
             <Pressable
-              style={[styles.primaryButton, { backgroundColor: password.length >= 6 && !isLoading ? '#0064E0' : 'rgba(0, 100, 224, 0.4)', marginTop: 20 }]}
-              disabled={password.length < 6 || isLoading}
+              style={[styles.primaryButton, { backgroundColor: isPasswordValid && !isLoading ? '#0064E0' : 'rgba(0, 100, 224, 0.4)', marginTop: 20 }]}
+              disabled={!isPasswordValid || isLoading}
               onPress={handleNext}
             >
               {isLoading ? (
@@ -282,6 +329,20 @@ const styles = StyleSheet.create({
   errorText: { color: '#FF3040', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 12 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
   primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
+  requirementsContainer: {
+    marginTop: 12,
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  requirementText: {
+    fontSize: 13.5,
+    fontFamily: Fonts.regular,
+  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,7 +356,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   linkText: { color: '#0064E0', fontFamily: Fonts.bold },
-  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 10 },
+  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
   loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
   // Confirmation Modal Styles
@@ -370,9 +431,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   accountModalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    gap: 18,
     marginTop: 8,
   },
   accountModalButton: {

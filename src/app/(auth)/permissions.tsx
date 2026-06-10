@@ -1,11 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, Pressable, ScrollView, View, Text, Alert, Platform, ActivityIndicator, BackHandler } from 'react-native';
+import { StyleSheet, Pressable, ScrollView, View, Text, Platform, ActivityIndicator, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Fonts } from '@/constants/theme';
+import * as Contacts from 'expo-contacts';
+import * as Notifications from 'expo-notifications';
 
 export default function PermissionsScreen() {
   const router = useRouter();
@@ -45,44 +47,44 @@ export default function PermissionsScreen() {
     });
   };
 
-  const requestContactsPermission = () => {
-    Alert.alert(
-      "\"Instagram\" Would Like to Access Your Contacts",
-      "Contacts on this device will be periodically synced and stored securely on our servers to help recommend more relevant people and things.",
-      [
-        {
-          text: "Don't Allow",
-          onPress: completeFlow,
-          style: "cancel"
-        },
-        {
-          text: "Allow",
-          onPress: completeFlow
-        }
-      ]
-    );
-  };
-
-  const handleNext = () => {
+  const handleNext = async () => {
     setIsLoading(true);
-    // Request notifications permission first, then chain to contacts
-    setTimeout(() => {
-      Alert.alert(
-        "\"Instagram\" Would Like to Send You Notifications",
-        "Notifications may include alerts, sounds, and icon badges. These can be configured in Settings.",
-        [
-          {
-            text: "Don't Allow",
-            onPress: requestContactsPermission,
-            style: "cancel"
-          },
-          {
-            text: "Allow",
-            onPress: requestContactsPermission
-          }
-        ]
-      );
-    }, 300);
+    
+    try {
+      if (Platform.OS !== 'web') {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync({
+            ios: {
+              allowAlert: true,
+              allowBadge: true,
+              allowSound: true,
+            },
+          });
+          finalStatus = status;
+        }
+        console.log('Notification permission status:', finalStatus);
+      }
+    } catch (error) {
+      console.warn('Error requesting notifications permission:', error);
+    }
+
+    try {
+      if (Platform.OS !== 'web') {
+        const { status: existingStatus } = await Contacts.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Contacts.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        console.log('Contacts permission status:', finalStatus);
+      }
+    } catch (error) {
+      console.warn('Error requesting contacts permission:', error);
+    }
+
+    completeFlow();
   };
 
   return (

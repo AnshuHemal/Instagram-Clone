@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, Modal, BackHandler, FlatList, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
@@ -23,6 +23,7 @@ export default function BirthdayScreen() {
   const { colors, isDark } = useTheme();
   const { showLoading, hideLoading } = useLoading();
   const params = useLocalSearchParams<{ phoneOrEmail?: string; isPhone?: string; password?: string; birthday?: string; signupToken?: string }>();
+  const insets = useSafeAreaInsets();
 
   // Extract navigation parameters
   const [phoneOrEmail, setPhoneOrEmail] = useState(params.phoneOrEmail || '');
@@ -344,6 +345,7 @@ export default function BirthdayScreen() {
         visible={showBottomSheet}
         transparent
         animationType="none"
+        statusBarTranslucent
         onRequestClose={() => setShowBottomSheet(false)}
       >
         <View style={styles.modalOverlay}>
@@ -363,7 +365,13 @@ export default function BirthdayScreen() {
           <Animated.View
             entering={SlideInDown.duration(250)}
             exiting={SlideOutDown.duration(200)}
-            style={[styles.bottomSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+            style={[
+              styles.bottomSheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                paddingBottom: Math.max(insets.bottom, 24)
+              }
+            ]}
           >
             {/* Slide Down Drag indicator */}
             <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />
@@ -444,6 +452,7 @@ export default function BirthdayScreen() {
         visible={showExplanationModal}
         transparent
         animationType="none"
+        statusBarTranslucent
         onRequestClose={() => setShowExplanationModal(false)}
       >
         <View style={styles.modalOverlay}>
@@ -462,7 +471,13 @@ export default function BirthdayScreen() {
           <Animated.View
             entering={SlideInDown.duration(250)}
             exiting={SlideOutDown.duration(200)}
-            style={[styles.explanationBottomSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+            style={[
+              styles.explanationBottomSheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                paddingBottom: Math.max(insets.bottom, 24)
+              }
+            ]}
           >
             {/* Drag Handle */}
             <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />
@@ -497,6 +512,7 @@ export default function BirthdayScreen() {
         visible={showConfirmModal}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setShowConfirmModal(false)}
       >
         <Pressable
@@ -550,6 +566,7 @@ export default function BirthdayScreen() {
         visible={showAccountModal}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setShowAccountModal(false)}
       >
         <Pressable 
@@ -616,7 +633,7 @@ const styles = StyleSheet.create({
   linkText: { color: '#0064E0', fontFamily: Fonts.semiBold, fontSize: 14 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
   primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
-  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 10 },
+  footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
   loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
   
@@ -833,9 +850,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   accountModalButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+    gap: 18,
     marginTop: 8,
   },
   accountModalButton: {

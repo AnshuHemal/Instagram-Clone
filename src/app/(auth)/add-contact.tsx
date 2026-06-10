@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, TextInput, ActivityIndicator, Modal, FlatList, Alert, BackHandler } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeInDown, SlideInDown, SlideOutDown, FadeIn, FadeOut } from 'react-native-reanimated';
@@ -30,6 +30,7 @@ export default function AddContactScreen() {
   const params = useLocalSearchParams<{ isPhone?: string }>();
   const isPhoneSignup = params.isPhone === 'true'; // If signed up with phone, asks for email. Else asks for phone.
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [inputValue, setInputValue] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>(COUNTRY_CODES[0]);
@@ -54,9 +55,12 @@ export default function AddContactScreen() {
   );
 
   // Validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^\d{7,15}$/;
+
   const isValid = isPhoneSignup 
-    ? inputValue.trim().includes('@') && inputValue.trim().includes('.') && inputValue.trim().length > 5 // Email check
-    : inputValue.trim().length >= 7 && /^\d+$/.test(inputValue.trim()); // Phone digits check
+    ? emailRegex.test(inputValue.trim())
+    : phoneRegex.test(inputValue.trim());
 
   const handleSkip = () => {
     router.push('/follow-suggestions');
@@ -241,9 +245,11 @@ export default function AddContactScreen() {
         visible={showCountryPicker}
         transparent
         animationType="none"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setShowCountryPicker(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCountryPicker(false)}>
             <Animated.View
               entering={FadeIn.duration(200)}
@@ -255,7 +261,13 @@ export default function AddContactScreen() {
           <Animated.View
             entering={SlideInDown.duration(250)}
             exiting={SlideOutDown.duration(200)}
-            style={[styles.bottomSheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+            style={[
+              styles.bottomSheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                paddingBottom: Math.max(insets.bottom, 24)
+              }
+            ]}
           >
             <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />
             
