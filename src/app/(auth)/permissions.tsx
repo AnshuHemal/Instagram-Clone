@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Fonts } from '@/constants/theme';
 import * as Contacts from 'expo-contacts';
 import * as Notifications from 'expo-notifications';
@@ -14,6 +15,7 @@ export default function PermissionsScreen() {
   const params = useLocalSearchParams<{ isPhone?: string }>();
   const isPhone = params.isPhone || 'false';
   const { colors, isDark } = useTheme();
+  const { user, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   // Disable hardware back button on Android
@@ -32,15 +34,29 @@ export default function PermissionsScreen() {
     }, [])
   );
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    try {
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, false, 'PROFILE_PICTURE');
+      }
+    } catch (e) {
+      console.warn('Failed to save onboarding progress:', e);
+    }
     router.replace({
       pathname: '/profile-picture',
       params: { isPhone }
     });
   };
 
-  const completeFlow = () => {
+  const completeFlow = async () => {
     setIsLoading(false);
+    try {
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, false, 'PROFILE_PICTURE');
+      }
+    } catch (e) {
+      console.warn('Failed to save onboarding progress:', e);
+    }
     router.replace({
       pathname: '/profile-picture',
       params: { isPhone }

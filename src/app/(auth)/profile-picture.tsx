@@ -51,7 +51,14 @@ export default function ProfilePictureScreen() {
     }, [])
   );
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    try {
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, false, 'ADD_CONTACT');
+      }
+    } catch (e) {
+      console.warn('Failed to save onboarding progress:', e);
+    }
     router.replace({
       pathname: '/add-contact',
       params: { isPhone }
@@ -212,7 +219,14 @@ export default function ProfilePictureScreen() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    try {
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, false, 'ADD_CONTACT');
+      }
+    } catch (e) {
+      console.warn('Failed to save onboarding progress:', e);
+    }
     router.replace({
       pathname: '/add-contact',
       params: { isPhone }

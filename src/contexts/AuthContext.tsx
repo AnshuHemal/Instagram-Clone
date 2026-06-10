@@ -11,6 +11,8 @@ export interface User {
   followersCount: number;
   followingCount: number;
   postsCount: number;
+  isOnboarded: boolean;
+  onboardingStep: string;
 }
 
 interface AuthContextProps {
@@ -26,7 +28,13 @@ interface AuthContextProps {
     username: string
   ) => Promise<boolean>;
   logout: () => Promise<void>;
-  updateProfile: (name: string, bio: string, avatar: string) => Promise<boolean>;
+  updateProfile: (
+    name: string,
+    bio: string,
+    avatar: string,
+    isOnboarded?: boolean,
+    onboardingStep?: string
+  ) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -62,6 +70,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (token) {
           const payload = decodeJwt(token);
           if (payload && payload.username) {
+            try {
+              const res = await api.get('/auth/profile');
+              if (res.data && res.data.user) {
+                const u = res.data.user;
+                setUser({
+                  id: u.id,
+                  username: u.username,
+                  name: u.displayName || u.username,
+                  email: u.email,
+                  avatar: u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                  bio: u.bio || 'Welcome back to Instagram Clone!',
+                  followersCount: 124,
+                  followingCount: 256,
+                  postsCount: 0,
+                  isOnboarded: u.isOnboarded,
+                  onboardingStep: u.onboardingStep,
+                });
+                return;
+              }
+            } catch (apiErr) {
+              console.warn('Failed to fetch fresh user profile from API, falling back to local JWT payload:', apiErr);
+            }
+
             setUser({
               id: payload.sub,
               username: payload.username,
@@ -72,6 +103,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               followersCount: 124,
               followingCount: 256,
               postsCount: 0,
+              isOnboarded: false,
+              onboardingStep: 'PERMISSIONS',
             });
           }
         }
@@ -101,11 +134,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: userPayload.username,
           name: userPayload.displayName || userPayload.username,
           email: userPayload.email,
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-          bio: 'Welcome to Instagram Clone!',
+          avatar: userPayload.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          bio: userPayload.bio || 'Welcome to Instagram Clone!',
           followersCount: 154,
           followingCount: 302,
           postsCount: 0,
+          isOnboarded: userPayload.isOnboarded,
+          onboardingStep: userPayload.onboardingStep,
         });
         return true;
       }
@@ -132,6 +167,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       followersCount: 0,
       followingCount: 0,
       postsCount: 0,
+      isOnboarded: false,
+      onboardingStep: 'PERMISSIONS',
     });
     setIsLoading(false);
     return true;
@@ -163,11 +200,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: userPayload.username,
           name: userPayload.displayName || userPayload.username,
           email: userPayload.email,
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-          bio: 'Welcome to Instagram Clone!',
+          avatar: userPayload.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          bio: userPayload.bio || 'Welcome to Instagram Clone!',
           followersCount: 0,
           followingCount: 0,
           postsCount: 0,
+          isOnboarded: userPayload.isOnboarded,
+          onboardingStep: userPayload.onboardingStep,
         });
         return true;
       }
@@ -187,12 +226,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   };
 
-  const updateProfile = async (name: string, bio: string, avatar: string): Promise<boolean> => {
+  const updateProfile = async (
+    name: string,
+    bio: string,
+    avatar: string,
+    isOnboarded?: boolean,
+    onboardingStep?: string
+  ): Promise<boolean> => {
     try {
       const res = await api.patch('/auth/profile', {
         name,
         bio,
         avatarUrl: avatar,
+        isOnboarded,
+        onboardingStep,
       });
       if (res.data && res.data.user) {
         const u = res.data.user;
@@ -201,6 +248,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: u.displayName || prev.name,
           bio: u.bio || prev.bio,
           avatar: u.avatarUrl || prev.avatar,
+          isOnboarded: u.isOnboarded,
+          onboardingStep: u.onboardingStep,
         } : null);
         return true;
       }
@@ -214,6 +263,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name,
           bio,
           avatar: avatar || user.avatar,
+          ...(isOnboarded !== undefined && { isOnboarded }),
+          ...(onboardingStep !== undefined && { onboardingStep }),
         });
       }
       return false;

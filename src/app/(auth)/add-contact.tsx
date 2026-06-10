@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeInDown, SlideInDown, SlideOutDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Fonts } from '@/constants/theme';
 import { api } from '@/services/api';
 
@@ -30,6 +31,7 @@ export default function AddContactScreen() {
   const params = useLocalSearchParams<{ isPhone?: string }>();
   const isPhoneSignup = params.isPhone === 'true'; // If signed up with phone, asks for email. Else asks for phone.
   const { colors, isDark } = useTheme();
+  const { user, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [inputValue, setInputValue] = useState('');
@@ -62,7 +64,14 @@ export default function AddContactScreen() {
     ? emailRegex.test(inputValue.trim())
     : phoneRegex.test(inputValue.trim());
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    try {
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, false, 'FOLLOW');
+      }
+    } catch (e) {
+      console.warn('Failed to save onboarding progress:', e);
+    }
     router.push('/follow-suggestions');
   };
 

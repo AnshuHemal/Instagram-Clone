@@ -8,10 +8,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { Fonts } from '@/constants/theme';
 import { api } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function OtpScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { user, updateProfile } = useAuth();
   const { showLoading, hideLoading } = useLoading();
   const params = useLocalSearchParams<{ target?: string; isPhone?: string; fromAddContact?: string }>();
   const insets = useSafeAreaInsets();
@@ -81,6 +83,13 @@ export default function OtpScreen() {
       setIsLoading(false);
       
       if (params.fromAddContact === 'true') {
+        try {
+          if (user) {
+            await updateProfile(user.name, user.bio, user.avatar, false, 'FOLLOW');
+          }
+        } catch (e) {
+          console.warn('Failed to save onboarding progress:', e);
+        }
         router.push({
           pathname: '/follow-suggestions',
           params: { isPhone: isPhoneMode ? 'true' : 'false' }

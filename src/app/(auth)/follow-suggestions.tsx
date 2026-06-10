@@ -7,6 +7,7 @@ import Animated, { FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Fonts } from '@/constants/theme';
 import { api } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SuggestionUser {
   id: string;
@@ -21,6 +22,7 @@ interface SuggestionUser {
 export default function FollowSuggestionsScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { user, updateProfile } = useAuth();
 
   const [suggestions, setSuggestions] = useState<SuggestionUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,22 +70,33 @@ export default function FollowSuggestionsScreen() {
     fetchSuggestions();
   }, []);
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    try {
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, true, 'COMPLETED');
+      }
+    } catch (e) {
+      console.warn('Failed to save onboarding completion state:', e);
+    }
     router.replace('/(tabs)');
   };
 
   const handleFollow = async () => {
     const followingIds = suggestions.filter(u => u.checked).map(u => u.id);
     
-    if (followingIds.length > 0) {
-      try {
-        setIsLoading(true);
+    try {
+      setIsLoading(true);
+      if (followingIds.length > 0) {
         await api.post('/auth/users/follow-multiple', { followingIds });
-      } catch (err) {
-        console.error('Failed to follow suggestions:', err);
-      } finally {
-        setIsLoading(false);
       }
+      
+      if (user) {
+        await updateProfile(user.name, user.bio, user.avatar, true, 'COMPLETED');
+      }
+    } catch (err) {
+      console.error('Failed to complete follow onboarding step:', err);
+    } finally {
+      setIsLoading(false);
     }
 
     // Navigate home after completing onboarding

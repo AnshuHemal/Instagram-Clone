@@ -23,7 +23,21 @@ export default function RootIndex() {
   useEffect(() => {
     if (minTimeElapsed && !authLoading) {
       if (user) {
-        router.replace('/(tabs)');
+        if (user.isOnboarded) {
+          router.replace('/(tabs)');
+        } else {
+          // Route the user to their specific pending step from user.onboardingStep
+          const stepRouteMap: { [key: string]: string } = {
+            PERMISSIONS: '/(auth)/permissions',
+            PROFILE_PICTURE: '/(auth)/profile-picture',
+            FOLLOW: '/(auth)/follow-suggestions',
+          };
+          const targetRoute = stepRouteMap[user.onboardingStep] || '/(auth)/permissions';
+          router.replace({
+            pathname: targetRoute as any,
+            params: { isPhone: 'false' }
+          });
+        }
       } else {
         router.replace('/(auth)/login');
       }
