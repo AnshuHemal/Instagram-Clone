@@ -40,6 +40,7 @@ import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-g
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/themed-text';
+import { ProfileSkeleton } from '@/components/Skeleton';
 import { AccountSwitcherSheet } from '@/components/AccountSwitcherSheet';
 import { CreateBottomSheet } from '@/components/CreateBottomSheet';
 import { AvatarBottomSheet } from '@/components/AvatarBottomSheet';
@@ -580,6 +581,18 @@ export default function ProfileScreen() {
   };
 
   if (!user) return null;
+
+  // Show skeleton when loading other user's profile
+  if (!isOwnProfile && isViewLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={['top', 'left', 'right']}
+      >
+        <ProfileSkeleton />
+      </SafeAreaView>
+    );
+  }
 
   // ── Animated styles ──
   const pullProgress = useDerivedValue(() => refreshProgress.value);

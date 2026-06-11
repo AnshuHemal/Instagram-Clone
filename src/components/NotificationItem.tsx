@@ -1,0 +1,180 @@
+import React, { useRef } from 'react';
+import { StyleSheet, View, Image, Pressable, Animated } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemedText } from '@/components/themed-text';
+import { Notification } from '@/services/notifications';
+import { timeAgo } from '@/utils/timeAgo';
+import { useRouter } from 'expo-router';
+
+interface NotificationItemProps {
+  notification: Notification;
+  onPress?: () => void;
+}
+
+export const NotificationItem: React.FC<NotificationItemProps> = ({
+  notification,
+  onPress,
+}) => {
+  const { colors, isDark } = useTheme();
+  const router = useRouter();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.97,
+      friction: 3,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 3,
+      tension: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePress = () => {
+    onPress?.();
+
+    // Navigate based on notification type
+    if (notification.type === 'FOLLOW') {
+      router.push({ pathname: '/(tabs)/profile', params: { userId: notification.actor.id } });
+    } else if (notification.postId) {
+      // Navigate to post detail (could be implemented later)
+    }
+  };
+
+  const getNotificationIcon = () => {
+    switch (notification.type) {
+      case 'FOLLOW':
+        return <Ionicons name="person-add" size={16} color="#0095F6" />;
+      case 'LIKE_POST':
+      case 'LIKE_REEL':
+        return <Ionicons name="heart" size={16} color="#FF3040" />;
+      case 'COMMENT_POST':
+      case 'COMMENT_REEL':
+        return <Ionicons name="chatbubble" size={14} color="#0095F6" />;
+      default:
+        return null;
+    }
+  };
+
+  const getAvatarBorder = () => {
+    if (notification.type === 'FOLLOW') {
+      return { borderColor: '#0095F6', borderWidth: 2 };
+    }
+    return {};
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={[
+          styles.container,
+          {
+            backgroundColor: !notification.read
+              ? (isDark ? '#1A1A1A' : '#F0F8FF')
+              : 'transparent',
+          },
+        ]}
+      >
+        {/* Avatar */}
+        <View style={[styles.avatarContainer, getAvatarBorder()]}>
+          <Image
+            source={{
+              uri: notification.actor.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            }}
+            style={styles.avatar}
+          />
+          <View style={[styles.iconBadge, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+            {getNotificationIcon()}
+          </View>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          <ThemedText style={[styles.message, { color: colors.text }]} numberOfLines={2}>
+            <ThemedText type="smallBold" style={{ color: colors.text }}>
+              {notification.actor.username}
+            </ThemedText>
+            {' '}{notification.message}
+          </ThemedText>
+          <ThemedText style={[styles.time, { color: colors.textSecondary }]}>
+            {timeAgo(notification.createdAt)}
+          </ThemedText>
+        </View>
+
+        {/* Post thumbnail (if applicable) */}
+        {notification.postId && (
+          <View style={styles.thumbnailContainer}>
+            <View style={[styles.thumbnail, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
+              <Ionicons name="image-outline" size={16} color={colors.textSecondary} />
+            </View>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  iconBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  content: {
+    flex: 1,
+    gap: 4,
+  },
+  message: {
+  },
+  time: {
+    fontSize: 12,
+  },
+  thumbnailContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

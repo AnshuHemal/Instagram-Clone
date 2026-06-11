@@ -78,6 +78,10 @@ function RootLayoutContent() {
           name="connections"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="notifications"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
       </Stack>
       <LoadingOverlay />
       <StatusBar style="auto" />

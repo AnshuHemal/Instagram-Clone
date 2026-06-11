@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Post, usePosts } from '@/contexts/PostsContext';
 import { api } from '@/services/api';
 import { PostCard } from '@/components/PostCard';
+import { ExploreSkeleton } from '@/components/Skeleton';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width / 3;
@@ -137,9 +138,7 @@ export default function ExploreScreen() {
 
       {/* Explore Grid Scroll */}
       {loading && posts.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ExploreSkeleton />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}

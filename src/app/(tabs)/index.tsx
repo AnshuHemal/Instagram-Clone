@@ -16,6 +16,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { FeedHeader } from '@/components/FeedHeader';
 import { StoryCircle } from '@/components/StoryCircle';
 import { PostCard } from '@/components/PostCard';
+import { FeedSkeleton } from '@/components/Skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { MOCK_STORIES, Story } from '@/constants/mockData';
 import { Ionicons } from '@expo/vector-icons';
@@ -424,7 +425,9 @@ export default function FeedScreen() {
             ListFooterComponent={renderFooter}
             contentContainerStyle={styles.feedScroll}
             ListEmptyComponent={
-              !isLoading ? (
+              isLoading ? (
+                <FeedSkeleton />
+              ) : !isLoading ? (
                 <View style={styles.emptyFeed}>
                   <ThemedText style={{ color: colors.textSecondary }}>
                     No posts available. Be the first to create one!
