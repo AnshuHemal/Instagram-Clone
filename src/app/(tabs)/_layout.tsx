@@ -91,7 +91,6 @@ export default function TabLayout() {
   const segments = useSegments() as string[];
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [renderedPages, setRenderedPages] = useState<boolean[]>([true, false, false, false, false]);
 
   const scrollX = useSharedValue(0);
   const viewPagerRef = useRef<Animated.ScrollView>(null);
@@ -108,11 +107,6 @@ export default function TabLayout() {
 
     if (targetIndex !== -1 && targetIndex !== activeIndex) {
       setActiveIndex(targetIndex);
-      setRenderedPages((prev) => {
-        const next = [...prev];
-        next[targetIndex] = true;
-        return next;
-      });
       viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: true });
     }
   }, [lastSegment]);
@@ -135,11 +129,6 @@ export default function TabLayout() {
     const index = Math.round(offsetX / SCREEN_WIDTH);
     if (index !== activeIndex) {
       setActiveIndex(index);
-      setRenderedPages((prev) => {
-        const next = [...prev];
-        next[index] = true;
-        return next;
-      });
 
       // Update segment route path matching the active page index
       const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
@@ -175,11 +164,6 @@ export default function TabLayout() {
 
   const handleTabPress = (index: number) => {
     setActiveIndex(index);
-    setRenderedPages((prev) => {
-      const next = [...prev];
-      next[index] = true;
-      return next;
-    });
     viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
   };
 
@@ -201,27 +185,27 @@ export default function TabLayout() {
       >
         {/* Page 0: Home */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          {renderedPages[0] ? <HomeScreen /> : null}
+          <HomeScreen />
         </View>
 
         {/* Page 1: Reels (Full screen underneath absolute tab bar) */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', backgroundColor: '#000000' }}>
-          {renderedPages[1] ? <ReelsScreen isTabActive={activeIndex === 1} /> : null}
+          <ReelsScreen isTabActive={activeIndex === 1} />
         </View>
 
         {/* Page 2: Chat */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          {renderedPages[2] ? <InboxScreen /> : null}
+          <InboxScreen />
         </View>
 
         {/* Page 3: Explore */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          {renderedPages[3] ? <ExploreScreen /> : null}
+          <ExploreScreen />
         </View>
 
         {/* Page 4: Profile */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          {renderedPages[4] ? <ProfileScreen /> : null}
+          <ProfileScreen />
         </View>
       </Animated.ScrollView>
 
