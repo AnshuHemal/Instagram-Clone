@@ -26,6 +26,61 @@ interface PostCardProps {
 // Inline Video Player Component
 const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ mediaUrl, isActive }) => {
   const [isMuted, setIsMuted] = useState(true);
+  const [player, setPlayer] = useState<any>(null);
+
+  useEffect(() => {
+    if (!ExpoVideo || !mediaUrl) return;
+
+    const cleanUrl = mediaUrl.replace('.mp4.m3u8', '.m3u8');
+    let p: any = null;
+    try {
+      p = ExpoVideo.createVideoPlayer(cleanUrl);
+      p.loop = true;
+      p.muted = isMuted;
+      p.showNowPlayingNotification = false;
+      if (isActive) {
+        p.play();
+      } else {
+        p.pause();
+      }
+      setPlayer(p);
+    } catch (err) {
+      console.error('Error creating video player in PostCard:', err);
+    }
+
+    return () => {
+      if (p) {
+        try {
+          p.pause();
+        } catch (e) {}
+
+        // Release with delay so VideoView has time to unmount cleanly
+        setTimeout(() => {
+          try {
+            p.release();
+          } catch (e) {}
+        }, 5000);
+      }
+    };
+  }, [mediaUrl]);
+
+  // Sync play/pause with isActive
+  useEffect(() => {
+    if (player) {
+      if (isActive) {
+        player.play();
+      } else {
+        player.pause();
+      }
+    }
+  }, [isActive, player]);
+
+  // Sync mute state
+  useEffect(() => {
+    if (player) {
+      player.muted = isMuted;
+    }
+  }, [isMuted, player]);
 
   if (!ExpoVideo) {
     return (
@@ -35,39 +90,17 @@ const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ mediaUrl
     );
   }
 
-  const player = ExpoVideo.useVideoPlayer(mediaUrl, (p: any) => {
-    p.loop = true;
-    p.muted = isMuted;
-    p.showNowPlayingNotification = false;
-    if (isActive) {
-      p.play();
-    } else {
-      p.pause();
-    }
-  });
-
-  // Sync play/pause with isActive
-  useEffect(() => {
-    if (isActive) {
-      player.play();
-    } else {
-      player.pause();
-    }
-  }, [isActive, player]);
-
-  // Sync mute state
-  useEffect(() => {
-    player.muted = isMuted;
-  }, [isMuted, player]);
-
   return (
     <Pressable onPress={() => setIsMuted(!isMuted)} style={styles.videoPressable}>
-      <ExpoVideo.VideoView
-        player={player}
-        style={StyleSheet.absoluteFill}
-        contentFit="cover"
-        nativeControls={false}
-      />
+      {player && (
+        <ExpoVideo.VideoView
+          key={`post-video-view-${mediaUrl}`}
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      )}
       <View style={styles.volumeIconContainer}>
         <Ionicons
           name={isMuted ? 'volume-mute' : 'volume-high'}

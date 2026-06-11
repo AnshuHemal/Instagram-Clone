@@ -44,6 +44,7 @@ import { CreateBottomSheet } from '@/components/CreateBottomSheet';
 import { AvatarBottomSheet } from '@/components/AvatarBottomSheet';
 import { AddPhotoBottomSheet } from '@/components/AddPhotoBottomSheet';
 import { LibrarySelectModal } from '@/components/LibrarySelectModal';
+import { ShareProfileModal } from '@/components/ShareProfileModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useTabPager } from '@/contexts/TabPagerContext';
 import { MOCK_STORIES } from '@/constants/mockData';
@@ -151,7 +152,14 @@ const StatBox = ({
   onPress?: () => void;
   textColor: string;
 }) => (
-  <Pressable onPress={onPress} style={styles.statBox}>
+  <Pressable
+    onPress={onPress}
+    disabled={!onPress}
+    style={({ pressed }) => [
+      styles.statBox,
+      { opacity: pressed && onPress ? 0.6 : 1 }
+    ]}
+  >
     <ThemedText style={[styles.statCount, { color: textColor }]}>
       {typeof count === 'number' ? count.toLocaleString() : count}
     </ThemedText>
@@ -306,6 +314,20 @@ export default function ProfileScreen() {
   const [showAvatarSheet, setShowAvatarSheet] = useState(false);
   const [showAddPhotoSheet, setShowAddPhotoSheet] = useState(false);
   const [showLibrarySelectModal, setShowLibrarySelectModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const avatarRef = useRef<View>(null);
+  const [avatarLayout, setAvatarLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  const triggerShareModal = () => {
+    avatarRef.current?.measureInWindow((x, y, width, height) => {
+      if (width && height) {
+        setAvatarLayout({ x, y, width, height });
+      } else {
+        setAvatarLayout({ x: 16, y: 120, width: 90, height: 90 });
+      }
+      setShowShareModal(true);
+    });
+  };
 
   const openAvatarSheet = useCallback(() => {
     setShowAvatarSheet(true);
@@ -597,10 +619,12 @@ export default function ProfileScreen() {
 
         {/* ── Profile Info Row ── */}
         <Animated.View entering={FadeInDown.duration(350).delay(50)} style={styles.profileInfoRow}>
-          {/* Avatar — tappable when no photo set */}
           <Pressable
+            ref={avatarRef}
             style={styles.avatarWrapper}
-            onPress={!hasAvatar ? openAvatarSheet : undefined}
+            onPress={openAvatarSheet}
+            onLongPress={triggerShareModal}
+            delayLongPress={180}
             hitSlop={4}
           >
             {hasAvatar ? (
@@ -620,19 +644,29 @@ export default function ProfileScreen() {
                   color={isDark ? '#636366' : '#A8A8A8'}
                   style={styles.avatarPersonIcon}
                 />
-                {/* Camera badge */}
-                <View style={[styles.avatarCameraBadge, { backgroundColor: '#0095F6' }]}>
-                  <Ionicons name="camera" size={10} color="#FFFFFF" />
-                </View>
               </View>
             )}
+            {/* Story Plus Badge at bottom-right of avatar circle */}
+            <View style={[styles.storyPlusBadge, { backgroundColor: '#000000', borderColor: colors.background }]}>
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+            </View>
           </Pressable>
 
           {/* Stats */}
           <View style={styles.statsRow}>
             <StatBox count={user.postsCount ?? 0} label="posts" textColor={colors.text} />
-            <StatBox count={user.followersCount ?? 0} label="followers" textColor={colors.text} />
-            <StatBox count={user.followingCount ?? 0} label="following" textColor={colors.text} />
+            <StatBox
+              count={user.followersCount ?? 0}
+              label="followers"
+              textColor={colors.text}
+              onPress={() => router.push({ pathname: '/connections', params: { tab: 'followers' } })}
+            />
+            <StatBox
+              count={user.followingCount ?? 0}
+              label="following"
+              textColor={colors.text}
+              onPress={() => router.push({ pathname: '/connections', params: { tab: 'following' } })}
+            />
           </View>
         </Animated.View>
 
@@ -665,7 +699,7 @@ export default function ProfileScreen() {
             <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Edit profile</ThemedText>
           </Pressable>
           <Pressable
-            onPress={handleShareProfile}
+            onPress={triggerShareModal}
             style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
           >
             <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Share profile</ThemedText>
@@ -1057,6 +1091,21 @@ export default function ProfileScreen() {
           }
         }}
       />
+
+      <ShareProfileModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        user={user}
+        colors={colors}
+        isDark={isDark}
+        sourceLayout={avatarLayout}
+        onEditPhoto={() => {
+          setShowShareModal(false);
+          setTimeout(() => {
+            setShowAddPhotoSheet(true);
+          }, 300);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -1114,6 +1163,18 @@ const styles = StyleSheet.create({
   avatarWrapper: {
     width: 90,
     height: 90,
+    position: 'relative',
+  },
+  storyPlusBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatar: {
     width: 90,

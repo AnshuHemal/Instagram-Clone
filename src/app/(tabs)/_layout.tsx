@@ -13,12 +13,12 @@
  * - Auto-pauses Reels audio/video when switching to other tabs.
  */
 
-import { useSegments, useRouter } from 'expo-router';
+import { useSegments, useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform, Pressable, View, Animated as RNAnimated, Dimensions, StyleSheet } from 'react-native';
+import { Platform, Pressable, View, Animated as RNAnimated, Dimensions, StyleSheet, BackHandler } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -37,16 +37,19 @@ import InboxScreen from './chat';
 import ExploreScreen from './explore';
 import ProfileScreen from './profile';
 import { TabPagerProvider, useTabPager } from '@/contexts/TabPagerContext';
+import { AccountSwitcherSheet } from '@/components/AccountSwitcherSheet';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Tactile spring micro-animation for tab bar buttons
 const TabBarButton = ({
   onPress,
+  onLongPress,
   isActive,
   children,
 }: {
   onPress: () => void;
+  onLongPress?: () => void;
   isActive: boolean;
   children: React.ReactNode;
 }) => {
@@ -73,6 +76,8 @@ const TabBarButton = ({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={180}
       style={styles.tabButton}
     >
       <RNAnimated.View style={{ transform: [{ scale: scaleValue }], justifyContent: 'center', alignItems: 'center' }}>
@@ -99,8 +104,10 @@ function TabLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const segments = useSegments() as string[];
+  const { tab: tabParam } = useLocalSearchParams<{ tab: string }>();
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
 
   const scrollX = useSharedValue(0);
   const viewPagerRef = useRef<Animated.ScrollView>(null);
@@ -111,15 +118,20 @@ function TabLayout() {
   useEffect(() => {
     const routes: TabType[] = ['index', 'reels', 'chat', 'explore', 'profile'];
     
-    // Fallback: segment is empty or "(tabs)" means index (Home)
-    const activeSegment = (!lastSegment || lastSegment === '(tabs)') ? 'index' : lastSegment as TabType;
+    // Check local search param tab first, then fall back to segment check
+    let activeSegment: TabType = 'index';
+    if (tabParam && routes.includes(tabParam as TabType)) {
+      activeSegment = tabParam as TabType;
+    } else {
+      activeSegment = (!lastSegment || lastSegment === '(tabs)') ? 'index' : lastSegment as TabType;
+    }
     const targetIndex = routes.indexOf(activeSegment);
 
     if (targetIndex !== -1 && targetIndex !== activeIndex) {
       setActiveIndex(targetIndex);
       viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: true });
     }
-  }, [lastSegment]);
+  }, [lastSegment, tabParam]);
 
   // Redirect to login if user is not authenticated
   useEffect(() => {
@@ -127,6 +139,26 @@ function TabLayout() {
       router.replace('/(auth)/login');
     }
   }, [user, isLoading]);
+
+  // Intercept Android hardware back button: go back to Home tab if on another tab, otherwise exit
+  useEffect(() => {
+    const handleBackButton = () => {
+      // Only intercept if we are on the tabs screen itself
+      const isOnTabs = segments.length === 1 && segments[0] === '(tabs)';
+      if (!isOnTabs) {
+        return false; // let normal navigation handle it (e.g. go back from connections)
+      }
+
+      if (activeIndex !== 0) {
+        handleTabPress(0);
+        return true; // prevent default back action
+      }
+      return false; // on home tab, let the default back action exit/close the app
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackButton);
+    return () => subscription.remove();
+  }, [activeIndex, segments]);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -175,6 +207,8 @@ function TabLayout() {
   const handleTabPress = (index: number) => {
     setActiveIndex(index);
     viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+    const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
+    router.setParams({ tab: routes[index] });
   };
 
   return (
@@ -271,7 +305,11 @@ function TabLayout() {
         </TabBarButton>
 
         {/* Button 4: Profile */}
-        <TabBarButton onPress={() => handleTabPress(4)} isActive={activeIndex === 4}>
+        <TabBarButton
+          onPress={() => handleTabPress(4)}
+          onLongPress={() => setShowAccountSwitcher(true)}
+          isActive={activeIndex === 4}
+        >
           <View style={styles.profileIconContainer}>
             {user.avatar ? (
               <Image
@@ -296,6 +334,18 @@ function TabLayout() {
           </View>
         </TabBarButton>
       </Animated.View>
+
+      {/* ── Account Switcher Bottom Sheet ── */}
+      <AccountSwitcherSheet
+        visible={showAccountSwitcher}
+        onClose={() => setShowAccountSwitcher(false)}
+        onAddAccount={() => {
+          setShowAccountSwitcher(false);
+        }}
+        onAccountsCenter={() => {
+          setShowAccountSwitcher(false);
+        }}
+      />
     </View>
   );
 }

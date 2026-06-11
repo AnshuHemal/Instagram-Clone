@@ -44,6 +44,43 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [players, setPlayers] = useState<Record<string, any>>({});
   const playersRef = useRef<Record<string, any>>({});
 
+  // Delayed release queue to prevent garbage collection crashes on native unmount
+  const releaseQueueRef = useRef<Record<string, { player: any; timer: any }>>({});
+
+  const safelyReleasePlayer = (id: string, player: any) => {
+    if (!player) return;
+    try {
+      player.pause();
+    } catch (e) {}
+
+    // Cancel existing release timer if any
+    if (releaseQueueRef.current[id]) {
+      clearTimeout(releaseQueueRef.current[id].timer);
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        player.release();
+      } catch (e) {
+        console.warn('Error releasing player:', e);
+      }
+      delete releaseQueueRef.current[id];
+    }, 5000); // 5 seconds delayed release
+
+    releaseQueueRef.current[id] = { player, timer };
+  };
+
+  const getPlayerFromReleaseQueue = (id: string) => {
+    const item = releaseQueueRef.current[id];
+    if (item) {
+      clearTimeout(item.timer);
+      const player = item.player;
+      delete releaseQueueRef.current[id];
+      return player;
+    }
+    return null;
+  };
+
   const createPlayerInstance = (url: string) => {
     if (!ExpoVideo) return null;
     const cleanUrl = url.replace('.mp4.m3u8', '.m3u8');
@@ -61,10 +98,8 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (!user || reels.length === 0 || !activeId) {
       // Clean up all players on logout or empty reels
-      Object.values(playersRef.current).forEach(player => {
-        try {
-          player.pause();
-        } catch (e) {}
+      Object.entries(playersRef.current).forEach(([id, player]) => {
+        safelyReleasePlayer(id, player);
       });
       playersRef.current = {};
       setPlayers({});
@@ -91,10 +126,16 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Reuse existing player instance
         nextPlayers[reel.id] = playersRef.current[reel.id];
       } else {
-        // Create new player instance and preload buffer
-        const player = createPlayerInstance(reel.hlsUrl);
-        if (player) {
-          nextPlayers[reel.id] = player;
+        // Check release queue first to retrieve instead of recreating
+        const queuedPlayer = getPlayerFromReleaseQueue(reel.id);
+        if (queuedPlayer) {
+          nextPlayers[reel.id] = queuedPlayer;
+        } else {
+          // Create new player instance and preload buffer
+          const player = createPlayerInstance(reel.hlsUrl);
+          if (player) {
+            nextPlayers[reel.id] = player;
+          }
         }
       }
     });
@@ -102,9 +143,7 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Clean up players that are no longer adjacent to active index
     Object.keys(playersRef.current).forEach(id => {
       if (!newTargetKeys.has(id)) {
-        try {
-          playersRef.current[id].pause();
-        } catch (e) {}
+        safelyReleasePlayer(id, playersRef.current[id]);
       }
     });
 
@@ -118,11 +157,18 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       Object.values(playersRef.current).forEach(player => {
         try {
-          player.pause();
+          player.release();
+        } catch (e) {}
+      });
+      Object.values(releaseQueueRef.current).forEach(item => {
+        clearTimeout(item.timer);
+        try {
+          item.player.release();
         } catch (e) {}
       });
     };
   }, []);
+
 
   const mapBackendReel = (item: any): Reel => {
     return {
@@ -144,6 +190,10 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!ExpoVideo || !reel.hlsUrl) return;
     const cleanUrl = reel.hlsUrl.replace('.mp4.m3u8', '.m3u8');
     if (prewarmedUrlRef.current === cleanUrl) return;
+    
+    if (prewarmedPlayer) {
+      safelyReleasePlayer('prewarmed', prewarmedPlayer);
+    }
     
     prewarmedUrlRef.current = cleanUrl;
     try {
@@ -213,10 +263,13 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setReels([]);
       setCursor(null);
       setHasMore(true);
+      if (prewarmedPlayer) {
+        safelyReleasePlayer('prewarmed', prewarmedPlayer);
+      }
       setPrewarmedPlayer(null);
       prewarmedUrlRef.current = null;
     }
-  }, [user]);
+  }, [user, prewarmedPlayer]);
 
   const handleLikeToggle = (id: string) => {
     setReels(prevReels =>

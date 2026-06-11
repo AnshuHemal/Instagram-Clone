@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -305,70 +305,72 @@ export default function FeedScreen() {
 
   // ── Sub-renders ──────────────────────────────────────────────────────────
 
-  const renderYourStory = () => {
-    const avatarUri = user?.avatar || '';
-    const hasAvatar = !!avatarUri;
-    return (
-      <Pressable style={styles.yourStoryContainer}>
-        <View style={styles.yourStoryAvatarOuter}>
-          {hasAvatar ? (
-            <Image source={{ uri: avatarUri }} style={styles.yourStoryAvatar} />
-          ) : (
-            <View
-              style={[
-                styles.yourStoryAvatar,
-                styles.yourStoryAvatarPlaceholder,
-                { backgroundColor: isDark ? '#3A3A3C' : '#D4D4D4' },
-              ]}
-            >
-              <View style={styles.silhouetteHead} />
-              <View style={styles.silhouetteBody} />
+  const renderStoriesHeader = useMemo(() => {
+    const renderYourStory = () => {
+      const avatarUri = user?.avatar || '';
+      const hasAvatar = !!avatarUri;
+      return (
+        <Pressable style={styles.yourStoryContainer}>
+          <View style={styles.yourStoryAvatarOuter}>
+            {hasAvatar ? (
+              <Image source={{ uri: avatarUri }} style={styles.yourStoryAvatar} />
+            ) : (
+              <View
+                style={[
+                  styles.yourStoryAvatar,
+                  styles.yourStoryAvatarPlaceholder,
+                  { backgroundColor: isDark ? '#3A3A3C' : '#D4D4D4' },
+                ]}
+              >
+                <View style={styles.silhouetteHead} />
+                <View style={styles.silhouetteBody} />
+              </View>
+            )}
+            <View style={styles.yourStoryAddBadge}>
+              <Ionicons name="add" size={13} color="#FFFFFF" />
             </View>
-          )}
-          <View style={styles.yourStoryAddBadge}>
-            <Ionicons name="add" size={13} color="#FFFFFF" />
           </View>
-        </View>
-        <ThemedText
-          numberOfLines={1}
-          style={[styles.yourStoryLabel, { color: isDark ? '#FFFFFF' : '#262626' }]}
-        >
-          Your story
-        </ThemedText>
-      </Pressable>
-    );
-  };
+          <ThemedText
+            numberOfLines={1}
+            style={[styles.yourStoryLabel, { color: isDark ? '#FFFFFF' : '#262626' }]}
+          >
+            Your story
+          </ThemedText>
+        </Pressable>
+      );
+    };
 
-  const renderStoriesHeader = () => (
-    <View style={[styles.storiesContainer, { borderBottomColor: colors.border }]}>
-      <View
-        onStartShouldSetResponderCapture={() => {
-          setPagerScrollEnabled(false);
-          return false;
-        }}
-        onTouchEnd={() => setPagerScrollEnabled(true)}
-        onTouchCancel={() => setPagerScrollEnabled(true)}
-      >
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={stories}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.storiesList}
-          ListHeaderComponent={renderYourStory}
-          nestedScrollEnabled={true}
-          renderItem={({ item }) => (
-            <StoryCircle
-              username={item.username}
-              avatar={item.avatar}
-              isSeen={item.isSeen}
-              onPress={() => openStory(item)}
-            />
-          )}
-        />
+    return (
+      <View style={[styles.storiesContainer, { borderBottomColor: colors.border }]}>
+        <View
+          onStartShouldSetResponderCapture={() => {
+            setPagerScrollEnabled(false);
+            return false;
+          }}
+          onTouchEnd={() => setPagerScrollEnabled(true)}
+          onTouchCancel={() => setPagerScrollEnabled(true)}
+        >
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={stories}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.storiesList}
+            ListHeaderComponent={renderYourStory}
+            nestedScrollEnabled={true}
+            renderItem={({ item }) => (
+              <StoryCircle
+                username={item.username}
+                avatar={item.avatar}
+                isSeen={item.isSeen}
+                onPress={() => openStory(item)}
+              />
+            )}
+          />
+        </View>
       </View>
-    </View>
-  );
+    );
+  }, [stories, colors.border, isDark, user, setPagerScrollEnabled]);
 
   const renderFooter = () => {
     if (!isLoading || isRefreshing) return null;
