@@ -35,6 +35,7 @@ interface AuthContextProps {
     isOnboarded?: boolean,
     onboardingStep?: string
   ) => Promise<boolean>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -79,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   username: u.username,
                   name: u.displayName || u.username,
                   email: u.email,
-                  avatar: u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                  avatar: u.avatarUrl || '',
                   bio: u.bio || 'Welcome back to Instagram Clone!',
                   followersCount: 124,
                   followingCount: 256,
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               username: payload.username,
               name: payload.username.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
               email: payload.email,
-              avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+              avatar: '',
               bio: 'Welcome back to Instagram Clone!',
               followersCount: 124,
               followingCount: 256,
@@ -134,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: userPayload.username,
           name: userPayload.displayName || userPayload.username,
           email: userPayload.email,
-          avatar: userPayload.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          avatar: userPayload.avatarUrl || '',
           bio: userPayload.bio || 'Welcome to Instagram Clone!',
           followersCount: 154,
           followingCount: 302,
@@ -162,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       username: username.toLowerCase().trim(),
       name: name.trim(),
       email: email.toLowerCase().trim(),
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      avatar: '',
       bio: 'New user joined!',
       followersCount: 0,
       followingCount: 0,
@@ -200,7 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: userPayload.username,
           name: userPayload.displayName || userPayload.username,
           email: userPayload.email,
-          avatar: userPayload.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          avatar: userPayload.avatarUrl || '',
           bio: userPayload.bio || 'Welcome to Instagram Clone!',
           followersCount: 0,
           followingCount: 0,
@@ -216,6 +217,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const refreshProfile = async (): Promise<void> => {
+    try {
+      const res = await api.get('/auth/profile');
+      if (res.data && res.data.user) {
+        const u = res.data.user;
+        setUser((prev) => prev ? {
+          ...prev,
+          name: u.displayName || prev.name,
+          email: u.email || prev.email,
+          avatar: u.avatarUrl || prev.avatar,
+          bio: u.bio || prev.bio,
+          isOnboarded: u.isOnboarded ?? prev.isOnboarded,
+          onboardingStep: u.onboardingStep || prev.onboardingStep,
+        } : prev);
+      }
+    } catch (err) {
+      console.warn('[refreshProfile] Failed to refresh user profile:', err);
     }
   };
 
@@ -272,7 +293,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, registerComplete, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, registerComplete, logout, updateProfile, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

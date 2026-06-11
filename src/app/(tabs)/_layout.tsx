@@ -1,28 +1,65 @@
-import { Tabs, useSegments, useRouter } from 'expo-router';
+/**
+ * TabLayout
+ *
+ * Implements a production-level horizontal pager navigator for the main bottom bar
+ * tabs (Home, Reels, Chat, Explore, Profile). Enables swipe-to-navigate left and
+ * right with fluid Reanimated transitions, in addition to standard bottom tab bar taps.
+ *
+ * Features:
+ * - Animated.ScrollView pager utilizing Native paging.
+ * - Dynamic path segment checking to align with deep linking and standard router redirects.
+ * - Lazy rendering: screens are mounted only when visited for optimal performance.
+ * - Spring micro-animation on tab button clicks.
+ * - Auto-pauses Reels audio/video when switching to other tabs.
+ */
+
+import { useSegments, useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform, Pressable, View, Animated } from 'react-native';
+import { Platform, Pressable, View, Animated as RNAnimated, Dimensions, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  withTiming,
+  useDerivedValue,
+  runOnJS,
+} from 'react-native-reanimated';
+
+// Screen imports
+import HomeScreen from './index';
+import ReelsScreen from './reels';
+import InboxScreen from './chat';
+import ExploreScreen from './explore';
+import ProfileScreen from './profile';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Tactile spring micro-animation for tab bar buttons
-const TabBarButton = (props: any) => {
-  const { ref, onPress, accessibilityState, children, style } = props;
-  const isSelected = accessibilityState?.selected;
-  
-  const scaleValue = useRef(new Animated.Value(1)).current;
+const TabBarButton = ({
+  onPress,
+  isActive,
+  children,
+}: {
+  onPress: () => void;
+  isActive: boolean;
+  children: React.ReactNode;
+}) => {
+  const scaleValue = useRef(new RNAnimated.Value(1)).current;
 
   useEffect(() => {
-    if (isSelected) {
-      Animated.sequence([
-        Animated.timing(scaleValue, {
+    if (isActive) {
+      RNAnimated.sequence([
+        RNAnimated.timing(scaleValue, {
           toValue: 0.85,
           duration: 80,
           useNativeDriver: true,
         }),
-        Animated.spring(scaleValue, {
+        RNAnimated.spring(scaleValue, {
           toValue: 1,
           friction: 4,
           tension: 40,
@@ -30,19 +67,21 @@ const TabBarButton = (props: any) => {
         }),
       ]).start();
     }
-  }, [isSelected]);
+  }, [isActive]);
 
   return (
     <Pressable
       onPress={onPress}
-      style={style}
+      style={styles.tabButton}
     >
-      <Animated.View style={{ transform: [{ scale: scaleValue }], flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <RNAnimated.View style={{ transform: [{ scale: scaleValue }], justifyContent: 'center', alignItems: 'center' }}>
         {children}
-      </Animated.View>
+      </RNAnimated.View>
     </Pressable>
   );
 };
+
+type TabType = 'index' | 'reels' | 'chat' | 'explore' | 'profile';
 
 export default function TabLayout() {
   const { colors } = useTheme();
@@ -51,33 +90,32 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const segments = useSegments() as string[];
 
-  // Determine if Reels is the currently active tab
-  const isReelsActive = segments.includes('reels');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [renderedPages, setRenderedPages] = useState<boolean[]>([true, false, false, false, false]);
 
-  // Animated background & border transitions
-  const animValue = useRef(new Animated.Value(isReelsActive ? 1 : 0)).current;
+  const scrollX = useSharedValue(0);
+  const viewPagerRef = useRef<Animated.ScrollView>(null);
+
+  // Sync route segments from outside (deep links, redirects)
+  const lastSegment = segments[segments.length - 1];
 
   useEffect(() => {
-    Animated.timing(animValue, {
-      toValue: isReelsActive ? 1 : 0,
-      duration: 250,
-      useNativeDriver: false,
-    }).start();
-  }, [isReelsActive]);
+    const routes: TabType[] = ['index', 'reels', 'chat', 'explore', 'profile'];
+    
+    // Fallback: segment is empty or "(tabs)" means index (Home)
+    const activeSegment = (!lastSegment || lastSegment === '(tabs)') ? 'index' : lastSegment as TabType;
+    const targetIndex = routes.indexOf(activeSegment);
 
-  const animatedBg = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.tabBarBackground, '#000000'],
-  });
-
-  const animatedBorder = animValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.border, 'rgba(255, 255, 255, 0.12)'],
-  });
-
-  const activeColor = isReelsActive ? '#FFFFFF' : colors.tabBarActive;
-  const inactiveColor = isReelsActive ? 'rgba(255, 255, 255, 0.4)' : colors.tabBarInactive;
-  const tabBgColor = isReelsActive ? '#000000' : colors.tabBarBackground;
+    if (targetIndex !== -1 && targetIndex !== activeIndex) {
+      setActiveIndex(targetIndex);
+      setRenderedPages((prev) => {
+        const next = [...prev];
+        next[targetIndex] = true;
+        return next;
+      });
+      viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: true });
+    }
+  }, [lastSegment]);
 
   // Redirect to login if user is not authenticated
   useEffect(() => {
@@ -86,162 +124,233 @@ export default function TabLayout() {
     }
   }, [user, isLoading]);
 
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
+  const onScrollEnd = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / SCREEN_WIDTH);
+    if (index !== activeIndex) {
+      setActiveIndex(index);
+      setRenderedPages((prev) => {
+        const next = [...prev];
+        next[index] = true;
+        return next;
+      });
+
+      // Update segment route path matching the active page index
+      const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
+      router.setParams({ tab: routes[index] });
+    }
+  };
+
   if (isLoading || !user) {
     return null;
   }
 
-  // Calculate dynamic tab bar height based on Android/iOS bottom safe areas
+  // Calculate dynamic heights for safe area bottom spacing
   const paddingBottom = insets.bottom > 0 ? insets.bottom : 8;
   const tabHeight = Platform.OS === 'ios' 
     ? 50 + insets.bottom 
     : 60 + (insets.bottom > 0 ? insets.bottom - 5 : 8);
 
+  const activeColor = activeIndex === 1 ? '#FFFFFF' : colors.tabBarActive;
+  const inactiveColor = activeIndex === 1 ? 'rgba(255, 255, 255, 0.4)' : colors.tabBarInactive;
+  const tabBgColor = activeIndex === 1 ? '#000000' : colors.tabBarBackground;
+
+  const tabBarStyle = useAnimatedStyle(() => {
+    const isReels = activeIndex === 1;
+    return {
+      backgroundColor: withTiming(isReels ? '#000000' : colors.tabBarBackground, { duration: 220 }),
+      borderTopColor: withTiming(isReels ? 'rgba(255, 255, 255, 0.12)' : colors.border, { duration: 220 }),
+      borderTopWidth: 0.5,
+      height: tabHeight,
+      paddingBottom: paddingBottom,
+      paddingTop: 8,
+    };
+  });
+
+  const handleTabPress = (index: number) => {
+    setActiveIndex(index);
+    setRenderedPages((prev) => {
+      const next = [...prev];
+      next[index] = true;
+      return next;
+    });
+    viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+  };
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: activeColor,
-        tabBarInactiveTintColor: inactiveColor,
-        tabBarStyle: {
-          backgroundColor: 'transparent',
-          borderTopWidth: 0, // Rendered smoothly via tabBarBackground instead
-          height: tabHeight,
-          paddingBottom: paddingBottom,
-          paddingTop: 8,
-          position: isReelsActive ? 'absolute' : 'relative',
-        },
-        tabBarBackground: () => (
-          <Animated.View
-            style={{
-              flex: 1,
-              backgroundColor: animatedBg,
-              borderTopWidth: 0.5,
-              borderTopColor: animatedBorder,
-            }}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Horizontal Page Pager */}
+      <Animated.ScrollView
+        ref={viewPagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={onScrollEnd}
+        style={styles.pager}
+        contentContainerStyle={{ width: SCREEN_WIDTH * 5 }}
+        bounces={false}
+        overScrollMode="never"
+      >
+        {/* Page 0: Home */}
+        <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
+          {renderedPages[0] ? <HomeScreen /> : null}
+        </View>
+
+        {/* Page 1: Reels (Full screen underneath absolute tab bar) */}
+        <View style={{ width: SCREEN_WIDTH, height: '100%', backgroundColor: '#000000' }}>
+          {renderedPages[1] ? <ReelsScreen isTabActive={activeIndex === 1} /> : null}
+        </View>
+
+        {/* Page 2: Chat */}
+        <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
+          {renderedPages[2] ? <InboxScreen /> : null}
+        </View>
+
+        {/* Page 3: Explore */}
+        <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
+          {renderedPages[3] ? <ExploreScreen /> : null}
+        </View>
+
+        {/* Page 4: Profile */}
+        <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
+          {renderedPages[4] ? <ProfileScreen /> : null}
+        </View>
+      </Animated.ScrollView>
+
+      {/* Floating Bottom Tab Bar */}
+      <Animated.View style={[styles.tabBar, tabBarStyle]}>
+        {/* Button 0: Home */}
+        <TabBarButton onPress={() => handleTabPress(0)} isActive={activeIndex === 0}>
+          <Image
+            source={activeIndex === 0 
+              ? require('@/assets/images/tabIcons/home_filled.svg') 
+              : require('@/assets/images/tabIcons/home_outline.svg')
+            }
+            style={[styles.tabIcon, { tintColor: activeIndex === 0 ? activeColor : inactiveColor }]}
+            contentFit="contain"
           />
-        ),
-        tabBarShowLabel: false,
-        headerShown: false,
-        tabBarButton: (props) => <TabBarButton {...props} />,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ focused }) => (
+        </TabBarButton>
+
+        {/* Button 1: Reels */}
+        <TabBarButton onPress={() => handleTabPress(1)} isActive={activeIndex === 1}>
+          <Image
+            source={activeIndex === 1 
+              ? require('@/assets/images/tabIcons/reels_filled.png') 
+              : require('@/assets/images/tabIcons/reels_outline.png')
+            }
+            style={[styles.tabIcon, { tintColor: activeIndex === 1 ? activeColor : inactiveColor }]}
+            contentFit="contain"
+          />
+        </TabBarButton>
+
+        {/* Button 2: Chat */}
+        <TabBarButton onPress={() => handleTabPress(2)} isActive={activeIndex === 2}>
+          <View style={styles.chatIconContainer}>
             <Image
-              source={focused 
-                ? require('@/assets/images/tabIcons/home_filled.svg') 
-                : require('@/assets/images/tabIcons/home_outline.svg')
+              source={activeIndex === 2 
+                ? require('@/assets/images/tabIcons/messenger_filled.png') 
+                : require('@/assets/images/tabIcons/messenger_outline.png')
               }
-              style={{
-                width: 24,
-                height: 24,
-                tintColor: focused ? activeColor : inactiveColor,
-              }}
+              style={[styles.tabIcon, { tintColor: activeIndex === 2 ? activeColor : inactiveColor }]}
               contentFit="contain"
             />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="reels"
-        options={{
-          title: 'Reels',
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={focused 
-                ? require('@/assets/images/tabIcons/reels_filled.png') 
-                : require('@/assets/images/tabIcons/reels_outline.png')
-              }
-              style={{
-                width: 24,
-                height: 24,
-                tintColor: focused ? activeColor : inactiveColor,
-              }}
-              contentFit="contain"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Chat',
-          tabBarIcon: ({ focused }) => (
-            <View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }}>
-              <Image
-                source={focused 
-                  ? require('@/assets/images/tabIcons/messenger_filled.png') 
-                  : require('@/assets/images/tabIcons/messenger_outline.png')
-                }
-                style={{
-                  width: 24,
-                  height: 24,
-                  tintColor: focused ? activeColor : inactiveColor,
-                }}
-                contentFit="contain"
-              />
-              <View style={{
-                position: 'absolute',
-                bottom: 1,
-                right: 1,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: '#FF3040',
-                borderWidth: 1.5,
-                borderColor: tabBgColor,
-              }} />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name={focused ? 'search' : 'search-outline'}
-              size={24}
-              color={focused ? activeColor : inactiveColor}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ focused }) => (
-            <View style={{ width: 28, height: 28, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={[styles.unreadBadge, { borderColor: tabBgColor }]} />
+          </View>
+        </TabBarButton>
+
+        {/* Button 3: Explore */}
+        <TabBarButton onPress={() => handleTabPress(3)} isActive={activeIndex === 3}>
+          <Ionicons
+            name={activeIndex === 3 ? 'search' : 'search-outline'}
+            size={24}
+            color={activeIndex === 3 ? activeColor : inactiveColor}
+          />
+        </TabBarButton>
+
+        {/* Button 4: Profile */}
+        <TabBarButton onPress={() => handleTabPress(4)} isActive={activeIndex === 4}>
+          <View style={styles.profileIconContainer}>
+            {user.avatar ? (
               <Image
                 source={{ uri: user.avatar }}
                 style={{
                   width: 24,
                   height: 24,
                   borderRadius: 12,
-                  borderWidth: focused ? 1.5 : 0,
+                  borderWidth: activeIndex === 4 ? 1.5 : 0,
                   borderColor: activeColor,
                 }}
                 contentFit="cover"
               />
-              <View style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: '#FF3040',
-                borderWidth: 1.5,
-                borderColor: tabBgColor,
-              }} />
-            </View>
-          ),
-        }}
-      />
-    </Tabs>
+            ) : (
+              <Ionicons
+                name={activeIndex === 4 ? 'person' : 'person-outline'}
+                size={24}
+                color={activeIndex === 4 ? activeColor : inactiveColor}
+              />
+            )}
+            <View style={[styles.unreadBadge, { borderColor: tabBgColor }]} />
+          </View>
+        </TabBarButton>
+      </Animated.View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  pager: {
+    flex: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  tabButton: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabIcon: {
+    width: 24,
+    height: 24,
+  },
+  chatIconContainer: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  profileIconContainer: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF3040',
+    borderWidth: 1.5,
+  },
+});

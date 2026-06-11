@@ -8,7 +8,7 @@ import { ReelItem } from '@/components/ReelItem';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts } from '@/constants/theme';
 
-export default function ReelsScreen() {
+export default function ReelsScreen({ isTabActive = true }: { isTabActive?: boolean }) {
   const { colors, isDark } = useTheme();
   const {
     reels,
@@ -94,7 +94,7 @@ export default function ReelsScreen() {
           <ReelItem
             reel={item}
             isActive={item.id === activeId}
-            isScreenFocused={isFocused}
+            isScreenFocused={isFocused && isTabActive}
             onLikeToggle={handleLikeToggle}
             height={windowHeight}
             preloadedPlayer={players[item.id] || null}

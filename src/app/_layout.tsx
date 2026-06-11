@@ -1,13 +1,16 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { ReelsProvider } from '@/contexts/ReelsContext';
 import { PostsProvider } from '@/contexts/PostsContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   useFonts,
   Outfit_400Regular,
@@ -42,17 +45,23 @@ export default function RootLayout() {
   }
 
   return (
-    <LoadingProvider>
-      <AuthProvider>
-        <ThemeProvider>
-          <ReelsProvider>
-            <PostsProvider>
-              <RootLayoutContent />
-            </PostsProvider>
-          </ReelsProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </LoadingProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <LoadingProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <ReelsProvider>
+                <PostsProvider>
+                  <ToastProvider>
+                    <RootLayoutContent />
+                  </ToastProvider>
+                </PostsProvider>
+              </ReelsProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </LoadingProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

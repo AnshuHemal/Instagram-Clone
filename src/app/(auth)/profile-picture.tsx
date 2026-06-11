@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, Pressable, ScrollView, View, Text, Alert, Platform, Image, Modal, ActivityIndicator, BackHandler, ToastAndroid } from 'react-native';
+import { StyleSheet, Pressable, ScrollView, View, Text, Alert, Platform, Image, Modal, ActivityIndicator, BackHandler } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeInDown, FadeIn, FadeOut, SlideInDown, SlideOutDown, Layout } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '@/services/api';
@@ -24,6 +25,7 @@ export default function ProfilePictureScreen() {
   const isPhone = params.isPhone || 'false';
   const { colors, isDark } = useTheme();
   const { user, updateProfile } = useAuth();
+  const { showToast } = useToast();
   
   const insets = useSafeAreaInsets();
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -67,11 +69,7 @@ export default function ProfilePictureScreen() {
 
   const handleFacebookImport = () => {
     setIsLoading(true);
-    if (Platform.OS === 'android') {
-      ToastAndroid.show('Importing from Facebook...', ToastAndroid.SHORT);
-    } else {
-      console.log('Importing from Facebook...');
-    }
+    showToast({ message: 'Importing from Facebook...', type: 'info' });
     setTimeout(async () => {
       // Simulate importing from Facebook
       const randomFacebookAvatar = MOCK_AVATARS[Math.floor(Math.random() * MOCK_AVATARS.length)];
@@ -89,11 +87,7 @@ export default function ProfilePictureScreen() {
         updateProfile(fullName, user?.bio || 'Welcome to Instagram Clone!', randomFacebookAvatar);
         setIsUploaded(true);
         
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Profile picture imported from Facebook successfully!', ToastAndroid.SHORT);
-        } else {
-          console.log('Profile picture imported from Facebook successfully!');
-        }
+        showToast({ message: 'Profile picture imported from Facebook successfully!', type: 'success' });
         
         setTimeout(() => {
           handleNext();
@@ -101,11 +95,7 @@ export default function ProfilePictureScreen() {
       } catch (err: any) {
         console.error('Failed to save profile picture:', err);
         const errMsg = err.response?.data?.message || 'Failed to save profile picture. Please try again.';
-        if (Platform.OS === 'android') {
-          ToastAndroid.show(errMsg, ToastAndroid.LONG);
-        } else {
-          Alert.alert('Upload Error', errMsg);
-        }
+        showToast({ message: errMsg, type: 'error', title: 'Upload Error' });
       } finally {
         setIsLoading(false);
       }
@@ -162,11 +152,7 @@ export default function ProfilePictureScreen() {
         updateProfile(fullName, user?.bio || 'Welcome to Instagram Clone!', avatarUri);
         setIsUploaded(true);
         
-        if (Platform.OS === 'android') {
-          ToastAndroid.show('Profile picture updated successfully!', ToastAndroid.SHORT);
-        } else {
-          console.log('Profile picture updated successfully!');
-        }
+        showToast({ message: 'Profile picture updated successfully!', type: 'success' });
         
         setTimeout(() => {
           handleNext();
@@ -197,11 +183,7 @@ export default function ProfilePictureScreen() {
           updateProfile(fullName, user?.bio || 'Welcome to Instagram Clone!', response.data.avatarUrl);
           setIsUploaded(true);
           
-          if (Platform.OS === 'android') {
-            ToastAndroid.show('Profile picture uploaded successfully!', ToastAndroid.SHORT);
-          } else {
-            console.log('Profile picture uploaded successfully!');
-          }
+          showToast({ message: 'Profile picture uploaded successfully!', type: 'success' });
           
           setTimeout(() => {
             handleNext();

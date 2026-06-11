@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, Modal, BackHandler, TextInput, ActivityIndicator, Alert, ToastAndroid } from 'react-native';
+import { StyleSheet, Pressable, KeyboardAvoidingView, Platform, ScrollView, View, Text, Modal, BackHandler, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,12 +9,14 @@ import { useLoading } from '@/contexts/LoadingContext';
 import { Fonts } from '@/constants/theme';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function OtpScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user, updateProfile } = useAuth();
   const { showLoading, hideLoading } = useLoading();
+  const { showToast } = useToast();
   const params = useLocalSearchParams<{ target?: string; isPhone?: string; fromAddContact?: string }>();
   const insets = useSafeAreaInsets();
 
@@ -121,22 +123,19 @@ export default function OtpScreen() {
         emailOrPhone: target.trim().toLowerCase(),
         isPhone: isPhoneMode,
       });
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(`A new confirmation code has been sent to ${target}.`, ToastAndroid.SHORT);
-      } else {
-        Alert.alert(
-          'Code Sent',
-          `A new confirmation code has been sent to ${target}.`
-        );
-      }
+      showToast({
+        title: 'Code Sent',
+        message: `A new confirmation code has been sent to ${target}.`,
+        type: 'success',
+      });
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || 'Failed to resend confirmation code. Please try again.';
       setError(errorMsg);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(errorMsg, ToastAndroid.LONG);
-      } else {
-        Alert.alert('Error', errorMsg);
-      }
+      showToast({
+        title: 'Error',
+        message: errorMsg,
+        type: 'error',
+      });
     } finally {
       hideLoading();
     }
