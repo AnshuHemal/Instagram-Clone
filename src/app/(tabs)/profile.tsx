@@ -705,27 +705,34 @@ export default function ProfileScreen() {
                 <ThemedText style={styles.seeAllLink}>See all</ThemedText>
               </Pressable>
             </View>
-            <FlatList
-              horizontal
-              data={suggestions}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.suggestionsList}
-              onTouchStart={() => setPagerScrollEnabled(false)}
+            <View
+              onStartShouldSetResponderCapture={() => {
+                setPagerScrollEnabled(false);
+                return false;
+              }}
               onTouchEnd={() => setPagerScrollEnabled(true)}
               onTouchCancel={() => setPagerScrollEnabled(true)}
-              renderItem={({ item, index }) => (
-                <Animated.View entering={SlideInRight.duration(300).delay(index * 60)}>
-                  <SuggestionCard
-                    item={item}
-                    onFollow={handleFollow}
-                    onDismiss={handleDismiss}
-                    colors={colors}
-                    isDark={isDark}
-                  />
-                </Animated.View>
-              )}
-            />
+            >
+              <FlatList
+                horizontal
+                data={suggestions}
+                keyExtractor={(item) => item.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestionsList}
+                nestedScrollEnabled={true}
+                renderItem={({ item, index }) => (
+                  <Animated.View entering={SlideInRight.duration(300).delay(index * 60)}>
+                    <SuggestionCard
+                      item={item}
+                      onFollow={handleFollow}
+                      onDismiss={handleDismiss}
+                      colors={colors}
+                      isDark={isDark}
+                    />
+                  </Animated.View>
+                )}
+              />
+            </View>
           </Animated.View>
         )}
 
@@ -850,94 +857,101 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ── Content Area (ViewPager) ── */}
-        <Animated.ScrollView
-          ref={viewPagerRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={scrollHandlerViewPager}
-          scrollEventThrottle={16}
-          onMomentumScrollEnd={onViewPagerScrollEnd}
+        <View
           style={styles.viewPager}
-          contentContainerStyle={{ width: SCREEN_WIDTH * 3 }}
-          onTouchStart={() => setPagerScrollEnabled(false)}
+          onStartShouldSetResponderCapture={() => {
+            setPagerScrollEnabled(false);
+            return false;
+          }}
           onTouchEnd={() => setPagerScrollEnabled(true)}
           onTouchCancel={() => setPagerScrollEnabled(true)}
         >
-          {/* Page 1: Posts */}
-          <View style={{ width: SCREEN_WIDTH }}>
-            {hasPosts ? (
-              <View style={styles.gridContainer}>
-                {/* Real posts would go here */}
-              </View>
-            ) : (
+          <Animated.ScrollView
+            ref={viewPagerRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={scrollHandlerViewPager}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={onViewPagerScrollEnd}
+            contentContainerStyle={{ width: SCREEN_WIDTH * 3 }}
+            nestedScrollEnabled={true}
+          >
+            {/* Page 1: Posts */}
+            <View style={{ width: SCREEN_WIDTH }}>
+              {hasPosts ? (
+                <View style={styles.gridContainer}>
+                  {/* Real posts would go here */}
+                </View>
+              ) : (
+                <Animated.View
+                  entering={FadeInDown.duration(400).delay(100)}
+                  layout={LinearTransition}
+                  style={styles.emptyStateContainer}
+                >
+                  <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
+                    <Ionicons name="camera-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
+                  </View>
+                  <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
+                    Create your first post
+                  </ThemedText>
+                  <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                    Make this space your own.
+                  </ThemedText>
+                  <Pressable
+                    onPress={() => router.push('/create')}
+                    style={styles.createButton}
+                  >
+                    <ThemedText style={styles.createButtonText}>Create</ThemedText>
+                  </Pressable>
+                </Animated.View>
+              )}
+            </View>
+
+            {/* Page 2: Reels */}
+            <View style={{ width: SCREEN_WIDTH }}>
               <Animated.View
-                entering={FadeInDown.duration(400).delay(100)}
+                entering={FadeInDown.duration(400).delay(80)}
                 layout={LinearTransition}
                 style={styles.emptyStateContainer}
               >
                 <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-                  <Ionicons name="camera-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
+                  <Ionicons name="videocam-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
                 </View>
                 <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
-                  Create your first post
+                  Share your first reel
                 </ThemedText>
                 <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                  Make this space your own.
+                  {reelsSort === 'most_viewed'
+                    ? 'Your most viewed short videos will appear here.'
+                    : 'Short videos that inspire others.'}
                 </ThemedText>
-                <Pressable
-                  onPress={() => router.push('/create')}
-                  style={styles.createButton}
-                >
-                  <ThemedText style={styles.createButtonText}>Create</ThemedText>
+                <Pressable style={styles.createButton}>
+                  <ThemedText style={styles.createButtonText}>Create reel</ThemedText>
                 </Pressable>
               </Animated.View>
-            )}
-          </View>
+            </View>
 
-          {/* Page 2: Reels */}
-          <View style={{ width: SCREEN_WIDTH }}>
-            <Animated.View
-              entering={FadeInDown.duration(400).delay(80)}
-              layout={LinearTransition}
-              style={styles.emptyStateContainer}
-            >
-              <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-                <Ionicons name="videocam-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
-              </View>
-              <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
-                Share your first reel
-              </ThemedText>
-              <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                {reelsSort === 'most_viewed'
-                  ? 'Your most viewed short videos will appear here.'
-                  : 'Short videos that inspire others.'}
-              </ThemedText>
-              <Pressable style={styles.createButton}>
-                <ThemedText style={styles.createButtonText}>Create reel</ThemedText>
-              </Pressable>
-            </Animated.View>
-          </View>
-
-          {/* Page 3: Tagged */}
-          <View style={{ width: SCREEN_WIDTH }}>
-            <Animated.View
-              entering={FadeInDown.duration(400).delay(80)}
-              layout={LinearTransition}
-              style={styles.emptyStateContainer}
-            >
-              <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-                <Ionicons name="pricetag-outline" size={34} color={isDark ? '#555' : '#BDBDBD'} />
-              </View>
-              <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
-                No tagged posts
-              </ThemedText>
-              <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                When people tag you, it'll appear here.
-              </ThemedText>
-            </Animated.View>
-          </View>
-        </Animated.ScrollView>
+            {/* Page 3: Tagged */}
+            <View style={{ width: SCREEN_WIDTH }}>
+              <Animated.View
+                entering={FadeInDown.duration(400).delay(80)}
+                layout={LinearTransition}
+                style={styles.emptyStateContainer}
+              >
+                <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
+                  <Ionicons name="pricetag-outline" size={34} color={isDark ? '#555' : '#BDBDBD'} />
+                </View>
+                <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
+                  No tagged posts
+                </ThemedText>
+                <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                  When people tag you, it'll appear here.
+                </ThemedText>
+              </Animated.View>
+            </View>
+          </Animated.ScrollView>
+        </View>
       </Animated.ScrollView>
       </GestureDetector>
 

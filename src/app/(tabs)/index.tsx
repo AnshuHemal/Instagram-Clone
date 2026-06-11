@@ -341,25 +341,32 @@ export default function FeedScreen() {
 
   const renderStoriesHeader = () => (
     <View style={[styles.storiesContainer, { borderBottomColor: colors.border }]}>
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={stories}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.storiesList}
-        ListHeaderComponent={renderYourStory}
-        onTouchStart={() => setPagerScrollEnabled(false)}
+      <View
+        onStartShouldSetResponderCapture={() => {
+          setPagerScrollEnabled(false);
+          return false;
+        }}
         onTouchEnd={() => setPagerScrollEnabled(true)}
         onTouchCancel={() => setPagerScrollEnabled(true)}
-        renderItem={({ item }) => (
-          <StoryCircle
-            username={item.username}
-            avatar={item.avatar}
-            isSeen={item.isSeen}
-            onPress={() => openStory(item)}
-          />
-        )}
-      />
+      >
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={stories}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.storiesList}
+          ListHeaderComponent={renderYourStory}
+          nestedScrollEnabled={true}
+          renderItem={({ item }) => (
+            <StoryCircle
+              username={item.username}
+              avatar={item.avatar}
+              isSeen={item.isSeen}
+              onPress={() => openStory(item)}
+            />
+          )}
+        />
+      </View>
     </View>
   );
 

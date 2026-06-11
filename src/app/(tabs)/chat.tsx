@@ -45,28 +45,34 @@ export default function InboxScreen() {
         </View>
       </View>
 
-      {/* Active Users Horizontal Scroll */}
       <View style={styles.activeUsersSection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.activeUsersList}
-          onTouchStart={() => setPagerScrollEnabled(false)}
+        <View
+          onStartShouldSetResponderCapture={() => {
+            setPagerScrollEnabled(false);
+            return false;
+          }}
           onTouchEnd={() => setPagerScrollEnabled(true)}
           onTouchCancel={() => setPagerScrollEnabled(true)}
         >
-          {MOCK_STORIES.map((story) => (
-            <View key={story.id} style={styles.activeUserContainer}>
-              <View style={styles.avatarWrapper}>
-                <Image source={{ uri: story.avatar }} style={styles.activeAvatar} />
-                <View style={[styles.onlineDot, { borderColor: colors.background }]} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activeUsersList}
+            nestedScrollEnabled={true}
+          >
+            {MOCK_STORIES.map((story) => (
+              <View key={story.id} style={styles.activeUserContainer}>
+                <View style={styles.avatarWrapper}>
+                  <Image source={{ uri: story.avatar }} style={styles.activeAvatar} />
+                  <View style={[styles.onlineDot, { borderColor: colors.background }]} />
+                </View>
+                <ThemedText type="small" numberOfLines={1} style={[styles.activeUsername, { color: colors.textSecondary }]}>
+                  {story.username}
+                </ThemedText>
               </View>
-              <ThemedText type="small" numberOfLines={1} style={[styles.activeUsername, { color: colors.textSecondary }]}>
-                {story.username}
-              </ThemedText>
-            </View>
-          ))}
-        </ScrollView>
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
       {/* Chat List */}
