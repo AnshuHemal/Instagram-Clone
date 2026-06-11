@@ -21,6 +21,7 @@ import { MOCK_STORIES, Story } from '@/constants/mockData';
 import { Ionicons } from '@expo/vector-icons';
 import { usePosts } from '@/contexts/PostsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTabPager } from '@/contexts/TabPagerContext';
 import * as SecureStore from 'expo-secure-store';
 import ReAnimated, {
   FadeIn,
@@ -108,6 +109,7 @@ const PullToRefreshSpinner = ({
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const { setPagerScrollEnabled } = useTabPager();
   const {
     posts,
     isLoading,
@@ -336,6 +338,9 @@ export default function FeedScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.storiesList}
         ListHeaderComponent={renderYourStory}
+        onTouchStart={() => setPagerScrollEnabled(false)}
+        onTouchEnd={() => setPagerScrollEnabled(true)}
+        onTouchCancel={() => setPagerScrollEnabled(true)}
         renderItem={({ item }) => (
           <StoryCircle
             username={item.username}

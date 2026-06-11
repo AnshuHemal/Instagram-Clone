@@ -45,6 +45,7 @@ import { AvatarBottomSheet } from '@/components/AvatarBottomSheet';
 import { AddPhotoBottomSheet } from '@/components/AddPhotoBottomSheet';
 import { LibrarySelectModal } from '@/components/LibrarySelectModal';
 import { useToast } from '@/contexts/ToastContext';
+import { useTabPager } from '@/contexts/TabPagerContext';
 import { MOCK_STORIES } from '@/constants/mockData';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -280,6 +281,7 @@ export default function ProfileScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const { user, logout, refreshProfile, updateProfile } = useAuth();
   const { showToast } = useToast();
+  const { setPagerScrollEnabled } = useTabPager();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [suggestions, setSuggestions] = useState(FOLLOW_SUGGESTIONS);
@@ -699,6 +701,9 @@ export default function ProfileScreen() {
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.suggestionsList}
+              onTouchStart={() => setPagerScrollEnabled(false)}
+              onTouchEnd={() => setPagerScrollEnabled(true)}
+              onTouchCancel={() => setPagerScrollEnabled(true)}
               renderItem={({ item, index }) => (
                 <Animated.View entering={SlideInRight.duration(300).delay(index * 60)}>
                   <SuggestionCard
@@ -845,6 +850,9 @@ export default function ProfileScreen() {
           onMomentumScrollEnd={onViewPagerScrollEnd}
           style={styles.viewPager}
           contentContainerStyle={{ width: SCREEN_WIDTH * 3 }}
+          onTouchStart={() => setPagerScrollEnabled(false)}
+          onTouchEnd={() => setPagerScrollEnabled(true)}
+          onTouchCancel={() => setPagerScrollEnabled(true)}
         >
           {/* Page 1: Posts */}
           <View style={{ width: SCREEN_WIDTH }}>

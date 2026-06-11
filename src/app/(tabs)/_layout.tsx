@@ -36,6 +36,7 @@ import ReelsScreen from './reels';
 import InboxScreen from './chat';
 import ExploreScreen from './explore';
 import ProfileScreen from './profile';
+import { TabPagerProvider, useTabPager } from '@/contexts/TabPagerContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -83,7 +84,16 @@ const TabBarButton = ({
 
 type TabType = 'index' | 'reels' | 'chat' | 'explore' | 'profile';
 
-export default function TabLayout() {
+export default function TabLayoutWrapper() {
+  return (
+    <TabPagerProvider>
+      <TabLayout />
+    </TabPagerProvider>
+  );
+}
+
+function TabLayout() {
+  const { pagerScrollEnabled } = useTabPager();
   const { colors } = useTheme();
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -178,6 +188,7 @@ export default function TabLayout() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         onMomentumScrollEnd={onScrollEnd}
+        scrollEnabled={pagerScrollEnabled}
         style={styles.pager}
         contentContainerStyle={{ width: SCREEN_WIDTH * 5 }}
         bounces={false}

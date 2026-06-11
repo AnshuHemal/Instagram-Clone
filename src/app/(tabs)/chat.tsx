@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useTabPager } from '@/contexts/TabPagerContext';
 import { ThemedText } from '@/components/themed-text';
 import { MOCK_CHATS, MOCK_STORIES } from '@/constants/mockData';
 
 export default function InboxScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { setPagerScrollEnabled } = useTabPager();
   const [search, setSearch] = useState('');
 
   const filteredChats = MOCK_CHATS.filter((chat) =>
@@ -45,7 +47,14 @@ export default function InboxScreen() {
 
       {/* Active Users Horizontal Scroll */}
       <View style={styles.activeUsersSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.activeUsersList}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.activeUsersList}
+          onTouchStart={() => setPagerScrollEnabled(false)}
+          onTouchEnd={() => setPagerScrollEnabled(true)}
+          onTouchCancel={() => setPagerScrollEnabled(true)}
+        >
           {MOCK_STORIES.map((story) => (
             <View key={story.id} style={styles.activeUserContainer}>
               <View style={styles.avatarWrapper}>
