@@ -160,12 +160,13 @@ export const PostCard: React.FC<PostCardProps> = ({
     Animated.sequence([
       Animated.timing(likeScale, {
         toValue: 1.3,
-        duration: 100,
+        duration: 60,
         useNativeDriver: true,
       }),
-      Animated.timing(likeScale, {
-        toValue: 1.0,
-        duration: 100,
+      Animated.spring(likeScale, {
+        toValue: 1,
+        friction: 3,
+        tension: 100,
         useNativeDriver: true,
       }),
     ]).start();
@@ -177,16 +178,16 @@ export const PostCard: React.FC<PostCardProps> = ({
 
     Animated.parallel([
       Animated.spring(heartScale, {
-        toValue: 1.2,
-        friction: 4,
-        tension: 40,
+        toValue: 1,
+        friction: 3,
+        tension: 80,
         useNativeDriver: true,
       }),
       Animated.sequence([
-        Animated.delay(600),
+        Animated.delay(400),
         Animated.timing(heartOpacity, {
           toValue: 0,
-          duration: 200,
+          duration: 150,
           useNativeDriver: true,
         }),
       ]),
@@ -319,7 +320,7 @@ export const PostCard: React.FC<PostCardProps> = ({
           ]}
           pointerEvents="none"
         >
-          <Ionicons name="heart" size={90} color="#FFFFFF" />
+          <Ionicons name="heart" size={100} color="#FFFFFF" />
         </Animated.View>
 
         {/* Scale/Opacity Animated Dot Indicators */}
@@ -588,12 +589,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignSelf: 'center',
     top: '50%',
-    marginTop: -45,
+    marginTop: -50,
     zIndex: 20,
-    shadowColor: '#000000',
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#FF3040',
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
   },
   dotsContainer: {
     position: 'absolute',
