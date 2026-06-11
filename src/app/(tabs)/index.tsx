@@ -157,6 +157,7 @@ export default function FeedScreen() {
 
   // Gesture detection
   const PULL_THRESHOLD = 80;
+  const startX        = useSharedValue(0);
   const startY        = useSharedValue(0);
   const dragY         = useSharedValue(0);
   const gestureActive = useSharedValue(false);
@@ -194,13 +195,22 @@ export default function FeedScreen() {
   const panGesture = Gesture.Pan()
     .manualActivation(true)
     .onTouchesDown((e) => {
+      startX.value      = e.changedTouches[0].x;
       startY.value      = e.changedTouches[0].y;
       dragY.value       = 0;
       gestureActive.value = false;
     })
     .onTouchesMove((e, state) => {
       if (gestureActive.value) return;
+      const dx = Math.abs(e.changedTouches[0].x - startX.value);
       const dy = e.changedTouches[0].y - startY.value;
+
+      // Fail immediately on horizontal gestures to allow child horizontal scrolling
+      if (dx > 10 && dx > Math.abs(dy)) {
+        state.fail();
+        return;
+      }
+
       if (scrollY.value <= 0 && dy > 8 && !isRefreshingShared.value) {
         gestureActive.value = true;
         state.activate();
