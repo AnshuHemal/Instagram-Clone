@@ -12,7 +12,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -49,6 +49,8 @@ import { ShareProfileModal } from '@/components/ShareProfileModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useTabPager } from '@/contexts/TabPagerContext';
 import { MOCK_STORIES } from '@/constants/mockData';
+import { FollowButton } from '@/components/FollowButton';
+import { followService, UserProfileResponse } from '@/services/follow';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -319,6 +321,7 @@ const ContentTab = ({
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { userId: viewUserId } = useLocalSearchParams<{ userId?: string }>();
   const { colors, isDark, toggleTheme } = useTheme();
   const { user, logout, refreshProfile, updateProfile } = useAuth();
   const { showToast } = useToast();
@@ -332,6 +335,12 @@ export default function ProfileScreen() {
   const [reelsSort, setReelsSort] = useState<'latest' | 'most_viewed'>('latest');
   const [showReelsDropdown, setShowReelsDropdown] = useState(false);
 
+  // Other user profile state
+  const [viewProfile, setViewProfile] = useState<UserProfileResponse['user'] | null>(null);
+  const [isViewLoading, setIsViewLoading] = useState(false);
+
+  const isOwnProfile = !viewUserId || viewUserId === user?.id;
+
   const scrollY = useSharedValue(0);
   const viewPagerRef = useRef<Animated.ScrollView>(null);
   const viewPagerScrollX = useSharedValue(0);
@@ -342,6 +351,44 @@ export default function ProfileScreen() {
   const refreshProgress = useSharedValue(0);
   const spinValue = useSharedValue(0);
   const refreshBarHeight = useSharedValue(0);
+
+  // Fetch other user's profile
+  useEffect(() => {
+    if (viewUserId && viewUserId !== user?.id) {
+      const fetchUserProfile = async () => {
+        setIsViewLoading(true);
+        try {
+          const res = await followService.getUserProfile(viewUserId);
+          if (res.success && res.user) {
+            setViewProfile(res.user);
+          }
+        } catch (err) {
+          console.error('Failed to fetch user profile:', err);
+          showToast({ title: 'Error', message: 'Failed to load profile.', type: 'error' });
+        } finally {
+          setIsViewLoading(false);
+        }
+      };
+      fetchUserProfile();
+    }
+  }, [viewUserId]);
+
+  // Determine which profile data to display
+  const profileUser = isOwnProfile
+    ? user
+    : viewProfile
+      ? {
+          ...user!,
+          id: viewProfile.id,
+          username: viewProfile.username,
+          name: viewProfile.displayName,
+          avatar: viewProfile.avatarUrl || '',
+          bio: viewProfile.bio || '',
+          followersCount: viewProfile.followersCount,
+          followingCount: viewProfile.followingCount,
+          postsCount: viewProfile.postsCount,
+        }
+      : user;
 
   // Avatar action sheet
   const [showAvatarSheet, setShowAvatarSheet] = useState(false);
@@ -560,8 +607,8 @@ export default function ProfileScreen() {
 
 
 
-  const hasBio = !!(user.bio && user.bio.trim());
-  const hasAvatar = !!(user.avatar && user.avatar.trim());
+  const hasBio = !!(profileUser?.bio && profileUser.bio.trim());
+  const hasAvatar = !!(profileUser?.avatar && profileUser.avatar.trim());
   const hasPosts = false; // Will be replaced with real API data
 
   const tabIcon = (name: any, filledName: any, tab: ProfileTab) => (
@@ -571,6 +618,8 @@ export default function ProfileScreen() {
       color={activeTab === tab ? colors.text : colors.textSecondary}
     />
   );
+
+  if (!profileUser) return null;
 
   return (
     <SafeAreaView
@@ -586,29 +635,40 @@ export default function ProfileScreen() {
       )}
       {/* ── Sticky Header ── */}
       <Animated.View style={[styles.header, headerAnimStyle, { backgroundColor: colors.background }]}>
-        {/* Left: + new post */}
-        <Pressable
-          style={styles.headerIconBtn}
-          hitSlop={8}
-          onPress={() => setShowCreateSheet(true)}
-        >
-          <Ionicons name="add" size={26} color={colors.text} />
-        </Pressable>
+        {/* Left: Back or + new post */}
+        {isOwnProfile ? (
+          <Pressable
+            style={styles.headerIconBtn}
+            hitSlop={8}
+            onPress={() => setShowCreateSheet(true)}
+          >
+            <Ionicons name="add" size={26} color={colors.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.headerIconBtn}
+            hitSlop={8}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={26} color={colors.text} />
+          </Pressable>
+        )}
 
         {/* Center: username + chevron */}
         <Pressable
           style={styles.headerUsernameRow}
           hitSlop={8}
-          onPress={() => setShowAccountSwitcher(true)}
+          onPress={() => isOwnProfile && setShowAccountSwitcher(true)}
         >
           <ThemedText style={[styles.headerUsername, { color: colors.text }]} numberOfLines={1}>
-            {user.username}
+            {profileUser.username}
           </ThemedText>
-          <Ionicons name="chevron-down" size={16} color={colors.text} style={{ marginTop: 2 }} />
+          {isOwnProfile && <Ionicons name="chevron-down" size={16} color={colors.text} style={{ marginTop: 2 }} />}
         </Pressable>
 
-        {/* Right: Threads + Hamburger */}
-        <View style={styles.headerRightGroup}>
+        {/* Right: Threads + Hamburger (own profile) or More (other profile) */}
+        {isOwnProfile ? (
+          <View style={styles.headerRightGroup}>
           <Pressable
             style={styles.headerIconBtn}
             hitSlop={8}
@@ -630,6 +690,13 @@ export default function ProfileScreen() {
             <Ionicons name="menu" size={26} color={colors.text} />
           </Pressable>
         </View>
+        ) : (
+          <View style={styles.headerRightGroup}>
+            <Pressable style={styles.headerIconBtn} hitSlop={8}>
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+            </Pressable>
+          </View>
+        )}
       </Animated.View>
 
       {/* ── Refresh bar (between header and content) ── */}
@@ -661,7 +728,7 @@ export default function ProfileScreen() {
             hitSlop={4}
           >
             {hasAvatar ? (
-              <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              <Image source={{ uri: profileUser.avatar }} style={styles.avatar} />
             ) : (
               <View
                 style={[
@@ -686,14 +753,14 @@ export default function ProfileScreen() {
           {/* Stats */}
           <View style={styles.statsRow}>
             <StatBox
-              count={user.postsCount ?? 0}
+              count={profileUser.postsCount ?? 0}
               label="posts"
               textColor={colors.text}
               labelColor={colors.textSecondary}
               delay={80}
             />
             <StatBox
-              count={user.followersCount ?? 0}
+              count={profileUser.followersCount ?? 0}
               label="followers"
               textColor={colors.text}
               labelColor={colors.textSecondary}
@@ -701,7 +768,7 @@ export default function ProfileScreen() {
               delay={120}
             />
             <StatBox
-              count={user.followingCount ?? 0}
+              count={profileUser.followingCount ?? 0}
               label="following"
               textColor={colors.text}
               labelColor={colors.textSecondary}
@@ -714,10 +781,10 @@ export default function ProfileScreen() {
         {/* ── Bio Block ── */}
         <Animated.View entering={FadeInDown.duration(350).delay(120)} style={styles.bioBlock}>
           <ThemedText style={[styles.displayName, { color: colors.text }]}>
-            {user.name || user.username}
+            {profileUser.name || profileUser.username}
           </ThemedText>
           {hasBio ? (
-            <ThemedText style={[styles.bioText, { color: colors.text }]}>{user.bio}</ThemedText>
+            <ThemedText style={[styles.bioText, { color: colors.text }]}>{profileUser.bio}</ThemedText>
           ) : (
             <Pressable>
               <ThemedText style={styles.addBioLink}>Add bio</ThemedText>
@@ -733,39 +800,71 @@ export default function ProfileScreen() {
 
         {/* ── Action Buttons Row ── */}
         <Animated.View entering={FadeInDown.duration(350).delay(160)} style={styles.actionRow}>
-          <Pressable
-            onPress={() => {/* open edit profile sheet */ }}
-            style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
-          >
-            <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Edit profile</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={triggerShareModal}
-            style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
-          >
-            <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Share profile</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => setShowSuggestions(!showSuggestions)}
-            style={[
-              styles.actionIconBtn,
-              {
-                backgroundColor: showSuggestions
-                  ? (isDark ? '#3A3A3C' : '#DBDBDB')
-                  : (isDark ? '#262626' : '#EFEFEF')
-              }
-            ]}
-          >
-            <Ionicons
-              name={showSuggestions ? "person-add" : "person-add-outline"}
-              size={18}
-              color={colors.text}
-            />
-          </Pressable>
+          {isOwnProfile ? (
+            <>
+              <Pressable
+                onPress={() => {/* open edit profile sheet */ }}
+                style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+              >
+                <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Edit profile</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={triggerShareModal}
+                style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+              >
+                <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Share profile</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowSuggestions(!showSuggestions)}
+                style={[
+                  styles.actionIconBtn,
+                  {
+                    backgroundColor: showSuggestions
+                      ? (isDark ? '#3A3A3C' : '#DBDBDB')
+                      : (isDark ? '#262626' : '#EFEFEF')
+                  }
+                ]}
+              >
+                <Ionicons
+                  name={showSuggestions ? "person-add" : "person-add-outline"}
+                  size={18}
+                  color={colors.text}
+                />
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <FollowButton
+                targetUserId={viewUserId!}
+                initialIsFollowing={viewProfile?.isFollowing ?? false}
+                size="large"
+                variant="filled"
+                showIcon
+                onFollowChange={(following, count) => {
+                  setViewProfile(prev => prev ? {
+                    ...prev,
+                    isFollowing: following,
+                    followersCount: count ?? prev.followersCount,
+                  } : prev);
+                }}
+              />
+              <Pressable
+                onPress={() => router.push({ pathname: '/(chat)/[id]', params: { id: viewUserId! } })}
+                style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+              >
+                <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Message</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.actionIconBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+              >
+                <Ionicons name="person-add-outline" size={18} color={colors.text} />
+              </Pressable>
+            </>
+          )}
         </Animated.View>
 
         {/* ── Follow Suggestions ── */}
-        {showSuggestions && suggestions.length > 0 && (
+        {isOwnProfile && showSuggestions && suggestions.length > 0 && (
           <Animated.View
             entering={FadeInDown.duration(350)}
             exiting={FadeOut.duration(200)}
