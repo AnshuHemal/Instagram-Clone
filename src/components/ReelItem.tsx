@@ -205,6 +205,21 @@ export const ReelItem = React.memo(({
   const [showMuteBadge, setShowMuteBadge] = useState(false);
   const [isPausedByHold, setIsPausedByHold] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [retainedPlayer, setRetainedPlayer] = useState<any>(null);
+
+  // Retain player references to prevent them from being garbage collected
+  // before the native VideoView has completed its unmounting process.
+  useEffect(() => {
+    if (preloadedPlayer) {
+      setRetainedPlayer(preloadedPlayer);
+    }
+  }, [preloadedPlayer]);
+
+  useEffect(() => {
+    return () => {
+      setRetainedPlayer(null);
+    };
+  }, []);
   const [playerStatus, setPlayerStatus] = useState<string>(() => {
     const isReadyNow = preloadedPlayer && preloadedPlayer.status === 'readyToPlay';
     return isReadyNow ? 'readyToPlay' : 'loading';
@@ -567,36 +582,54 @@ export const ReelItem = React.memo(({
     }
 
     if (ExpoVideo) {
-      if (preloadedPlayer) {
+      if (isActive) {
+        const currentPlayer = preloadedPlayer || retainedPlayer;
+        if (currentPlayer) {
+          return (
+            <VideoPlayerExpoVideoPreloaded
+              player={currentPlayer}
+              isPlaying={isPlaying}
+              isActive={isActive}
+              isScreenFocused={isScreenFocused}
+              isMuted={isMuted}
+              onProgress={handleProgressUpdate}
+              onStatusChange={setPlayerStatus}
+            />
+          );
+        }
         return (
-          <VideoPlayerExpoVideoPreloaded
-            player={preloadedPlayer}
+          <VideoPlayerExpoVideo
+            hlsUrl={reel.hlsUrl}
             isPlaying={isPlaying}
             isActive={isActive}
             isScreenFocused={isScreenFocused}
             isMuted={isMuted}
+            posterUrl={reel.imageUrl}
             onProgress={handleProgressUpdate}
+            onPlayerReady={(player: any) => {
+              activePlayerRef.current = player;
+            }}
             onStatusChange={setPlayerStatus}
           />
         );
+      } else {
+        // If inactive, only render preloaded video player if we have a preloaded player.
+        // Otherwise, render a static image to conserve native memory and resources.
+        if (preloadedPlayer) {
+          return (
+            <VideoPlayerExpoVideoPreloaded
+              player={preloadedPlayer}
+              isPlaying={isPlaying}
+              isActive={isActive}
+              isScreenFocused={isScreenFocused}
+              isMuted={isMuted}
+              onProgress={handleProgressUpdate}
+              onStatusChange={setPlayerStatus}
+            />
+          );
+        }
       }
-      return (
-        <VideoPlayerExpoVideo
-          hlsUrl={reel.hlsUrl}
-          isPlaying={isPlaying}
-          isActive={isActive}
-          isScreenFocused={isScreenFocused}
-          isMuted={isMuted}
-          posterUrl={reel.imageUrl}
-          onProgress={handleProgressUpdate}
-          onPlayerReady={(player: any) => {
-            activePlayerRef.current = player;
-          }}
-          onStatusChange={setPlayerStatus}
-        />
-      );
     }
-
 
     // Default static image fallback
     return <Image source={{ uri: reel.imageUrl }} style={styles.backgroundImage} />;
