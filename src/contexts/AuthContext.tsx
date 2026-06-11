@@ -82,9 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   email: u.email,
                   avatar: u.avatarUrl || '',
                   bio: u.bio || 'Welcome back to Instagram Clone!',
-                  followersCount: 124,
-                  followingCount: 256,
-                  postsCount: 0,
+                  followersCount: u.followersCount ?? 0,
+                  followingCount: u.followingCount ?? 0,
+                  postsCount: u.postsCount ?? 0,
                   isOnboarded: u.isOnboarded,
                   onboardingStep: u.onboardingStep,
                 });
@@ -101,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: payload.email,
               avatar: '',
               bio: 'Welcome back to Instagram Clone!',
-              followersCount: 124,
-              followingCount: 256,
+              followersCount: 0,
+              followingCount: 0,
               postsCount: 0,
               isOnboarded: false,
               onboardingStep: 'PERMISSIONS',
@@ -137,9 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: userPayload.email,
           avatar: userPayload.avatarUrl || '',
           bio: userPayload.bio || 'Welcome to Instagram Clone!',
-          followersCount: 154,
-          followingCount: 302,
-          postsCount: 0,
+          followersCount: userPayload.followersCount ?? 0,
+          followingCount: userPayload.followingCount ?? 0,
+          postsCount: userPayload.postsCount ?? 0,
           isOnboarded: userPayload.isOnboarded,
           onboardingStep: userPayload.onboardingStep,
         });
@@ -203,9 +203,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: userPayload.email,
           avatar: userPayload.avatarUrl || '',
           bio: userPayload.bio || 'Welcome to Instagram Clone!',
-          followersCount: 0,
-          followingCount: 0,
-          postsCount: 0,
+          followersCount: userPayload.followersCount ?? 0,
+          followingCount: userPayload.followingCount ?? 0,
+          postsCount: userPayload.postsCount ?? 0,
           isOnboarded: userPayload.isOnboarded,
           onboardingStep: userPayload.onboardingStep,
         });
@@ -233,6 +233,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           bio: u.bio || prev.bio,
           isOnboarded: u.isOnboarded ?? prev.isOnboarded,
           onboardingStep: u.onboardingStep || prev.onboardingStep,
+          followersCount: u.followersCount ?? prev.followersCount,
+          followingCount: u.followingCount ?? prev.followingCount,
+          postsCount: u.postsCount ?? prev.postsCount,
         } : prev);
       }
     } catch (err) {
@@ -271,6 +274,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           avatar: u.avatarUrl || prev.avatar,
           isOnboarded: u.isOnboarded,
           onboardingStep: u.onboardingStep,
+          followersCount: u.followersCount ?? prev.followersCount,
+          followingCount: u.followingCount ?? prev.followingCount,
+          postsCount: u.postsCount ?? prev.postsCount,
         } : null);
         return true;
       }

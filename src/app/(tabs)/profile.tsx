@@ -29,6 +29,7 @@ import Animated, {
   LinearTransition,
   useAnimatedProps,
   useDerivedValue,
+  useAnimatedReaction,
   withRepeat,
   Easing,
   SharedValue,
@@ -140,31 +141,63 @@ const FOLLOW_SUGGESTIONS: FollowSuggestion[] = MOCK_STORIES.map((s, i) => ({
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Stat box: number + label */
+/** Animated count number that springs from 0 to target value */
+const AnimatedCount = ({ targetValue }: { targetValue: number }) => {
+  const count = useSharedValue(0);
+  const [displayCount, setDisplayCount] = useState(0);
+
+  useEffect(() => {
+    count.value = 0;
+    count.value = withTiming(targetValue, { duration: 600, easing: Easing.out(Easing.cubic) });
+  }, [targetValue]);
+
+  const derived = useDerivedValue(() => Math.round(count.value));
+
+  useAnimatedReaction(
+    () => derived.value,
+    (current, previous) => {
+      if (current !== previous) {
+        runOnJS(setDisplayCount)(current);
+      }
+    }
+  );
+
+  return <>{displayCount.toLocaleString()}</>;
+};
+
+/** Stat box: number + label — Instagram-style layout */
 const StatBox = ({
   count,
   label,
   onPress,
   textColor,
+  labelColor,
+  delay,
 }: {
-  count: number | string;
+  count: number;
   label: string;
   onPress?: () => void;
   textColor: string;
+  labelColor?: string;
+  delay?: number;
 }) => (
-  <Pressable
-    onPress={onPress}
-    disabled={!onPress}
-    style={({ pressed }) => [
-      styles.statBox,
-      { opacity: pressed && onPress ? 0.6 : 1 }
-    ]}
-  >
-    <ThemedText style={[styles.statCount, { color: textColor }]}>
-      {typeof count === 'number' ? count.toLocaleString() : count}
-    </ThemedText>
-    <ThemedText style={[styles.statLabel, { color: textColor }]}>{label}</ThemedText>
-  </Pressable>
+  <Animated.View entering={FadeInDown.duration(400).delay(delay ?? 0)}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
+        styles.statBox,
+        { opacity: pressed && onPress ? 0.5 : 1 },
+      ]}
+    >
+      <ThemedText style={[styles.statCount, { color: textColor }]}>
+        <AnimatedCount targetValue={count} />
+      </ThemedText>
+      <ThemedText style={[styles.statLabel, { color: labelColor ?? textColor }]}>
+        {label}
+      </ThemedText>
+    </Pressable>
+  </Animated.View>
 );
 
 /** Follow suggestion card */
@@ -637,7 +670,6 @@ export default function ProfileScreen() {
                   { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' },
                 ]}
               >
-                {/* Person silhouette — matches Instagram default avatar */}
                 <Ionicons
                   name="person"
                   size={52}
@@ -646,7 +678,6 @@ export default function ProfileScreen() {
                 />
               </View>
             )}
-            {/* Story Plus Badge at bottom-right of avatar circle */}
             <View style={[styles.storyPlusBadge, { backgroundColor: '#000000', borderColor: colors.background }]}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
             </View>
@@ -654,18 +685,28 @@ export default function ProfileScreen() {
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <StatBox count={user.postsCount ?? 0} label="posts" textColor={colors.text} />
+            <StatBox
+              count={user.postsCount ?? 0}
+              label="posts"
+              textColor={colors.text}
+              labelColor={colors.textSecondary}
+              delay={80}
+            />
             <StatBox
               count={user.followersCount ?? 0}
               label="followers"
               textColor={colors.text}
+              labelColor={colors.textSecondary}
               onPress={() => router.push({ pathname: '/connections', params: { tab: 'followers' } })}
+              delay={120}
             />
             <StatBox
               count={user.followingCount ?? 0}
               label="following"
               textColor={colors.text}
+              labelColor={colors.textSecondary}
               onPress={() => router.push({ pathname: '/connections', params: { tab: 'following' } })}
+              delay={160}
             />
           </View>
         </Animated.View>
@@ -691,7 +732,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* ── Action Buttons Row ── */}
-        <Animated.View entering={FadeInDown.duration(350).delay(190)} style={styles.actionRow}>
+        <Animated.View entering={FadeInDown.duration(350).delay(160)} style={styles.actionRow}>
           <Pressable
             onPress={() => {/* open edit profile sheet */ }}
             style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
@@ -1155,14 +1196,14 @@ const styles = StyleSheet.create({
   profileInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 16,
+    gap: 20,
   },
   avatarWrapper: {
-    width: 90,
-    height: 90,
+    width: 86,
+    height: 86,
     position: 'relative',
   },
   storyPlusBadge: {
@@ -1177,9 +1218,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -1187,8 +1228,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarPersonIcon: {
-    // Shift icon slightly downward so the head is more centered visually
-    // (person icon has empty space above the head)
     marginTop: 10,
   },
   avatarCameraBadge: {
@@ -1204,54 +1243,55 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.8)',
   },
 
-
   statsRow: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
   },
   statBox: {
     alignItems: 'center',
-    gap: 2,
+    justifyContent: 'center',
+    paddingVertical: 4,
+    minWidth: 70,
   },
   statCount: {
     fontFamily: Fonts.bold,
-    fontSize: 18,
+    fontSize: 17,
     lineHeight: 22,
   },
   statLabel: {
     fontFamily: Fonts.regular,
     fontSize: 13,
-    lineHeight: 16,
+    lineHeight: 17,
   },
 
   // ── Bio
   bioBlock: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 3,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    gap: 2,
   },
   displayName: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 14.5,
+    lineHeight: 20,
   },
   bioText: {
     fontFamily: Fonts.regular,
-    fontSize: 13.5,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 20,
   },
   addBioLink: {
     fontFamily: Fonts.semiBold,
-    fontSize: 13.5,
+    fontSize: 14,
     color: '#0095F6',
   },
   addBannersRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 6,
+    marginTop: 4,
   },
   addBannersText: {
     fontFamily: Fonts.regular,
@@ -1261,9 +1301,9 @@ const styles = StyleSheet.create({
   // ── Action buttons
   actionRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   actionBtn: {
     flex: 1,
