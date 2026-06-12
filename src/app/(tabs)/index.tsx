@@ -18,10 +18,14 @@ import { StoryCircle } from '@/components/StoryCircle';
 import { PostCard } from '@/components/PostCard';
 import { FeedSkeleton } from '@/components/Skeleton';
 import { ThemedText } from '@/components/themed-text';
-import { MOCK_STORIES, Story } from '@/constants/mockData';
 import { Ionicons } from '@expo/vector-icons';
 import { usePosts } from '@/contexts/PostsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStories } from '@/contexts/StoriesContext';
+import { useToast } from '@/contexts/ToastContext';
+import { StoryPlayerModal } from '@/components/StoryPlayerModal';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useTabPager } from '@/contexts/TabPagerContext';
 import * as SecureStore from 'expo-secure-store';
 import ReAnimated, {
@@ -122,12 +126,16 @@ export default function FeedScreen() {
     handleAddComment,
   } = usePosts();
 
-  const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
+  const { stories, fetchStories, uploadStory, viewStory } = useStories();
+  const { showToast } = useToast();
+  const [playerVisible, setPlayerVisible] = useState(false);
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
 
   // Initial load
   useEffect(() => {
     fetchPosts(null, true);
+    fetchStories();
 
     const checkTutorial = async () => {
       try {
@@ -188,6 +196,7 @@ export default function FeedScreen() {
 
     // Fire real API refresh; close bar when done (or after max 4s)
     fetchPosts(null, true);
+    fetchStories();
     setTimeout(() => {
       runOnJS(finishRefresh)();
     }, 2000);
@@ -259,10 +268,52 @@ export default function FeedScreen() {
     };
   });
 
-  // ── Story Modal ───────────────────────────────────────────────────────────
-  const [activeStory, setActiveStory] = useState<Story | null>(null);
-  const storyProgress  = useRef(new Animated.Value(0)).current;
-  const storyTimerRef  = useRef<any>(null);
+  // ── Story Opening and Media Selection ─────────────────────────────────────
+  const openStoriesGroup = (index: number) => {
+    setSelectedGroupIndex(index);
+    setPlayerVisible(true);
+  };
+
+  const handleAddStory = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Sorry, we need camera roll permissions to make this work!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const type = asset.type === 'video' ? 'video' : 'image';
+
+      showToast({
+        title: 'Uploading Story',
+        message: 'Your story is uploading to Cloudinary...',
+        type: 'info',
+      });
+
+      const success = await uploadStory(asset.uri, type);
+
+      if (success) {
+        showToast({
+          title: 'Story Shared',
+          message: 'Your story has been shared successfully.',
+          type: 'success',
+        });
+      } else {
+        showToast({
+          title: 'Upload Failed',
+          message: 'Failed to upload your story. Please try again.',
+          type: 'error',
+        });
+      }
+    }
+  };
 
   const handleLoadMore = () => {
     if (hasMore && !isLoading && !isRefreshing && cursor) {
@@ -274,62 +325,101 @@ export default function FeedScreen() {
     // Handled locally in PostCard
   };
 
-  const openStory = (story: Story) => {
-    setActiveStory(story);
-    setStories((prev) =>
-      prev.map((s) => (s.id === story.id ? { ...s, isSeen: true } : s))
-    );
-    storyProgress.setValue(0);
-    Animated.timing(storyProgress, {
-      toValue: 1,
-      duration: 4000,
-      useNativeDriver: false,
-    }).start();
-    if (storyTimerRef.current) clearTimeout(storyTimerRef.current);
-    storyTimerRef.current = setTimeout(closeStory, 4000);
-  };
-
-  const closeStory = () => {
-    setActiveStory(null);
-    storyProgress.setValue(0);
-    if (storyTimerRef.current) {
-      clearTimeout(storyTimerRef.current);
-      storyTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (storyTimerRef.current) clearTimeout(storyTimerRef.current);
-    };
-  }, []);
-
-  // ── Sub-renders ──────────────────────────────────────────────────────────
-
   const renderStoriesHeader = useMemo(() => {
     const renderYourStory = () => {
       const avatarUri = user?.avatar || '';
       const hasAvatar = !!avatarUri;
+      const userGroup = stories.find((g) => g.userId === user?.id);
+
+      const handlePress = () => {
+        if (userGroup) {
+          const idx = stories.findIndex((g) => g.userId === user?.id);
+          if (idx !== -1) {
+            openStoriesGroup(idx);
+          }
+        } else {
+          handleAddStory();
+        }
+      };
+
+      const ringSize = 66;
+      const innerSize = 62;
+      const size = 60;
+
       return (
-        <Pressable style={styles.yourStoryContainer}>
+        <Pressable style={styles.yourStoryContainer} onPress={handlePress}>
           <View style={styles.yourStoryAvatarOuter}>
-            {hasAvatar ? (
-              <Image source={{ uri: avatarUri }} style={styles.yourStoryAvatar} />
+            {userGroup ? (
+              userGroup.isSeen ? (
+                <View
+                  style={[
+                    styles.seenRing,
+                    {
+                      width: ringSize,
+                      height: ringSize,
+                      borderRadius: ringSize / 2,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: avatarUri || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' }}
+                    style={{ width: size, height: size, borderRadius: size / 2 }}
+                  />
+                </View>
+              ) : (
+                <ExpoLinearGradient
+                  colors={colors.storyRing as any}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    styles.gradientRing,
+                    {
+                      width: ringSize,
+                      height: ringSize,
+                      borderRadius: ringSize / 2,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.innerRing,
+                      {
+                        width: innerSize,
+                        height: innerSize,
+                        borderRadius: innerSize / 2,
+                        backgroundColor: colors.background,
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: avatarUri || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' }}
+                      style={{ width: size, height: size, borderRadius: size / 2 }}
+                    />
+                  </View>
+                </ExpoLinearGradient>
+              )
             ) : (
-              <View
-                style={[
-                  styles.yourStoryAvatar,
-                  styles.yourStoryAvatarPlaceholder,
-                  { backgroundColor: isDark ? '#3A3A3C' : '#D4D4D4' },
-                ]}
-              >
-                <View style={styles.silhouetteHead} />
-                <View style={styles.silhouetteBody} />
+              <View style={styles.avatarNoStory}>
+                {hasAvatar ? (
+                  <Image source={{ uri: avatarUri }} style={styles.yourStoryAvatar} />
+                ) : (
+                  <View
+                    style={[
+                      styles.yourStoryAvatar,
+                      styles.yourStoryAvatarPlaceholder,
+                      { backgroundColor: isDark ? '#3A3A3C' : '#D4D4D4' },
+                    ]}
+                  >
+                    <View style={styles.silhouetteHead} />
+                    <View style={styles.silhouetteBody} />
+                  </View>
+                )}
+                <Pressable onPress={handleAddStory} style={styles.yourStoryAddBadge} hitSlop={8}>
+                  <Ionicons name="add" size={13} color="#FFFFFF" />
+                </Pressable>
               </View>
             )}
-            <View style={styles.yourStoryAddBadge}>
-              <Ionicons name="add" size={13} color="#FFFFFF" />
-            </View>
           </View>
           <ThemedText
             numberOfLines={1}
@@ -354,24 +444,27 @@ export default function FeedScreen() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={stories}
-            keyExtractor={(item) => item.id}
+            data={stories.filter((g) => g.userId !== user?.id)}
+            keyExtractor={(item) => item.userId}
             contentContainerStyle={styles.storiesList}
             ListHeaderComponent={renderYourStory}
             nestedScrollEnabled={true}
-            renderItem={({ item }) => (
-              <StoryCircle
-                username={item.username}
-                avatar={item.avatar}
-                isSeen={item.isSeen}
-                onPress={() => openStory(item)}
-              />
-            )}
+            renderItem={({ item }) => {
+              const globalIndex = stories.findIndex((g) => g.userId === item.userId);
+              return (
+                <StoryCircle
+                  username={item.username}
+                  avatar={item.avatar}
+                  isSeen={item.isSeen}
+                  onPress={() => openStoriesGroup(globalIndex)}
+                />
+              );
+            }}
           />
         </View>
       </View>
     );
-  }, [stories, colors.border, isDark, user, setPagerScrollEnabled]);
+  }, [stories, colors.border, colors.storyRing, isDark, user, setPagerScrollEnabled]);
 
   const renderFooter = () => {
     if (!isLoading || isRefreshing) return null;
@@ -440,38 +533,13 @@ export default function FeedScreen() {
       </GestureDetector>
 
       {/* ── Fullscreen Story Viewer ── */}
-      {activeStory && (
-        <Modal visible={activeStory !== null} transparent animationType="fade">
-          <View style={styles.storyOverlay}>
-            <View style={styles.storyHeaderContainer}>
-              <View style={[styles.storyProgressBarContainer, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
-                <Animated.View
-                  style={[
-                    styles.storyProgressBar,
-                    {
-                      backgroundColor: '#FFFFFF',
-                      width: storyProgress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%'],
-                      }),
-                    },
-                  ]}
-                />
-              </View>
-              <View style={styles.storyUserRow}>
-                <Image source={{ uri: activeStory.avatar }} style={styles.storyUserAvatar} />
-                <ThemedText type="smallBold" style={styles.storyUsername}>
-                  {activeStory.username}
-                </ThemedText>
-                <Pressable onPress={closeStory} style={styles.storyCloseButton}>
-                  <Ionicons name="close" size={28} color="#FFFFFF" />
-                </Pressable>
-              </View>
-            </View>
-            <Image source={{ uri: activeStory.imageUrl }} style={styles.storyImage} />
-          </View>
-        </Modal>
-      )}
+      <StoryPlayerModal
+        visible={playerVisible}
+        userGroups={stories}
+        initialGroupIndex={selectedGroupIndex}
+        onClose={() => setPlayerVisible(false)}
+        onStoryViewed={viewStory}
+      />
 
       {/* ── Tutorial Modal ── */}
       {showTutorial && (
@@ -711,5 +779,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Fonts.bold,
     fontSize: 15.5,
+  },
+  gradientRing: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  innerRing: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  seenRing: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  avatarNoStory: {
+    position: 'relative',
+    width: 66,
+    height: 66,
   },
 });

@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SocketProvider } from '@/contexts/SocketContext';
+import { StoriesProvider } from '@/contexts/StoriesContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { ReelsProvider } from '@/contexts/ReelsContext';
 import { PostsProvider } from '@/contexts/PostsContext';
@@ -51,15 +52,17 @@ export default function RootLayout() {
         <LoadingProvider>
           <AuthProvider>
             <SocketProvider>
-              <ThemeProvider>
-                <ReelsProvider>
-                  <PostsProvider>
-                    <ToastProvider>
-                      <RootLayoutContent />
-                    </ToastProvider>
-                  </PostsProvider>
-                </ReelsProvider>
-              </ThemeProvider>
+              <StoriesProvider>
+                <ThemeProvider>
+                  <ReelsProvider>
+                    <PostsProvider>
+                      <ToastProvider>
+                        <RootLayoutContent />
+                      </ToastProvider>
+                    </PostsProvider>
+                  </ReelsProvider>
+                </ThemeProvider>
+              </StoriesProvider>
             </SocketProvider>
           </AuthProvider>
         </LoadingProvider>
