@@ -7,6 +7,7 @@ import {
   Modal,
   Image,
   ScrollView,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -16,7 +17,6 @@ import Animated, {
   runOnJS,
   Easing,
   FadeIn,
-  FadeOut,
   SlideInRight,
   SlideOutLeft,
   SlideInLeft,
@@ -26,6 +26,7 @@ import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
+  NativeViewGestureHandler,
 } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -34,7 +35,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts } from '@/constants/theme';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_OFFSCREEN = SCREEN_HEIGHT;
 const DISMISS_THRESHOLD = 80;
 
@@ -49,103 +50,154 @@ interface PersonalDetailsBottomSheetProps {
 
 // ─── Drum Roll Picker ─────────────────────────────────────────────────────────
 
-const ITEM_HEIGHT = 52;
+const ITEM_HEIGHT = 48;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+// padding = 2 items top + 2 items bottom so the first/last item can center
+const PADDING_VERTICAL = ITEM_HEIGHT * 2;
 
 interface DrumPickerProps {
   items: string[];
   selectedIndex: number;
   onIndexChange: (index: number) => void;
   isDark: boolean;
-  colors: any;
+  label: string;
 }
 
-const DrumPicker: React.FC<DrumPickerProps> = ({ items, selectedIndex, onIndexChange, isDark, colors }) => {
+const DrumPicker: React.FC<DrumPickerProps> = ({
+  items,
+  selectedIndex,
+  onIndexChange,
+  isDark,
+  label,
+}) => {
   const scrollRef = useRef<ScrollView>(null);
-  const [localIndex, setLocalIndex] = useState(selectedIndex);
+  const currentIndex = useRef(selectedIndex);
+  const isMounted = useRef(false);
 
+  const accentColor = '#3B82F6';
+  const textSelected = isDark ? '#FFFFFF' : '#111827';
+  const textUnselected = isDark ? '#4B5563' : '#9CA3AF';
+  const highlightBg = isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)';
+  const highlightBorder = isDark ? 'rgba(59,130,246,0.4)' : 'rgba(59,130,246,0.3)';
+  const fadeBg = isDark ? '#1C1C1E' : '#FFFFFF';
+
+  // Scroll to initial index after layout
+  const handleLayout = () => {
+    if (!isMounted.current) {
+      isMounted.current = true;
+      const y = selectedIndex * ITEM_HEIGHT;
+      scrollRef.current?.scrollTo({ y, animated: false });
+      currentIndex.current = selectedIndex;
+    }
+  };
+
+  // When parent resets selectedIndex (e.g. sheet reopened)
   useEffect(() => {
-    setLocalIndex(selectedIndex);
-    scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
+    if (isMounted.current) {
+      currentIndex.current = selectedIndex;
+      scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_HEIGHT, animated: false });
+    }
   }, [selectedIndex]);
 
-  const handleScroll = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clampedIndex = Math.max(0, Math.min(items.length - 1, index));
-    setLocalIndex(clampedIndex);
+  const snapToIndex = (rawY: number) => {
+    const idx = Math.max(0, Math.min(items.length - 1, Math.round(rawY / ITEM_HEIGHT)));
+    if (idx !== currentIndex.current) {
+      currentIndex.current = idx;
+      onIndexChange(idx);
+    }
+    // Snap the scroll position to the exact multiple
+    scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
   };
-
-  const handleScrollEnd = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clampedIndex = Math.max(0, Math.min(items.length - 1, index));
-    setLocalIndex(clampedIndex);
-    onIndexChange(clampedIndex);
-    scrollRef.current?.scrollTo({ y: clampedIndex * ITEM_HEIGHT, animated: true });
-  };
-
-  const accentColor = isDark ? '#3B82F6' : '#1D4ED8';
-  const textMuted = isDark ? '#555' : '#CCC';
 
   return (
-    <View style={[drumStyles.container, { height: PICKER_HEIGHT }]}>
-      {/* Selection highlight */}
-      <View
-        pointerEvents="none"
-        style={[
-          drumStyles.selectionHighlight,
-          { borderColor: isDark ? 'rgba(59,130,246,0.35)' : 'rgba(29,78,216,0.20)', backgroundColor: isDark ? 'rgba(59,130,246,0.10)' : 'rgba(29,78,216,0.06)' },
-        ]}
-      />
-      {/* Top fade */}
-      <View pointerEvents="none" style={[drumStyles.fadeTop, { backgroundColor: isDark ? '#1C1C1E' : '#FFF' }]} />
-      {/* Bottom fade */}
-      <View pointerEvents="none" style={[drumStyles.fadeBottom, { backgroundColor: isDark ? '#1C1C1E' : '#FFF' }]} />
+    <View style={drumStyles.wrapper}>
+      {/* Column label */}
+      <ThemedText style={[drumStyles.colLabel, { color: textUnselected }]}>{label}</ThemedText>
 
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        onScroll={handleScroll}
-        onScrollEndDrag={handleScrollEnd}
-        onMomentumScrollEnd={handleScrollEnd}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * 2 }}
-      >
-        {items.map((item, index) => {
-          const isSelected = index === localIndex;
-          return (
-            <Pressable
-              key={item}
-              style={[drumStyles.item, { height: ITEM_HEIGHT }]}
-              onPress={() => {
-                setLocalIndex(index);
-                onIndexChange(index);
-                scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-              }}
-            >
-              <ThemedText
-                style={[
-                  drumStyles.itemText,
-                  { color: isSelected ? accentColor : textMuted, fontFamily: isSelected ? Fonts.bold : Fonts.regular, fontSize: isSelected ? 20 : 16, opacity: isSelected ? 1 : 0.6 },
-                ]}
+      {/* Picker body */}
+      <View style={[drumStyles.container, { height: PICKER_HEIGHT }]}>
+        {/* Selection highlight band */}
+        <View
+          pointerEvents="none"
+          style={[
+            drumStyles.highlight,
+            {
+              top: ITEM_HEIGHT * 2,
+              backgroundColor: highlightBg,
+              borderColor: highlightBorder,
+            },
+          ]}
+        />
+
+        {/* Top & Bottom gradient masks */}
+        <View pointerEvents="none" style={[drumStyles.mask, drumStyles.maskTop, { backgroundColor: fadeBg }]} />
+        <View pointerEvents="none" style={[drumStyles.mask, drumStyles.maskBottom, { backgroundColor: fadeBg }]} />
+
+        {/*
+          nestedScrollEnabled is critical for Android — lets this ScrollView scroll
+          when it's inside a GestureDetector or another scrollable.
+          scrollEventThrottle={1} ensures we get near-continuous scroll events.
+        */}
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          scrollEventThrottle={1}
+          snapToInterval={ITEM_HEIGHT}
+          snapToAlignment="start"
+          decelerationRate={Platform.OS === 'android' ? 0.985 : 'fast'}
+          onLayout={handleLayout}
+          onMomentumScrollEnd={(e) => snapToIndex(e.nativeEvent.contentOffset.y)}
+          onScrollEndDrag={(e) => snapToIndex(e.nativeEvent.contentOffset.y)}
+          contentContainerStyle={{ paddingVertical: PADDING_VERTICAL }}
+        >
+          {items.map((item, index) => {
+            const distance = Math.abs(index - (currentIndex.current ?? selectedIndex));
+            const opacity = distance === 0 ? 1 : distance === 1 ? 0.45 : 0.2;
+            const fontSize = distance === 0 ? 19 : distance === 1 ? 15 : 13;
+            const fontFamily = distance === 0 ? Fonts.bold : Fonts.regular;
+            const color = distance === 0 ? textSelected : textUnselected;
+
+            return (
+              <Pressable
+                key={`${item}-${index}`}
+                style={[drumStyles.item, { height: ITEM_HEIGHT }]}
+                onPress={() => {
+                  currentIndex.current = index;
+                  onIndexChange(index);
+                  scrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
+                }}
               >
-                {item}
-              </ThemedText>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <ThemedText
+                  style={[drumStyles.itemText, { color, fontFamily, fontSize, opacity }]}
+                >
+                  {item}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
     </View>
   );
 };
 
 const drumStyles = StyleSheet.create({
-  container: {
+  wrapper: {
     flex: 1,
+    alignItems: 'center',
+  },
+  colLabel: {
+    fontSize: 10,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  container: {
+    width: '100%',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -155,65 +207,60 @@ const drumStyles = StyleSheet.create({
   },
   itemText: {
     textAlign: 'center',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
-  selectionHighlight: {
+  highlight: {
     position: 'absolute',
-    top: ITEM_HEIGHT * 2,
-    left: 0,
-    right: 0,
+    left: 4,
+    right: 4,
     height: ITEM_HEIGHT,
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
-    borderRadius: 12,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderRadius: 10,
     zIndex: 1,
+    pointerEvents: 'none',
   },
-  fadeTop: {
+  mask: {
     position: 'absolute',
+    left: 0,
+    right: 0,
+    height: ITEM_HEIGHT * 2,
+    zIndex: 2,
+    opacity: 0.9,
+    pointerEvents: 'none',
+  },
+  maskTop: {
     top: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 2,
-    zIndex: 2,
-    opacity: 0.85,
   },
-  fadeBottom: {
-    position: 'absolute',
+  maskBottom: {
     bottom: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 2,
-    zIndex: 2,
-    opacity: 0.85,
   },
 });
 
-// ─── Constants for date picker ─────────────────────────────────────────────────
+// ─── Date Constants ────────────────────────────────────────────────────────────
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-
-const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
-
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 120 }, (_, i) => String(currentYear - i));
 
-function parseBirthday(dateString?: string): { monthIndex: number; dayIndex: number; yearIndex: number } {
-  if (!dateString) {
-    return { monthIndex: 0, dayIndex: 0, yearIndex: 25 };
-  }
+function parseBirthday(dateString?: string) {
+  const defaults = { monthIndex: 0, dayIndex: 0, yearIndex: 22 }; // ~2002 default age
+  if (!dateString) return defaults;
   try {
     const d = new Date(dateString);
-    if (isNaN(d.getTime())) return { monthIndex: 0, dayIndex: 0, yearIndex: 25 };
-    const monthIndex = d.getMonth();
-    const dayIndex = d.getDate() - 1;
-    const year = d.getFullYear();
-    const yearIndex = YEARS.indexOf(String(year));
-    return { monthIndex, dayIndex, yearIndex: yearIndex >= 0 ? yearIndex : 25 };
+    if (isNaN(d.getTime())) return defaults;
+    const yearIndex = YEARS.indexOf(String(d.getFullYear()));
+    return {
+      monthIndex: d.getMonth(),
+      dayIndex: d.getDate() - 1,
+      yearIndex: yearIndex >= 0 ? yearIndex : defaults.yearIndex,
+    };
   } catch {
-    return { monthIndex: 0, dayIndex: 0, yearIndex: 25 };
+    return defaults;
   }
 }
 
@@ -253,26 +300,26 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
   const { user, updateBirthday } = useAuth();
   const { showToast } = useToast();
 
-  // Navigation state
+  // ─── Navigation ──────────────────────────────────────────────────────────
   const [currentView, setCurrentView] = useState<SheetView>('main');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Date picker state
-  const parsed = parseBirthday(user?.birthday);
-  const [selectedMonth, setSelectedMonth] = useState(parsed.monthIndex);
-  const [selectedDay, setSelectedDay] = useState(parsed.dayIndex);
-  const [selectedYear, setSelectedYear] = useState(parsed.yearIndex);
+  // ─── Date picker state ────────────────────────────────────────────────────
+  // We keep a stable "initial" parsed value and only re-parse when the sheet opens
+  const [pickerMonth, setPickerMonth] = useState(0);
+  const [pickerDay, setPickerDay] = useState(0);
+  const [pickerYear, setPickerYear] = useState(22);
 
-  // Reset date picker when opening
+  // Reset everything when sheet becomes visible
   useEffect(() => {
     if (visible) {
       const p = parseBirthday(user?.birthday);
-      setSelectedMonth(p.monthIndex);
-      setSelectedDay(p.dayIndex);
-      setSelectedYear(p.yearIndex);
+      setPickerMonth(p.monthIndex);
+      setPickerDay(p.dayIndex);
+      setPickerYear(p.yearIndex);
       setCurrentView('main');
     }
-  }, [visible, user?.birthday]);
+  }, [visible]); // don't include user?.birthday — only reset on open
 
   // ─── Sheet animation ──────────────────────────────────────────────────────
   const translateY = useSharedValue(SHEET_OFFSCREEN);
@@ -291,22 +338,25 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
 
   const closeSheet = useCallback(() => {
     backdropOpacity.value = withTiming(0, { duration: 220 });
-    translateY.value = withTiming(SHEET_OFFSCREEN, { duration: 240, easing: Easing.in(Easing.ease) }, (finished) => {
-      if (finished) runOnJS(setShouldRender)(false);
-    });
+    translateY.value = withTiming(
+      SHEET_OFFSCREEN,
+      { duration: 240, easing: Easing.in(Easing.ease) },
+      (finished) => { if (finished) runOnJS(setShouldRender)(false); },
+    );
   }, []);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
-    if (visible) { openSheet(); } else if (!visible && shouldRender) { closeSheet(); }
+    if (visible) { openSheet(); } else if (shouldRender) { closeSheet(); }
   }, [visible, shouldRender, openSheet, closeSheet]);
 
+  // ─── Pan gesture (main view only) ────────────────────────────────────────
   const panGesture = Gesture.Pan()
     .onBegin(() => { dragStartY.value = translateY.value; })
-    .onUpdate((event) => { translateY.value = Math.max(0, dragStartY.value + event.translationY); })
-    .onEnd((event) => {
-      if (event.translationY > DISMISS_THRESHOLD || event.velocityY > 700) {
+    .onUpdate((e) => { translateY.value = Math.max(0, dragStartY.value + e.translationY); })
+    .onEnd((e) => {
+      if (e.translationY > DISMISS_THRESHOLD || e.velocityY > 700) {
         runOnJS(onClose)();
       } else {
         translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
@@ -316,13 +366,13 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
-  // ─── Birthday save ────────────────────────────────────────────────────────
+  // ─── Save birthday ────────────────────────────────────────────────────────
   const handleSaveBirthday = async () => {
     setIsSaving(true);
     try {
-      const month = selectedMonth + 1;
-      const day = selectedDay + 1;
-      const year = parseInt(YEARS[selectedYear]);
+      const month = pickerMonth + 1;
+      const day = pickerDay + 1;
+      const year = parseInt(YEARS[pickerYear]);
       const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const success = await updateBirthday(isoDate);
       if (success) {
@@ -348,108 +398,105 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
 
   if (!shouldRender || !user) return null;
 
-  // ─── View: Edit Birthday ──────────────────────────────────────────────────
+  // ─── Computed preview ─────────────────────────────────────────────────────
+  const previewDateStr = `${MONTHS[pickerMonth]} ${DAYS[pickerDay]}, ${YEARS[pickerYear]}`;
+
+  // ─── Sub-views ────────────────────────────────────────────────────────────
+
   const renderEditBirthday = () => (
     <Animated.View
       key="edit-birthday"
       entering={SlideInRight.duration(280).springify()}
       exiting={SlideOutRight.duration(220)}
-      style={StyleSheet.absoluteFill}
+      style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
     >
-      <View style={[styles.sheet, { backgroundColor: sheetBg, height: SCREEN_HEIGHT * 0.88, bottom: 0, left: 0, right: 0, position: 'absolute' }]}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: borderColor }]}>
-          <Pressable onPress={() => setCurrentView('birthday')} style={styles.closeBtn} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color={textColor} />
-          </Pressable>
-          <ThemedText style={[styles.headerTitle, { color: textColor }]}>Edit Birthday</ThemedText>
-          <View style={{ width: 40 }} />
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <Pressable onPress={() => setCurrentView('birthday')} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={textColor} />
+        </Pressable>
+        <ThemedText style={[styles.headerTitle, { color: textColor }]}>Edit Birthday</ThemedText>
+        <View style={styles.headerBtn} />
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        contentContainerStyle={{ paddingBottom: 48 }}
+      >
+        {/* Info banner */}
+        <View style={[editBdStyles.infoBanner, { backgroundColor: isDark ? '#262629' : '#F5F7FF', borderColor: isDark ? '#3B82F633' : '#1D4ED822' }]}>
+          <MaterialCommunityIcons name="cake-variant-outline" size={20} color={accentColor} style={{ marginRight: 10, marginTop: 1 }} />
+          <ThemedText style={[editBdStyles.infoText, { color: textSecondaryColor }]}>
+            Your birthday is used to verify your age. It's not shown publicly unless you choose to share it.
+          </ThemedText>
         </View>
 
-        {/* Content */}
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Info block */}
-          <View style={[editBdStyles.infoCard, { backgroundColor: isDark ? '#262629' : '#F5F5F5', borderColor }]}>
-            <MaterialCommunityIcons name="cake-variant-outline" size={22} color={accentColor} style={{ marginRight: 10 }} />
-            <ThemedText style={[editBdStyles.infoText, { color: textSecondaryColor }]}>
-              Your birthday is used to calculate your age and is not shown publicly unless you choose to share it.
-            </ThemedText>
-          </View>
+        {/* Pickers */}
+        <View style={[editBdStyles.pickerCard, { backgroundColor: cardBg, borderColor }]}>
+          {/*
+            Key trick: each DrumPicker gets a unique key so React remounts
+            each column independently when the sheet re-opens.
+          */}
+          <DrumPicker
+            key={`month-${visible}`}
+            items={MONTHS}
+            selectedIndex={pickerMonth}
+            onIndexChange={setPickerMonth}
+            isDark={isDark}
+            label="Month"
+          />
 
-          {/* Picker label */}
-          <ThemedText style={[editBdStyles.pickerLabel, { color: textColor }]}>Select your birthday</ThemedText>
+          <View style={[editBdStyles.pickerDivider, { backgroundColor: borderColor }]} />
 
-          {/* Date picker row */}
-          <View style={[editBdStyles.pickerRow, { borderColor }]}>
-            {/* Month */}
-            <View style={editBdStyles.pickerCol}>
-              <ThemedText style={[editBdStyles.colLabel, { color: textSecondaryColor }]}>Month</ThemedText>
-              <DrumPicker
-                items={MONTHS}
-                selectedIndex={selectedMonth}
-                onIndexChange={setSelectedMonth}
-                isDark={isDark}
-                colors={colors}
-              />
-            </View>
+          <DrumPicker
+            key={`day-${visible}`}
+            items={DAYS}
+            selectedIndex={pickerDay}
+            onIndexChange={setPickerDay}
+            isDark={isDark}
+            label="Day"
+          />
 
-            {/* Divider */}
-            <View style={[editBdStyles.colDivider, { backgroundColor: borderColor }]} />
+          <View style={[editBdStyles.pickerDivider, { backgroundColor: borderColor }]} />
 
-            {/* Day */}
-            <View style={[editBdStyles.pickerCol, { flex: 0.6 }]}>
-              <ThemedText style={[editBdStyles.colLabel, { color: textSecondaryColor }]}>Day</ThemedText>
-              <DrumPicker
-                items={DAYS}
-                selectedIndex={selectedDay}
-                onIndexChange={setSelectedDay}
-                isDark={isDark}
-                colors={colors}
-              />
-            </View>
+          <DrumPicker
+            key={`year-${visible}`}
+            items={YEARS}
+            selectedIndex={pickerYear}
+            onIndexChange={setPickerYear}
+            isDark={isDark}
+            label="Year"
+          />
+        </View>
 
-            {/* Divider */}
-            <View style={[editBdStyles.colDivider, { backgroundColor: borderColor }]} />
+        {/* Preview */}
+        <View style={[editBdStyles.previewCard, { backgroundColor: isDark ? '#1A2540' : '#EEF2FF', borderColor: isDark ? '#3B82F644' : '#1D4ED822' }]}>
+          <ThemedText style={[editBdStyles.previewLabel, { color: textSecondaryColor }]}>
+            Selected date
+          </ThemedText>
+          <ThemedText style={[editBdStyles.previewDate, { color: accentColor }]}>
+            {previewDateStr}
+          </ThemedText>
+        </View>
 
-            {/* Year */}
-            <View style={[editBdStyles.pickerCol, { flex: 0.85 }]}>
-              <ThemedText style={[editBdStyles.colLabel, { color: textSecondaryColor }]}>Year</ThemedText>
-              <DrumPicker
-                items={YEARS}
-                selectedIndex={selectedYear}
-                onIndexChange={setSelectedYear}
-                isDark={isDark}
-                colors={colors}
-              />
-            </View>
-          </View>
-
-          {/* Selected preview */}
-          <View style={[editBdStyles.previewCard, { backgroundColor: isDark ? '#262629' : '#F5F7FF', borderColor: isDark ? '#3B82F6' + '44' : '#1D4ED8' + '22' }]}>
-            <ThemedText style={[editBdStyles.previewLabel, { color: textSecondaryColor }]}>Selected date</ThemedText>
-            <ThemedText style={[editBdStyles.previewDate, { color: accentColor }]}>
-              {`${MONTHS[selectedMonth]} ${parseInt(DAYS[selectedDay])}, ${YEARS[selectedYear]}`}
-            </ThemedText>
-          </View>
-
-          {/* Save button */}
-          <Pressable
-            style={[editBdStyles.saveBtn, { backgroundColor: isSaving ? (isDark ? '#333' : '#CCC') : accentColor }]}
-            onPress={handleSaveBirthday}
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <ThemedText style={editBdStyles.saveBtnText}>Saving...</ThemedText>
-            ) : (
-              <ThemedText style={editBdStyles.saveBtnText}>Save Birthday</ThemedText>
-            )}
-          </Pressable>
-        </ScrollView>
-      </View>
+        {/* Save */}
+        <Pressable
+          style={({ pressed }) => [
+            editBdStyles.saveBtn,
+            { backgroundColor: isSaving ? (isDark ? '#2D3748' : '#CBD5E1') : '#0064E0', opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={handleSaveBirthday}
+          disabled={isSaving}
+        >
+          <ThemedText style={editBdStyles.saveBtnText}>
+            {isSaving ? 'Saving…' : 'Save Birthday'}
+          </ThemedText>
+        </Pressable>
+      </ScrollView>
     </Animated.View>
   );
 
-  // ─── View: Birthday Info ──────────────────────────────────────────────────
   const renderBirthdayView = () => {
     const age = getAge(user.birthday);
     const bdFormatted = formatDate(user.birthday);
@@ -459,199 +506,187 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
         key="birthday"
         entering={SlideInRight.duration(280).springify()}
         exiting={SlideOutRight.duration(220)}
-        style={StyleSheet.absoluteFill}
+        style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
       >
-        <View style={[styles.sheet, { backgroundColor: sheetBg, height: SCREEN_HEIGHT * 0.88, bottom: 0, left: 0, right: 0, position: 'absolute' }]}>
-          {/* Header */}
-          <View style={[styles.header, { borderBottomColor: borderColor }]}>
-            <Pressable onPress={() => setCurrentView('main')} style={styles.closeBtn} hitSlop={12}>
-              <Ionicons name="arrow-back" size={24} color={textColor} />
-            </Pressable>
-            <ThemedText style={[styles.headerTitle, { color: textColor }]}>Birthday</ThemedText>
-            <View style={{ width: 40 }} />
+        {/* Header */}
+        <View style={[styles.header, { borderBottomColor: borderColor }]}>
+          <Pressable onPress={() => setCurrentView('main')} style={styles.headerBtn} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </Pressable>
+          <ThemedText style={[styles.headerTitle, { color: textColor }]}>Birthday</ThemedText>
+          <View style={styles.headerBtn} />
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Hero card */}
+          <View style={[bdStyles.heroCard, { backgroundColor: isDark ? '#1A2540' : '#EEF2FF', borderColor: isDark ? '#3B82F633' : '#1D4ED822' }]}>
+            <View style={[bdStyles.cakeCircle, { backgroundColor: isDark ? '#3B82F620' : '#DBEAFE' }]}>
+              <MaterialCommunityIcons name="cake-variant" size={36} color={accentColor} />
+            </View>
+            <ThemedText style={[bdStyles.heroDate, { color: textColor }]}>{bdFormatted}</ThemedText>
+            {age !== null && (
+              <ThemedText style={[bdStyles.heroAge, { color: textSecondaryColor }]}>{age} years old</ThemedText>
+            )}
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Birthday hero card */}
-            <View style={[bdStyles.heroCard, { backgroundColor: isDark ? '#262629' : '#F5F7FF', borderColor: isDark ? '#3B82F644' : '#1D4ED822' }]}>
-              <View style={[bdStyles.cakeIconWrapper, { backgroundColor: isDark ? '#3B82F622' : '#1D4ED811' }]}>
-                <MaterialCommunityIcons name="cake-variant" size={38} color={accentColor} />
+          {/* Info section */}
+          <ThemedText style={[styles.sectionTitle, { color: textColor }]}>About your birthday</ThemedText>
+          <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+            <View style={bdStyles.infoRow}>
+              <View style={[bdStyles.iconCircle, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
+                <MaterialCommunityIcons name="eye-off-outline" size={18} color={accentColor} />
               </View>
-              <ThemedText style={[bdStyles.heroDate, { color: textColor }]}>{bdFormatted}</ThemedText>
-              {age !== null && (
-                <ThemedText style={[bdStyles.heroAge, { color: textSecondaryColor }]}>
-                  {age} years old
-                </ThemedText>
-              )}
+              <View style={{ flex: 1 }}>
+                <ThemedText style={[bdStyles.infoTitle, { color: textColor }]}>Birthday visibility</ThemedText>
+                <ThemedText style={[bdStyles.infoDesc, { color: textSecondaryColor }]}>Your birthday isn't shown on your public profile.</ThemedText>
+              </View>
             </View>
-
-            {/* Section title */}
-            <ThemedText style={[styles.sectionTitle, { color: textColor }]}>About your birthday</ThemedText>
-
-            {/* Info cards */}
-            <View style={[bdStyles.infoCard, { backgroundColor: cardBg, borderColor }]}>
-              <Pressable style={bdStyles.infoRow}>
-                <View style={[bdStyles.infoIconWrapper, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
-                  <MaterialCommunityIcons name="eye-off-outline" size={20} color={accentColor} />
-                </View>
-                <View style={bdStyles.infoContent}>
-                  <ThemedText style={[bdStyles.infoTitle, { color: textColor }]}>Birthday visibility</ThemedText>
-                  <ThemedText style={[bdStyles.infoDesc, { color: textSecondaryColor }]}>
-                    Your birthday is not shown on your public profile.
-                  </ThemedText>
-                </View>
-              </Pressable>
-
-              <View style={[styles.divider, { backgroundColor: borderColor }]} />
-
-              <Pressable style={bdStyles.infoRow}>
-                <View style={[bdStyles.infoIconWrapper, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
-                  <MaterialCommunityIcons name="shield-account-outline" size={20} color={accentColor} />
-                </View>
-                <View style={bdStyles.infoContent}>
-                  <ThemedText style={[bdStyles.infoTitle, { color: textColor }]}>Used for safety</ThemedText>
-                  <ThemedText style={[bdStyles.infoDesc, { color: textSecondaryColor }]}>
-                    Your age helps us keep your account safe and show age-appropriate content.
-                  </ThemedText>
-                </View>
-              </Pressable>
+            <View style={[styles.divider, { backgroundColor: borderColor }]} />
+            <View style={bdStyles.infoRow}>
+              <View style={[bdStyles.iconCircle, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
+                <MaterialCommunityIcons name="shield-account-outline" size={18} color={accentColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={[bdStyles.infoTitle, { color: textColor }]}>Used for safety</ThemedText>
+                <ThemedText style={[bdStyles.infoDesc, { color: textSecondaryColor }]}>Your age helps us keep your account safe and show appropriate content.</ThemedText>
+              </View>
             </View>
+          </View>
 
-            {/* Edit birthday row */}
-            <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Manage</ThemedText>
-            <View style={[bdStyles.editCard, { backgroundColor: cardBg, borderColor }]}>
-              <Pressable
-                style={bdStyles.editRow}
-                onPress={() => setCurrentView('edit-birthday')}
-              >
-                <View style={[bdStyles.infoIconWrapper, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
-                  <MaterialCommunityIcons name="pencil-outline" size={20} color={accentColor} />
-                </View>
-                <View style={bdStyles.infoContent}>
-                  <ThemedText style={[bdStyles.infoTitle, { color: textColor }]}>Edit Birthday</ThemedText>
-                  <ThemedText style={[bdStyles.infoDesc, { color: textSecondaryColor }]}>
-                    Update your birthday date
-                  </ThemedText>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
+          {/* Manage section */}
+          <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Manage</ThemedText>
+          <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+            <Pressable style={bdStyles.editRow} onPress={() => setCurrentView('edit-birthday')}>
+              <View style={[bdStyles.iconCircle, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
+                <MaterialCommunityIcons name="pencil-outline" size={18} color={accentColor} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={[bdStyles.infoTitle, { color: textColor }]}>Edit Birthday</ThemedText>
+                <ThemedText style={[bdStyles.infoDesc, { color: textSecondaryColor }]}>Update your date of birth</ThemedText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
+            </Pressable>
+          </View>
+        </ScrollView>
       </Animated.View>
     );
   };
 
-  // ─── View: Main ───────────────────────────────────────────────────────────
   const renderMain = () => (
     <Animated.View
       key="main"
-      entering={currentView === 'main' ? FadeIn.duration(200) : SlideInLeft.duration(280).springify()}
-      exiting={SlideOutLeft.duration(220)}
-      style={StyleSheet.absoluteFill}
+      entering={SlideInLeft.duration(260).springify()}
+      style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
     >
-      <View style={[styles.sheet, { backgroundColor: sheetBg, height: SCREEN_HEIGHT * 0.88, bottom: 0, left: 0, right: 0, position: 'absolute' }]}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: borderColor }]}>
-          <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={12}>
-            <Ionicons name="close" size={26} color={textColor} />
-          </Pressable>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <Pressable onPress={onClose} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="close" size={26} color={textColor} />
+        </Pressable>
+        <View style={styles.brandingRow}>
+          <Image
+            source={require('../../assets/images/meta.png')}
+            style={[styles.metaLogo, isDark && { tintColor: '#FFFFFF' }]}
+            resizeMode="contain"
+          />
+          <ThemedText style={[styles.metaText, { color: isDark ? '#FFFFFF' : '#000000' }]}>Meta</ThemedText>
+        </View>
+        <View style={styles.headerBtn} />
+      </View>
 
-          {/* Meta Branding */}
-          <View style={styles.brandingWrapper}>
-            <Image
-              source={require('../../assets/images/meta.png')}
-              style={[styles.metaLogoImage, isDark && { tintColor: '#FFFFFF' }]}
-              resizeMode="contain"
-            />
-            <ThemedText style={[styles.metaText, { color: isDark ? '#FFFFFF' : '#000000' }]}>Meta</ThemedText>
-          </View>
-          <View style={{ width: 40 }} />
+      <Animated.ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ThemedText style={[styles.title, { color: textColor }]}>Profiles and personal details</ThemedText>
+        <ThemedText style={[styles.description, { color: textSecondaryColor }]}>
+          Review the profiles and personal details you've added to this Accounts Center.{' '}
+          <ThemedText style={styles.link}>Learn more</ThemedText>
+        </ThemedText>
+
+        {/* Profiles */}
+        <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Profiles</ThemedText>
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Pressable style={styles.cardRow}>
+            <View style={styles.avatarWrapper}>
+              {user.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' }]}>
+                  <Ionicons name="person" size={24} color={isDark ? '#636366' : '#A8A8A8'} />
+                </View>
+              )}
+              <View style={styles.igBadge}>
+                <Ionicons name="logo-instagram" size={10} color="#FFFFFF" />
+              </View>
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.profileName, { color: textColor }]}>{user.username}</ThemedText>
+              <ThemedText style={[styles.profileSub, { color: textSecondaryColor }]}>Instagram</ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
+          </Pressable>
+          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+          <Pressable style={styles.addRow}>
+            <ThemedText style={styles.addText}>Add accounts</ThemedText>
+          </Pressable>
         </View>
 
-        {/* Content */}
-        <Animated.ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <ThemedText style={[styles.title, { color: textColor }]}>Profiles and personal details</ThemedText>
-          <ThemedText style={[styles.description, { color: textSecondaryColor }]}>
-            Review the profiles and personal details you've added to this Accounts Center. Add more profiles by adding your accounts.{' '}
-            <ThemedText style={styles.linkText}>Learn more</ThemedText>
-          </ThemedText>
-
-          {/* SECTION: Profiles */}
-          <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Profiles</ThemedText>
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-            <Pressable style={styles.cardRow}>
-              <View style={styles.avatarWrapper}>
-                {user.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' }]}>
-                    <Ionicons name="person" size={24} color={isDark ? '#636366' : '#A8A8A8'} />
-                  </View>
-                )}
-                <View style={styles.instagramBadge}>
-                  <Ionicons name="logo-instagram" size={10} color="#FFFFFF" />
-                </View>
-              </View>
-              <View style={styles.rowDetails}>
-                <ThemedText style={[styles.profileName, { color: textColor }]}>{user.username}</ThemedText>
-                <ThemedText style={[styles.profileSub, { color: textSecondaryColor }]}>Instagram</ThemedText>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
-            </Pressable>
-            <View style={[styles.divider, { backgroundColor: borderColor }]} />
-            <Pressable style={styles.addAccountsRow}>
-              <ThemedText style={styles.addAccountsText}>Add accounts</ThemedText>
-            </Pressable>
-          </View>
-
-          {/* SECTION: Personal details */}
-          <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Personal details</ThemedText>
-          <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-            {/* Contact Info */}
-            <Pressable style={styles.cardRow}>
-              <View style={styles.rowDetails}>
-                <ThemedText style={[styles.detailTitle, { color: textColor }]}>Contact info</ThemedText>
-                <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>
-                  {user.email || 'No email set'}{user.phone ? ` • ${user.phone}` : ''}
-                </ThemedText>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
-            </Pressable>
-            <View style={[styles.divider, { backgroundColor: borderColor }]} />
-            {/* Birthday */}
-            <Pressable style={styles.cardRow} onPress={() => setCurrentView('birthday')}>
-              <View style={styles.rowDetails}>
-                <ThemedText style={[styles.detailTitle, { color: textColor }]}>Birthday</ThemedText>
-                <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>
-                  {formatDate(user.birthday)}
-                </ThemedText>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
-            </Pressable>
-          </View>
-        </Animated.ScrollView>
-      </View>
+        {/* Personal details */}
+        <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Personal details</ThemedText>
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Pressable style={styles.cardRow}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.detailTitle, { color: textColor }]}>Contact info</ThemedText>
+              <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>
+                {user.email || 'No email set'}{user.phone ? ` • ${user.phone}` : ''}
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
+          </Pressable>
+          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+          <Pressable style={styles.cardRow} onPress={() => setCurrentView('birthday')}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.detailTitle, { color: textColor }]}>Birthday</ThemedText>
+              <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>
+                {formatDate(user.birthday)}
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
+          </Pressable>
+        </View>
+      </Animated.ScrollView>
     </Animated.View>
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <Modal visible={shouldRender} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <GestureHandlerRootView style={styles.modalContainer}>
+      <GestureHandlerRootView style={styles.root}>
         {/* Backdrop */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* Draggable sheet wrapper */}
-        <GestureDetector gesture={currentView === 'main' ? panGesture : Gesture.Pan()}>
-          <Animated.View style={[{ position: 'absolute', bottom: 0, left: 0, right: 0, height: SCREEN_HEIGHT * 0.88, zIndex: 101 }, sheetStyle]}>
-            {currentView === 'main' && renderMain()}
-            {currentView === 'birthday' && renderBirthdayView()}
-            {currentView === 'edit-birthday' && renderEditBirthday()}
-          </Animated.View>
-        </GestureDetector>
+        {/*
+          CRITICAL: GestureDetector only wraps the MAIN view.
+          Birthday & Edit-birthday views are outside GestureDetector,
+          so their inner ScrollViews (the drum pickers) receive touches natively.
+        */}
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            { height: SCREEN_HEIGHT * 0.88 },
+            sheetStyle,
+          ]}
+        >
+          {currentView === 'main' ? (
+            <GestureDetector gesture={panGesture}>
+              {renderMain()}
+            </GestureDetector>
+          ) : currentView === 'birthday' ? (
+            renderBirthdayView()
+          ) : (
+            renderEditBirthday()
+          )}
+        </Animated.View>
       </GestureHandlerRootView>
     </Modal>
   );
@@ -660,25 +695,20 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  modalContainer: {
+  root: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'transparent',
   },
   backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     zIndex: 100,
   },
-  sheet: {
+  sheetContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     zIndex: 101,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    elevation: 24,
-    overflow: 'hidden',
   },
   header: {
     height: 56,
@@ -688,25 +718,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 17,
-  },
-  closeBtn: {
+  headerBtn: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  brandingWrapper: {
+  headerTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 17,
+  },
+  brandingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
   },
-  metaLogoImage: {
-    width: 26,
-    height: 26,
+  metaLogo: {
+    width: 24,
+    height: 24,
   },
   metaText: {
     fontFamily: Fonts.bold,
@@ -715,8 +744,8 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 48,
   },
   title: {
@@ -729,23 +758,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.regular,
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  linkText: {
+  link: {
     color: '#0064E0',
     fontFamily: Fonts.semiBold,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: Fonts.bold,
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   card: {
     borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   cardRow: {
     flexDirection: 'row',
@@ -766,7 +795,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  instagramBadge: {
+  igBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
@@ -777,11 +806,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  rowDetails: {
-    flex: 1,
-    justifyContent: 'center',
+    borderColor: '#FFF',
   },
   profileName: {
     fontSize: 15,
@@ -794,14 +819,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    width: '100%',
   },
-  addAccountsRow: {
+  addRow: {
     paddingHorizontal: 16,
     paddingVertical: 14,
-    justifyContent: 'center',
   },
-  addAccountsText: {
+  addText: {
     color: '#0064E0',
     fontFamily: Fonts.semiBold,
     fontSize: 15,
@@ -811,13 +834,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
   },
   detailValue: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontFamily: Fonts.regular,
     marginTop: 2,
   },
 });
 
-// Birthday view styles
+// Birthday info view styles
 const bdStyles = StyleSheet.create({
   heroCard: {
     borderRadius: 20,
@@ -826,84 +849,68 @@ const bdStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  cakeIconWrapper: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  cakeCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
   },
   heroDate: {
-    fontSize: 22,
+    fontSize: 21,
     fontFamily: Fonts.bold,
-    textAlign: 'center',
     marginBottom: 4,
   },
   heroAge: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: Fonts.regular,
-    textAlign: 'center',
-  },
-  infoCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: 8,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 14,
+    gap: 12,
   },
-  infoIconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
     marginTop: 1,
   },
-  infoContent: {
-    flex: 1,
-  },
   infoTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: Fonts.semiBold,
     marginBottom: 2,
   },
   infoDesc: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontFamily: Fonts.regular,
-    lineHeight: 18,
-  },
-  editCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: 8,
+    lineHeight: 17,
   },
   editRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
+    gap: 12,
   },
 });
 
-// Edit birthday styles
+// Edit birthday view styles
 const editBdStyles = StyleSheet.create({
-  infoCard: {
+  infoBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginHorizontal: 20,
+    marginTop: 18,
+    marginBottom: 16,
     borderRadius: 14,
     borderWidth: 1,
     padding: 14,
-    marginHorizontal: 24,
-    marginTop: 20,
-    marginBottom: 4,
   },
   infoText: {
     flex: 1,
@@ -911,48 +918,32 @@ const editBdStyles = StyleSheet.create({
     fontFamily: Fonts.regular,
     lineHeight: 18,
   },
-  pickerLabel: {
-    fontSize: 16,
-    fontFamily: Fonts.bold,
-    marginHorizontal: 24,
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  pickerRow: {
+  pickerCard: {
     flexDirection: 'row',
     marginHorizontal: 16,
     borderRadius: 18,
     borderWidth: 1,
     overflow: 'hidden',
-    height: PICKER_HEIGHT + 48,
+    // Height is enough for label + PICKER_HEIGHT
+    height: PICKER_HEIGHT + 44,
   },
-  pickerCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  colLabel: {
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  colDivider: {
+  pickerDivider: {
     width: StyleSheet.hairlineWidth,
     alignSelf: 'stretch',
   },
   previewCard: {
-    marginHorizontal: 24,
-    marginTop: 20,
+    marginHorizontal: 20,
+    marginTop: 18,
     borderRadius: 14,
     borderWidth: 1,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: 'center',
   },
   previewLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: Fonts.regular,
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
   previewDate: {
@@ -960,16 +951,16 @@ const editBdStyles = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
   saveBtn: {
-    marginHorizontal: 24,
-    marginTop: 20,
+    marginHorizontal: 20,
+    marginTop: 18,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 15,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   saveBtnText: {
     color: '#FFFFFF',
     fontFamily: Fonts.bold,
     fontSize: 16,
+    letterSpacing: 0.2,
   },
 });
