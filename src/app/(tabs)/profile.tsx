@@ -816,14 +816,22 @@ export default function ProfileScreen() {
           {isOwnProfile ? (
             <>
               <Pressable
-                onPress={() => {/* open edit profile sheet */ }}
-                style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+                onPress={() => router.push('/edit-profile')}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { backgroundColor: isDark ? '#262626' : '#EFEFEF' },
+                  { opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                ]}
               >
                 <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Edit profile</ThemedText>
               </Pressable>
               <Pressable
                 onPress={triggerShareModal}
-                style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { backgroundColor: isDark ? '#262626' : '#EFEFEF' },
+                  { opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                ]}
               >
                 <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Share profile</ThemedText>
               </Pressable>

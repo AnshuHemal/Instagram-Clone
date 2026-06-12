@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api, TokenManager } from '@/services/api';
 
+export interface UserLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -8,6 +14,10 @@ export interface User {
   email: string;
   avatar: string;
   bio: string;
+  gender?: string;
+  pronouns?: string;
+  showPronounsToFollowers?: boolean;
+  links?: UserLink[];
   followersCount: number;
   followingCount: number;
   postsCount: number;
@@ -33,7 +43,12 @@ interface AuthContextProps {
     bio: string,
     avatar: string,
     isOnboarded?: boolean,
-    onboardingStep?: string
+    onboardingStep?: string,
+    username?: string,
+    gender?: string,
+    pronouns?: string,
+    links?: UserLink[],
+    showPronounsToFollowers?: boolean
   ) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
 }
@@ -82,6 +97,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   email: u.email,
                   avatar: u.avatarUrl || '',
                   bio: u.bio || 'Welcome back to Instagram Clone!',
+                  gender: u.gender || '',
+                  pronouns: u.pronouns || '',
+                  showPronounsToFollowers: u.showPronounsToFollowers || false,
+                  links: u.links || [],
                   followersCount: u.followersCount ?? 0,
                   followingCount: u.followingCount ?? 0,
                   postsCount: u.postsCount ?? 0,
@@ -137,6 +156,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: userPayload.email,
           avatar: userPayload.avatarUrl || '',
           bio: userPayload.bio || 'Welcome to Instagram Clone!',
+          gender: userPayload.gender || '',
+          pronouns: userPayload.pronouns || '',
+          showPronounsToFollowers: userPayload.showPronounsToFollowers || false,
+          links: userPayload.links || [],
           followersCount: userPayload.followersCount ?? 0,
           followingCount: userPayload.followingCount ?? 0,
           postsCount: userPayload.postsCount ?? 0,
@@ -203,6 +226,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: userPayload.email,
           avatar: userPayload.avatarUrl || '',
           bio: userPayload.bio || 'Welcome to Instagram Clone!',
+          showPronounsToFollowers: userPayload.showPronounsToFollowers || false,
+          links: userPayload.links || [],
           followersCount: userPayload.followersCount ?? 0,
           followingCount: userPayload.followingCount ?? 0,
           postsCount: userPayload.postsCount ?? 0,
@@ -228,9 +253,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser((prev) => prev ? {
           ...prev,
           name: u.displayName || prev.name,
+          username: u.username || prev.username,
           email: u.email || prev.email,
           avatar: u.avatarUrl || prev.avatar,
           bio: u.bio || prev.bio,
+          gender: u.gender !== undefined ? u.gender : prev.gender,
+          pronouns: u.pronouns !== undefined ? u.pronouns : prev.pronouns,
+          showPronounsToFollowers: u.showPronounsToFollowers !== undefined ? u.showPronounsToFollowers : prev.showPronounsToFollowers,
+          links: u.links !== undefined ? u.links : prev.links,
           isOnboarded: u.isOnboarded ?? prev.isOnboarded,
           onboardingStep: u.onboardingStep || prev.onboardingStep,
           followersCount: u.followersCount ?? prev.followersCount,
@@ -255,7 +285,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     bio: string,
     avatar: string,
     isOnboarded?: boolean,
-    onboardingStep?: string
+    onboardingStep?: string,
+    username?: string,
+    gender?: string,
+    pronouns?: string,
+    links?: UserLink[],
+    showPronounsToFollowers?: boolean
   ): Promise<boolean> => {
     try {
       const res = await api.patch('/auth/profile', {
@@ -264,14 +299,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatarUrl: avatar,
         isOnboarded,
         onboardingStep,
+        username,
+        gender,
+        pronouns,
+        links,
+        showPronounsToFollowers,
       });
       if (res.data && res.data.user) {
         const u = res.data.user;
         setUser((prev) => prev ? {
           ...prev,
           name: u.displayName || prev.name,
+          username: u.username || prev.username,
           bio: u.bio || prev.bio,
           avatar: u.avatarUrl || prev.avatar,
+          gender: u.gender || '',
+          pronouns: u.pronouns || '',
+          showPronounsToFollowers: u.showPronounsToFollowers || false,
+          links: u.links || [],
           isOnboarded: u.isOnboarded,
           onboardingStep: u.onboardingStep,
           followersCount: u.followersCount ?? prev.followersCount,
@@ -290,6 +335,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name,
           bio,
           avatar: avatar || user.avatar,
+          ...(username !== undefined && { username }),
+          ...(gender !== undefined && { gender }),
+          ...(pronouns !== undefined && { pronouns }),
+          ...(links !== undefined && { links }),
+          ...(showPronounsToFollowers !== undefined && { showPronounsToFollowers }),
           ...(isOnboarded !== undefined && { isOnboarded }),
           ...(onboardingStep !== undefined && { onboardingStep }),
         });

@@ -82,6 +82,10 @@ function RootLayoutContent() {
           name="notifications"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="edit-profile"
+          options={{ animation: 'fade', animationDuration: 200 }}
+        />
       </Stack>
       <LoadingOverlay />
       <StatusBar style="auto" />
