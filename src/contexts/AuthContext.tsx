@@ -23,6 +23,8 @@ export interface User {
   postsCount: number;
   isOnboarded: boolean;
   onboardingStep: string;
+  phone?: string;
+  birthday?: string;
 }
 
 interface AuthContextProps {
@@ -51,6 +53,7 @@ interface AuthContextProps {
     showPronounsToFollowers?: boolean
   ) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
+  updateBirthday: (birthday: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -106,6 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   postsCount: u.postsCount ?? 0,
                   isOnboarded: u.isOnboarded,
                   onboardingStep: u.onboardingStep,
+                  phone: u.phone || '',
+                  birthday: u.birthday || '',
                 });
                 return;
               }
@@ -165,6 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           postsCount: userPayload.postsCount ?? 0,
           isOnboarded: userPayload.isOnboarded,
           onboardingStep: userPayload.onboardingStep,
+          phone: userPayload.phone || '',
+          birthday: userPayload.birthday || '',
         });
         return true;
       }
@@ -233,6 +240,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           postsCount: userPayload.postsCount ?? 0,
           isOnboarded: userPayload.isOnboarded,
           onboardingStep: userPayload.onboardingStep,
+          phone: userPayload.phone || '',
+          birthday: userPayload.birthday || '',
         });
         return true;
       }
@@ -266,6 +275,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           followersCount: u.followersCount ?? prev.followersCount,
           followingCount: u.followingCount ?? prev.followingCount,
           postsCount: u.postsCount ?? prev.postsCount,
+          phone: u.phone !== undefined ? u.phone : prev.phone,
+          birthday: u.birthday !== undefined ? u.birthday : prev.birthday,
         } : prev);
       }
     } catch (err) {
@@ -322,6 +333,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           followersCount: u.followersCount ?? prev.followersCount,
           followingCount: u.followingCount ?? prev.followingCount,
           postsCount: u.postsCount ?? prev.postsCount,
+          phone: u.phone || '',
+          birthday: u.birthday || '',
         } : null);
         return true;
       }
@@ -348,8 +361,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateBirthday = async (birthday: string): Promise<boolean> => {
+    try {
+      const res = await api.patch('/auth/profile', { birthday });
+      if (res.data && res.data.user) {
+        const u = res.data.user;
+        setUser((prev) => prev ? {
+          ...prev,
+          birthday: u.birthday || birthday,
+        } : prev);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to update birthday:', err);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, registerComplete, logout, updateProfile, refreshProfile }}>
+    <AuthContext.Provider value={{ user, isLoading, login, signup, registerComplete, logout, updateProfile, refreshProfile, updateBirthday }}>
       {children}
     </AuthContext.Provider>
   );

@@ -46,7 +46,7 @@ const SHEET_OFFSCREEN = SCREEN_HEIGHT;
 const DISMISS_THRESHOLD = 80;
 
 // Custom Meta Avatar icon SVG
-const MetaAvatarIcon = ({ color, size = 26 }: { color: string; size?: number }) => (
+export const MetaAvatarIcon = ({ color, size = 26 }: { color: string; size?: number }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     {/* Face outline */}
     <Path
@@ -91,7 +91,7 @@ const MetaAvatarIcon = ({ color, size = 26 }: { color: string; size?: number }) 
 interface AddPhotoBottomSheetProps {
   visible: boolean;
   onClose: () => void;
-  onSelectOption: (option: 'library' | 'facebook' | 'camera' | 'create_avatar') => void;
+  onSelectOption: (option: 'library' | 'facebook' | 'camera' | 'create_avatar' | 'remove') => void;
 }
 
 type TabType = 'profile' | 'avatar';
@@ -368,6 +368,21 @@ export const AddPhotoBottomSheet: React.FC<AddPhotoBottomSheetProps> = ({
                     <Ionicons name="camera-outline" size={24} color={textColor} style={styles.optionIcon} />
                     <ThemedText style={[styles.optionLabel, { color: textColor }]}>
                       Take photo
+                    </ThemedText>
+                  </Pressable>
+
+                  {/* Option 4: Remove current picture */}
+                  <Pressable
+                    onPress={() => {
+                      onSelectOption('remove');
+                      onClose();
+                    }}
+                    style={styles.optionRow}
+                    android_ripple={{ color: isDark ? '#2C2C2E' : '#F5F5F5' }}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FF3B30" style={styles.optionIcon} />
+                    <ThemedText style={[styles.optionLabel, { color: '#FF3B30' }]}>
+                      Remove current picture
                     </ThemedText>
                   </Pressable>
                 </View>

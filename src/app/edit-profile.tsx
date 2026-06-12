@@ -42,6 +42,8 @@ import { LinksModal } from '@/components/LinksModal';
 import { UsernameEditModal } from '@/components/UsernameEditModal';
 import { DiscardChangesModal } from '@/components/DiscardChangesModal';
 import { PronounsModal } from '@/components/PronounsModal';
+import { AddPhotoBottomSheet, MetaAvatarIcon } from '@/components/AddPhotoBottomSheet';
+import { PersonalDetailsBottomSheet } from '@/components/PersonalDetailsBottomSheet';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -377,6 +379,8 @@ export default function EditProfileScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [showPersonalDetailsSheet, setShowPersonalDetailsSheet] = useState(false);
 
   // Modal states for field editing
   const [showNameModal, setShowNameModal] = useState(false);
@@ -426,6 +430,15 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     const onBackPress = () => {
+      if (showPhotoSheet) {
+        setShowPhotoSheet(false);
+        return true;
+      }
+      if (showPersonalDetailsSheet) {
+        setShowPersonalDetailsSheet(false);
+        return true;
+      }
+
       // If any of the modals are active, let them handle it first
       if (
         showNameModal ||
@@ -462,6 +475,8 @@ export default function EditProfileScreen() {
     showBannersModal,
     showLinksModal,
     showLibraryModal,
+    showPhotoSheet,
+    showPersonalDetailsSheet,
   ]);
 
   const handleBack = () => {
@@ -516,37 +531,7 @@ export default function EditProfileScreen() {
   };
 
   const handleAvatarPress = () => {
-    Alert.alert(
-      'Edit picture or avatar',
-      'Choose an option',
-      [
-        {
-          text: 'Choose from library',
-          onPress: () => setShowLibraryModal(true),
-        },
-        {
-          text: 'Take photo',
-          onPress: () => {
-            showToast({
-              title: 'Coming soon',
-              message: 'Camera capture will be available shortly.',
-              type: 'info',
-            });
-          },
-        },
-        {
-          text: 'Use avatar',
-          onPress: () => {
-            showToast({
-              title: 'Coming soon',
-              message: 'Avatar editor will be available shortly.',
-              type: 'info',
-            });
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    setShowPhotoSheet(true);
   };
 
   const saveButtonStyle = useAnimatedStyle(() => ({
@@ -609,20 +594,20 @@ export default function EditProfileScreen() {
             style={styles.avatarSection}
           >
             <Pressable onPress={handleAvatarPress} style={styles.avatarContainer}>
-              {/* Main avatar (left, slightly behind) */}
-              <View style={styles.avatarMain}>
+              {/* Main avatar (left) */}
+              <View style={[styles.avatarMain, { borderColor: isDark ? '#3A3A3C' : '#E5E5EA' }]}>
                 {user.avatar ? (
                   <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
                 ) : (
-                  <View style={[styles.avatarImage, styles.avatarPlaceholder, { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' }]}>
-                    <Ionicons name="person" size={40} color={isDark ? '#636366' : '#A8A8A8'} style={{ marginTop: 8 }} />
+                  <View style={[styles.avatarImage, styles.avatarPlaceholder, { backgroundColor: isDark ? '#2C2C2E' : '#F5F5F5' }]}>
+                    <Ionicons name="person" size={40} color={isDark ? '#8E8E93' : '#AEAEB2'} style={{ marginTop: 8 }} />
                   </View>
                 )}
               </View>
 
-              {/* Meta avatar (right, overlapping) */}
-              <View style={[styles.avatarMeta, { backgroundColor: '#B39DDB' }]}>
-                <MaterialCommunityIcons name="robot-outline" size={28} color="#FFFFFF" />
+              {/* Meta avatar (right, side-by-side) */}
+              <View style={[styles.avatarMeta, { backgroundColor: isDark ? '#3F436E' : '#8C9EFF', borderColor: isDark ? '#3A3A3C' : '#E5E5EA' }]}>
+                <MetaAvatarIcon color={isDark ? '#E5E5EA' : '#000000'} size={38} />
               </View>
             </Pressable>
 
@@ -734,7 +719,7 @@ export default function EditProfileScreen() {
               colors={colors}
               delay={460}
               onPress={() => {
-                showToast({ title: 'Coming soon', message: 'Personal information settings will be available shortly.', type: 'info' });
+                setShowPersonalDetailsSheet(true);
               }}
             />
 
@@ -1014,6 +999,71 @@ export default function EditProfileScreen() {
         }}
         onCancel={() => setShowDiscardConfirm(false)}
       />
+
+      <AddPhotoBottomSheet
+        visible={showPhotoSheet}
+        onClose={() => setShowPhotoSheet(false)}
+        onSelectOption={async (option) => {
+          if (option === 'library') {
+            setShowLibraryModal(true);
+          } else if (option === 'camera') {
+            showToast({
+              title: 'Coming soon',
+              message: 'Camera capture will be available shortly.',
+              type: 'info',
+            });
+          } else if (option === 'facebook') {
+            showToast({
+              title: 'Coming soon',
+              message: 'Importing from Facebook is not supported in this version.',
+              type: 'info',
+            });
+          } else if (option === 'create_avatar') {
+            showToast({
+              title: 'Coming soon',
+              message: 'Avatar editor will be available shortly.',
+              type: 'info',
+            });
+          } else if (option === 'remove') {
+            try {
+              const success = await updateProfile(
+                formData.name,
+                formData.bio,
+                '',
+                undefined,
+                undefined,
+                formData.username !== user?.username ? formData.username : undefined,
+                formData.gender !== 'Prefer not to say' ? formData.gender : undefined,
+                formData.pronouns
+              );
+              if (success) {
+                showToast({
+                  title: 'Success',
+                  message: 'Profile picture removed successfully.',
+                  type: 'success',
+                });
+              } else {
+                showToast({
+                  title: 'Error',
+                  message: 'Failed to remove profile picture.',
+                  type: 'error',
+                });
+              }
+            } catch (err) {
+              showToast({
+                title: 'Error',
+                message: 'An error occurred while removing profile picture.',
+                type: 'error',
+              });
+            }
+          }
+        }}
+      />
+
+      <PersonalDetailsBottomSheet
+        visible={showPersonalDetailsSheet}
+        onClose={() => setShowPersonalDetailsSheet(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1045,7 +1095,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: Fonts.bold,
-    fontSize: 17,
+    fontSize: 18,
   },
 
   // ── Avatar Section
@@ -1056,36 +1106,33 @@ const styles = StyleSheet.create({
   avatarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 24,
     marginBottom: 12,
   },
   avatarMain: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: 'transparent',
-    zIndex: 1,
+    borderWidth: 1.5,
   },
   avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
   },
   avatarPlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarMeta: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: -16,
-    borderWidth: 3,
-    borderColor: 'transparent',
-    zIndex: 2,
+    borderWidth: 1.5,
   },
   editPictureLink: {
     fontFamily: Fonts.semiBold,
