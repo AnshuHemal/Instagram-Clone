@@ -8,6 +8,7 @@ import {
   Image,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -16,17 +17,11 @@ import Animated, {
   withSpring,
   runOnJS,
   Easing,
-  FadeIn,
-  SlideInRight,
-  SlideOutLeft,
-  SlideInLeft,
-  SlideOutRight,
 } from 'react-native-reanimated';
 import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
-  NativeViewGestureHandler,
 } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -35,13 +30,20 @@ import { useToast } from '@/contexts/ToastContext';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts } from '@/constants/theme';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_OFFSCREEN = SCREEN_HEIGHT;
 const DISMISS_THRESHOLD = 80;
+const SLIDE_SPRING = { damping: 28, stiffness: 240, mass: 0.8 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SheetView = 'main' | 'birthday' | 'edit-birthday';
+type SheetView =
+  | 'main'
+  | 'birthday'
+  | 'edit-birthday'
+  | 'contact-info'
+  | 'email-detail'
+  | 'email-visibility';
 
 interface PersonalDetailsBottomSheetProps {
   visible: boolean;
@@ -80,7 +82,6 @@ const DrumPicker: React.FC<DrumPickerProps> = ({
   const textUnselected = isDark ? '#4B5563' : '#9CA3AF';
   const highlightBg = isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)';
   const highlightBorder = isDark ? 'rgba(59,130,246,0.4)' : 'rgba(59,130,246,0.3)';
-  const fadeBg = isDark ? '#1C1C1E' : '#FFFFFF';
 
   // Scroll to initial index after layout
   const handleLayout = () => {
@@ -130,14 +131,9 @@ const DrumPicker: React.FC<DrumPickerProps> = ({
           ]}
         />
 
-        {/* Top & Bottom gradient masks */}
-        <View pointerEvents="none" style={[drumStyles.mask, drumStyles.maskTop, { backgroundColor: fadeBg }]} />
-        <View pointerEvents="none" style={[drumStyles.mask, drumStyles.maskBottom, { backgroundColor: fadeBg }]} />
 
         {/*
-          nestedScrollEnabled is critical for Android — lets this ScrollView scroll
-          when it's inside a GestureDetector or another scrollable.
-          scrollEventThrottle={1} ensures we get near-continuous scroll events.
+          nestedScrollEnabled is critical for Android.
         */}
         <ScrollView
           ref={scrollRef}
@@ -154,10 +150,11 @@ const DrumPicker: React.FC<DrumPickerProps> = ({
         >
           {items.map((item, index) => {
             const distance = Math.abs(index - (currentIndex.current ?? selectedIndex));
-            const opacity = distance === 0 ? 1 : distance === 1 ? 0.45 : 0.2;
-            const fontSize = distance === 0 ? 19 : distance === 1 ? 15 : 13;
-            const fontFamily = distance === 0 ? Fonts.bold : Fonts.regular;
-            const color = distance === 0 ? textSelected : textUnselected;
+            const isSelected = distance === 0;
+            const opacity = isSelected ? 1 : 0.85;
+            const fontSize = isSelected ? 19 : 15;
+            const fontFamily = isSelected ? Fonts.bold : Fonts.regular;
+            const color = isSelected ? textSelected : textUnselected;
 
             return (
               <Pressable
@@ -219,21 +216,6 @@ const drumStyles = StyleSheet.create({
     borderRadius: 10,
     zIndex: 1,
     pointerEvents: 'none',
-  },
-  mask: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 2,
-    zIndex: 2,
-    opacity: 0.9,
-    pointerEvents: 'none',
-  },
-  maskTop: {
-    top: 0,
-  },
-  maskBottom: {
-    bottom: 0,
   },
 });
 
@@ -318,6 +300,18 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
       setPickerDay(p.dayIndex);
       setPickerYear(p.yearIndex);
       setCurrentView('main');
+      currentViewRef.current = 'main';
+      // Reset slide positions
+      mainTransX.value = 0;
+      birthdayTransX.value = SCREEN_W;
+      editBirthdayTransX.value = SCREEN_W;
+      contactInfoTransX.value = SCREEN_W;
+      emailDetailTransX.value = SCREEN_W;
+      emailVisibilityTransX.value = SCREEN_W;
+
+      // Instantly position offscreen on open trigger, before open animations start
+      translateY.value = SHEET_OFFSCREEN;
+      backdropOpacity.value = 0;
     }
   }, [visible]); // don't include user?.birthday — only reset on open
 
@@ -327,20 +321,21 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
   const dragStartY = useSharedValue(0);
   const [shouldRender, setShouldRender] = useState(visible);
 
-  useEffect(() => {
-    if (visible) setShouldRender(true);
-  }, [visible]);
+  // Sync shouldRender state during render pass to avoid extra effect layout delays
+  if (visible && !shouldRender) {
+    setShouldRender(true);
+  }
 
   const openSheet = useCallback(() => {
-    backdropOpacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) });
-    translateY.value = withSpring(0, { damping: 22, stiffness: 160, mass: 0.9 });
+    backdropOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
+    translateY.value = withSpring(0, { damping: 18, stiffness: 220, mass: 0.8 });
   }, []);
 
   const closeSheet = useCallback(() => {
-    backdropOpacity.value = withTiming(0, { duration: 220 });
+    backdropOpacity.value = withTiming(0, { duration: 140, easing: Easing.linear });
     translateY.value = withTiming(
       SHEET_OFFSCREEN,
-      { duration: 240, easing: Easing.in(Easing.ease) },
+      { duration: 160, easing: Easing.bezier(0.25, 1, 0.5, 1) },
       (finished) => { if (finished) runOnJS(setShouldRender)(false); },
     );
   }, []);
@@ -350,6 +345,83 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     if (visible) { openSheet(); } else if (shouldRender) { closeSheet(); }
   }, [visible, shouldRender, openSheet, closeSheet]);
+
+  // ─── View-slide shared values ─────────────────────────────────────────────
+  // Each panel lives at its own translateX; navigateTo() springs both together.
+  const mainTransX = useSharedValue(0);
+  const birthdayTransX = useSharedValue(SCREEN_W);
+  const editBirthdayTransX = useSharedValue(SCREEN_W);
+  const contactInfoTransX = useSharedValue(SCREEN_W);
+  const emailDetailTransX = useSharedValue(SCREEN_W);
+  const emailVisibilityTransX = useSharedValue(SCREEN_W);
+
+  // Stable ref so navigateTo() never has a stale currentView closure
+  const currentViewRef = useRef<SheetView>('main');
+
+  const getTransX = (v: SheetView) => {
+    if (v === 'main') return mainTransX;
+    if (v === 'birthday') return birthdayTransX;
+    if (v === 'edit-birthday') return editBirthdayTransX;
+    if (v === 'contact-info') return contactInfoTransX;
+    if (v === 'email-detail') return emailDetailTransX;
+    return emailVisibilityTransX;
+  };
+
+  const navigateTo = useCallback((to: SheetView, dir: 'forward' | 'backward') => {
+    const from = currentViewRef.current;
+    if (from === to) return;
+    currentViewRef.current = to;
+    setCurrentView(to); // triggers re-render for pointerEvents
+
+    // 1. Snap the incoming view to the starting edge (off-screen)
+    getTransX(to).value = dir === 'forward' ? SCREEN_W : -SCREEN_W;
+    // 2. Slide incoming view into center
+    getTransX(to).value = withSpring(0, SLIDE_SPRING);
+    // 3. Slide outgoing view off-screen in the opposite direction
+    getTransX(from).value = withSpring(
+      dir === 'forward' ? -SCREEN_W : SCREEN_W,
+      SLIDE_SPRING,
+    );
+  }, []);
+
+  // ─── Android hardware back button ─────────────────────────────────────────
+  // On Android, Modal fires onRequestClose for the hardware back press.
+  // We handle navigation here so back steps through the view stack.
+  const handleHardwareBack = useCallback(() => {
+    const view = currentViewRef.current;
+    if (view === 'edit-birthday') {
+      navigateTo('birthday', 'backward');
+    } else if (view === 'birthday') {
+      navigateTo('main', 'backward');
+    } else if (view === 'email-visibility') {
+      navigateTo('email-detail', 'backward');
+    } else if (view === 'email-detail') {
+      navigateTo('contact-info', 'backward');
+    } else if (view === 'contact-info') {
+      navigateTo('main', 'backward');
+    } else {
+      onClose();
+    }
+  }, [navigateTo, onClose]);
+
+  const mainPanelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: mainTransX.value }],
+  }));
+  const birthdayPanelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: birthdayTransX.value }],
+  }));
+  const editBirthdayPanelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: editBirthdayTransX.value }],
+  }));
+  const contactInfoPanelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: contactInfoTransX.value }],
+  }));
+  const emailDetailPanelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: emailDetailTransX.value }],
+  }));
+  const emailVisibilityPanelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: emailVisibilityTransX.value }],
+  }));
 
   // ─── Pan gesture (main view only) ────────────────────────────────────────
   const panGesture = Gesture.Pan()
@@ -376,8 +448,19 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
       const isoDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const success = await updateBirthday(isoDate);
       if (success) {
-        showToast({ message: 'Birthday updated successfully!', type: 'success' });
-        setCurrentView('birthday');
+        // Close the sheet first — the Modal native layer sits above the app's
+        // ToastProvider, so the toast must appear AFTER the sheet closes.
+        navigateTo('birthday', 'backward');
+        setTimeout(() => {
+          onClose();
+        }, 320); // wait for slide-back animation to finish
+        setTimeout(() => {
+          showToast({
+            title: 'Birthday Updated',
+            message: 'Your birthday has been saved successfully.',
+            type: 'success',
+          });
+        }, 560); // wait for sheet close animation to complete (~240ms)
       } else {
         showToast({ message: 'Failed to update birthday. Try again.', type: 'error' });
       }
@@ -403,16 +486,222 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
 
   // ─── Sub-views ────────────────────────────────────────────────────────────
 
-  const renderEditBirthday = () => (
-    <Animated.View
-      key="edit-birthday"
-      entering={SlideInRight.duration(280).springify()}
-      exiting={SlideOutRight.duration(220)}
+  const handleDeleteEmailAlert = () => {
+    Alert.alert(
+      'Delete email?',
+      'Are you sure you want to delete this email from your account? You will no longer be able to use it to log in or reset your password.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Cannot delete email',
+              'You cannot delete this email because it is the only contact method linked to your account. Please add another email or phone number first.',
+              [{ text: 'OK' }]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const renderContactInfo = () => (
+    <View
       style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
     >
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: borderColor }]}>
-        <Pressable onPress={() => setCurrentView('birthday')} style={styles.headerBtn} hitSlop={12}>
+        <Pressable onPress={() => navigateTo('main', 'backward')} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={textColor} />
+        </Pressable>
+        <ThemedText style={[styles.headerTitle, { color: textColor }]}>Contact information</ThemedText>
+        <View style={styles.headerBtn} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ThemedText style={[styles.title, { color: textColor }]}>Contact information</ThemedText>
+        <ThemedText style={[styles.description, { color: textSecondaryColor }]}>
+          Manage your mobile numbers and emails, and who can see your contact info. Use any of them to access any profiles or devices in this Accounts Center.
+        </ThemedText>
+
+        <View style={{ height: 12 }} />
+
+        {/* Email entry card */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Pressable style={styles.cardRow} onPress={() => navigateTo('email-detail', 'forward')}>
+            <View style={[contactStyles.cardIconCircle, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+              <Ionicons name="mail-outline" size={20} color={textColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.detailTitle, { color: textColor }]}>{user.email || 'No email set'}</ThemedText>
+              <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>Email</ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
+          </Pressable>
+        </View>
+
+        {/* Add new contact button */}
+        <Pressable
+          style={({ pressed }) => [
+            contactStyles.addBtn,
+            { backgroundColor: '#0064E0', opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={() => {
+            showToast({
+              title: 'Add Contact',
+              message: 'Adding additional contact options will be available shortly.',
+              type: 'info',
+            });
+          }}
+        >
+          <ThemedText style={contactStyles.addBtnText}>Add new contact</ThemedText>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+
+  const renderEmailDetail = () => (
+    <View
+      style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
+    >
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <Pressable onPress={() => navigateTo('contact-info', 'backward')} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={textColor} />
+        </Pressable>
+        <ThemedText style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{user.email}</ThemedText>
+        <View style={styles.headerBtn} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ThemedText style={[styles.title, { color: textColor }]} numberOfLines={2}>{user.email}</ThemedText>
+        <ThemedText style={[styles.description, { color: textSecondaryColor, lineHeight: 20 }]}>
+          You added this email to these accounts.{' '}
+          <ThemedText style={contactStyles.linkBtn} onPress={() => navigateTo('email-visibility', 'forward')}>
+            Who can see your email.
+          </ThemedText>
+        </ThemedText>
+
+        <View style={{ height: 16 }} />
+
+        {/* User Account Row */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Pressable style={styles.cardRow} onPress={() => navigateTo('email-visibility', 'forward')}>
+            <View style={styles.avatarWrapper}>
+              {user.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' }]}>
+                  <Ionicons name="person" size={24} color={isDark ? '#636366' : '#A8A8A8'} />
+                </View>
+              )}
+              <View style={styles.igBadge}>
+                <Ionicons name="logo-instagram" size={10} color="#FFFFFF" />
+              </View>
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.profileName, { color: textColor }]}>{user.username}</ThemedText>
+              <ThemedText style={[styles.profileSub, { color: textSecondaryColor }]}>Instagram</ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
+          </Pressable>
+        </View>
+
+        <View style={{ height: 16 }} />
+
+        {/* Delete Card */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Pressable
+            style={({ pressed }) => [
+              contactStyles.deleteBtn,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+            onPress={handleDeleteEmailAlert}
+          >
+            <ThemedText style={contactStyles.deleteText}>Delete email</ThemedText>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
+  );
+
+  const renderEmailVisibility = () => (
+    <View
+      style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
+    >
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <Pressable onPress={() => navigateTo('email-detail', 'backward')} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={textColor} />
+        </Pressable>
+        <ThemedText style={[styles.headerTitle, { color: textColor }]} numberOfLines={1}>{user.email}</ThemedText>
+        <View style={styles.headerBtn} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ThemedText style={[styles.title, { color: textColor }]} numberOfLines={2}>{user.email}</ThemedText>
+        <ThemedText style={[styles.description, { color: textSecondaryColor }]}>Who can see your email</ThemedText>
+
+        <View style={{ height: 16 }} />
+
+        {/* Visibility Card */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          {/* Top user row */}
+          <View style={styles.cardRow}>
+            <View style={styles.avatarWrapper}>
+              {user.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' }]}>
+                  <Ionicons name="person" size={24} color={isDark ? '#636366' : '#A8A8A8'} />
+                </View>
+              )}
+              <View style={styles.igBadge}>
+                <Ionicons name="logo-instagram" size={10} color="#FFFFFF" />
+              </View>
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.profileName, { color: textColor }]}>{user.username}</ThemedText>
+              <ThemedText style={[styles.profileSub, { color: textSecondaryColor }]}>Instagram</ThemedText>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+
+          {/* Visibility row */}
+          <View style={contactStyles.visibilityRow}>
+            <ThemedText style={[contactStyles.visibilityLabel, { color: textColor }]}>Visibility</ThemedText>
+            <ThemedText style={[contactStyles.visibilityVal, { color: textSecondaryColor }]}>Always private</ThemedText>
+          </View>
+        </View>
+
+        <View style={{ height: 16 }} />
+
+        {/* Delete from Instagram Card */}
+        <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
+          <Pressable
+            style={({ pressed }) => [
+              contactStyles.deleteBtn,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}
+            onPress={handleDeleteEmailAlert}
+          >
+            <ThemedText style={contactStyles.deleteText}>Delete from Instagram</ThemedText>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
+  );
+
+  const renderEditBirthday = () => (
+    <View
+      style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
+    >
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <Pressable onPress={() => navigateTo('birthday', 'backward')} style={styles.headerBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </Pressable>
         <ThemedText style={[styles.headerTitle, { color: textColor }]}>Edit Birthday</ThemedText>
@@ -494,7 +783,7 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
           </ThemedText>
         </Pressable>
       </ScrollView>
-    </Animated.View>
+    </View>
   );
 
   const renderBirthdayView = () => {
@@ -502,15 +791,12 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
     const bdFormatted = formatDate(user.birthday);
 
     return (
-      <Animated.View
-        key="birthday"
-        entering={SlideInRight.duration(280).springify()}
-        exiting={SlideOutRight.duration(220)}
+      <View
         style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: borderColor }]}>
-          <Pressable onPress={() => setCurrentView('main')} style={styles.headerBtn} hitSlop={12}>
+          <Pressable onPress={() => navigateTo('main', 'backward')} style={styles.headerBtn} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color={textColor} />
           </Pressable>
           <ThemedText style={[styles.headerTitle, { color: textColor }]}>Birthday</ThemedText>
@@ -556,7 +842,7 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
           {/* Manage section */}
           <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Manage</ThemedText>
           <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-            <Pressable style={bdStyles.editRow} onPress={() => setCurrentView('edit-birthday')}>
+            <Pressable style={bdStyles.editRow} onPress={() => navigateTo('edit-birthday', 'forward')}>
               <View style={[bdStyles.iconCircle, { backgroundColor: isDark ? '#3B82F615' : '#EEF2FF' }]}>
                 <MaterialCommunityIcons name="pencil-outline" size={18} color={accentColor} />
               </View>
@@ -568,14 +854,12 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
             </Pressable>
           </View>
         </ScrollView>
-      </Animated.View>
+      </View>
     );
   };
 
   const renderMain = () => (
-    <Animated.View
-      key="main"
-      entering={SlideInLeft.duration(260).springify()}
+    <View
       style={[StyleSheet.absoluteFill, { backgroundColor: sheetBg, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }]}
     >
       {/* Header */}
@@ -632,7 +916,7 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
         {/* Personal details */}
         <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Personal details</ThemedText>
         <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
-          <Pressable style={styles.cardRow}>
+          <Pressable style={styles.cardRow} onPress={() => navigateTo('contact-info', 'forward')}>
             <View style={{ flex: 1 }}>
               <ThemedText style={[styles.detailTitle, { color: textColor }]}>Contact info</ThemedText>
               <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>
@@ -642,7 +926,7 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
             <Ionicons name="chevron-forward" size={20} color={textSecondaryColor} />
           </Pressable>
           <View style={[styles.divider, { backgroundColor: borderColor }]} />
-          <Pressable style={styles.cardRow} onPress={() => setCurrentView('birthday')}>
+          <Pressable style={styles.cardRow} onPress={() => navigateTo('birthday', 'forward')}>
             <View style={{ flex: 1 }}>
               <ThemedText style={[styles.detailTitle, { color: textColor }]}>Birthday</ThemedText>
               <ThemedText style={[styles.detailValue, { color: textSecondaryColor }]}>
@@ -653,12 +937,12 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
           </Pressable>
         </View>
       </Animated.ScrollView>
-    </Animated.View>
+    </View>
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <Modal visible={shouldRender} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={shouldRender} transparent animationType="none" statusBarTranslucent onRequestClose={handleHardwareBack}>
       <GestureHandlerRootView style={styles.root}>
         {/* Backdrop */}
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
@@ -666,26 +950,67 @@ export const PersonalDetailsBottomSheet: React.FC<PersonalDetailsBottomSheetProp
         </Animated.View>
 
         {/*
-          CRITICAL: GestureDetector only wraps the MAIN view.
-          Birthday & Edit-birthday views are outside GestureDetector,
-          so their inner ScrollViews (the drum pickers) receive touches natively.
+          All 3 panels are always rendered with position: absolute.
+          pointerEvents controls which one is interactive at any time.
+          GestureDetector wraps only the main panel so drum picker
+          ScrollViews still receive native touches on birthday views.
         */}
         <Animated.View
           style={[
             styles.sheetContainer,
-            { height: SCREEN_HEIGHT * 0.88 },
+            { height: SCREEN_HEIGHT * 0.88, overflow: 'hidden' },
             sheetStyle,
           ]}
         >
-          {currentView === 'main' ? (
+          {/* Main panel */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, mainPanelStyle]}
+            pointerEvents={currentView === 'main' ? 'auto' : 'none'}
+          >
             <GestureDetector gesture={panGesture}>
               {renderMain()}
             </GestureDetector>
-          ) : currentView === 'birthday' ? (
-            renderBirthdayView()
-          ) : (
-            renderEditBirthday()
-          )}
+          </Animated.View>
+
+          {/* Birthday panel */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, birthdayPanelStyle]}
+            pointerEvents={currentView === 'birthday' ? 'auto' : 'none'}
+          >
+            {renderBirthdayView()}
+          </Animated.View>
+
+          {/* Edit-Birthday panel */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, editBirthdayPanelStyle]}
+            pointerEvents={currentView === 'edit-birthday' ? 'auto' : 'none'}
+          >
+            {renderEditBirthday()}
+          </Animated.View>
+
+          {/* Contact Info panel */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, contactInfoPanelStyle]}
+            pointerEvents={currentView === 'contact-info' ? 'auto' : 'none'}
+          >
+            {renderContactInfo()}
+          </Animated.View>
+
+          {/* Email Detail panel */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, emailDetailPanelStyle]}
+            pointerEvents={currentView === 'email-detail' ? 'auto' : 'none'}
+          >
+            {renderEmailDetail()}
+          </Animated.View>
+
+          {/* Email Visibility panel */}
+          <Animated.View
+            style={[StyleSheet.absoluteFill, emailVisibilityPanelStyle]}
+            pointerEvents={currentView === 'email-visibility' ? 'auto' : 'none'}
+          >
+            {renderEmailVisibility()}
+          </Animated.View>
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
@@ -962,5 +1287,56 @@ const editBdStyles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 16,
     letterSpacing: 0.2,
+  },
+});
+
+const contactStyles = StyleSheet.create({
+  cardIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  deleteBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  deleteText: {
+    color: '#FF3B30',
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+  },
+  addBtn: {
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  addBtnText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+  },
+  visibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  visibilityLabel: {
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
+  },
+  visibilityVal: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+  },
+  linkBtn: {
+    color: '#0064E0',
+    fontFamily: Fonts.semiBold,
   },
 });

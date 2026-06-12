@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,39 +8,196 @@ import {
   Image,
   Platform,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+} from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { ThemedText } from '@/components/themed-text';
-import { MOCK_CHATS, Message, Chat } from '@/constants/mockData';
+import { api } from '@/services/api';
+
+interface Sender {
+  id: string;
+  username: string;
+  displayName?: string;
+  avatarUrl?: string;
+  isOnline?: boolean;
+}
+
+interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  mediaUrl?: string;
+  isRead: boolean;
+  createdAt: string;
+  sender: Sender;
+}
+
+const AnimatedDot = ({ delay }: { delay: number }) => {
+  const translateY = useSharedValue(0);
+  const { colors } = useTheme();
+
+  useEffect(() => {
+    translateY.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(-6, { duration: 300 }),
+          withTiming(0, { duration: 300 })
+        ),
+        -1,
+        true
+      )
+    );
+  }, [delay, translateY]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: colors.textSecondary,
+          marginHorizontal: 2,
+        },
+        animStyle,
+      ]}
+    />
+  );
+};
 
 export default function ChatRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user: currentUser } = useAuth();
+  const { socket, joinConversation, leaveConversation, sendMessage, sendTypingStatus, onlineUsers } = useSocket();
   const insets = useSafeAreaInsets();
 
-  const [chat, setChat] = useState<Chat | null>(null);
+  const [partner, setPartner] = useState<Sender | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Pagination states
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Typing status states
+  const [partnerIsTyping, setPartnerIsTyping] = useState(false);
+  const [userIsTyping, setUserIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<any>(null);
+
   const flatListRef = useRef<FlatList>(null);
 
-  useEffect(() => {
-    const currentChat = MOCK_CHATS.find((c) => c.id === id);
-    if (currentChat) {
-      setChat(currentChat);
-      setMessages(currentChat.messages);
+  // Fetch conversation details (to get partner profile)
+  const fetchConversationDetails = async () => {
+    try {
+      const res = await api.get(`/chat/conversations/${id}`);
+      if (res.data && res.data.partner) {
+        setPartner(res.data.partner);
+      }
+    } catch (err) {
+      console.error('[ChatRoom] Fetch conversation details failed:', err);
     }
-  }, [id]);
+  };
 
-  // ── Manual keyboard tracking ──────────────────────────────────────
-  // Works reliably on both platforms regardless of Android softInputMode.
-  // Avoids all double-adjustment issues from KeyboardAvoidingView + adjustPan.
+  // Fetch initial paginated messages
+  const fetchInitialMessages = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/chat/conversations/${id}/messages`, {
+        params: { limit: 20 },
+      });
+      if (res.data) {
+        setMessages(res.data.messages);
+        setNextCursor(res.data.nextCursor || null);
+        setHasMore(!!res.data.nextCursor);
+      }
+    } catch (err) {
+      console.error('[ChatRoom] Fetch initial messages failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load more messages on scroll
+  const fetchMoreMessages = async () => {
+    if (loadingMore || !hasMore || !nextCursor) return;
+
+    try {
+      setLoadingMore(true);
+      const res = await api.get(`/chat/conversations/${id}/messages`, {
+        params: { limit: 20, cursor: nextCursor },
+      });
+      if (res.data) {
+        setMessages((prev) => [...prev, ...res.data.messages]);
+        setNextCursor(res.data.nextCursor || null);
+        setHasMore(!!res.data.nextCursor);
+      }
+    } catch (err) {
+      console.error('[ChatRoom] Fetch more messages failed:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Socket room join & listeners
+  useEffect(() => {
+    if (!id || !socket) return;
+
+    joinConversation(id);
+    fetchConversationDetails();
+    fetchInitialMessages();
+
+    const handleMessageReceived = (message: Message) => {
+      console.log('[ChatRoom] messageReceived:', message);
+      if (message.conversationId === id) {
+        setMessages((prev) => [message, ...prev]);
+        // When message is received, clear typing bubble immediately
+        if (message.senderId === partner?.id) {
+          setPartnerIsTyping(false);
+        }
+      }
+    };
+
+    const handleTypingStatus = (data: { conversationId: string; senderId: string; isTyping: boolean }) => {
+      if (data.conversationId === id && data.senderId !== currentUser?.id) {
+        setPartnerIsTyping(data.isTyping);
+      }
+    };
+
+    socket.on('messageReceived', handleMessageReceived);
+    socket.on('typingStatusReceived', handleTypingStatus);
+
+    return () => {
+      leaveConversation(id);
+      socket.off('messageReceived', handleMessageReceived);
+      socket.off('typingStatusReceived', handleTypingStatus);
+    };
+  }, [id, socket]);
+
+  // Keyboard listeners
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -58,51 +215,79 @@ export default function ChatRoomScreen() {
     };
   }, []);
 
-  const handleSend = () => {
-    if (!inputText.trim() || !currentUser) return;
+  // Handle local text input change & emit typing
+  const handleInputChange = (text: string) => {
+    setInputText(text);
 
-    const newMessage: Message = {
-      id: `m_${Date.now()}`,
-      senderId: currentUser.id,
-      text: inputText.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
+    if (!userIsTyping && id) {
+      setUserIsTyping(true);
+      sendTypingStatus(id, true);
+    }
 
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText('');
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
-    setTimeout(() => {
-      if (!chat) return;
-      const responseMessage: Message = {
-        id: `m_resp_${Date.now()}`,
-        senderId: chat.user.username,
-        text: `Hey! That sounds awesome. Let's touch base later. 👍`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, responseMessage]);
-    }, 1500);
+    typingTimeoutRef.current = setTimeout(() => {
+      setUserIsTyping(false);
+      if (id) {
+        sendTypingStatus(id, false);
+      }
+    }, 2000);
   };
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [messages]);
+  const handleSend = async () => {
+    if (!inputText.trim() || !currentUser || !id) return;
 
-  // When keyboard is open  → lift content above keyboard
-  // Add a small buffer (8px) so the input bar never overlaps the keyboard edge
-  // When keyboard is closed → apply bottom safe-area inset for nav bar
+    const textToSend = inputText.trim();
+    setInputText('');
+    setUserIsTyping(false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTypingStatus(id, false);
+
+    try {
+      await sendMessage(id, textToSend);
+    } catch (err) {
+      console.error('[ChatRoom] Send message failed:', err);
+    }
+  };
+
+  const formatMessageTime = (isoString: string) => {
+    if (!isoString) return '';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
+  const formatSeparatorDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      const now = new Date();
+      if (d.toDateString() === now.toDateString()) return 'Today';
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+      return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
+
+  const isPartnerOnline = partner ? (onlineUsers[partner.id] ?? partner.isOnline ?? false) : false;
+
   const KEYBOARD_BUFFER = 46;
   const bottomOffset = keyboardHeight > 0
     ? keyboardHeight + KEYBOARD_BUFFER
     : Math.max(insets.bottom, 8);
 
-  if (!chat || !currentUser) {
+  if (loading && messages.length === 0) {
     return (
       <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ThemedText>Loading conversation...</ThemedText>
+        <ActivityIndicator size="large" color="#0064E0" />
       </SafeAreaView>
     );
   }
@@ -114,21 +299,28 @@ export default function ChatRoomScreen() {
     >
       {/* ── Header ── */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerButton}>
+        <Pressable onPress={() => router.back()} style={styles.headerButton} hitSlop={12}>
           <Ionicons name="arrow-back" size={26} color={colors.text} />
         </Pressable>
 
         <View style={styles.headerUser}>
-          <Image source={{ uri: chat.user.avatar }} style={styles.headerAvatar} />
+          <Image
+            source={{
+              uri:
+                partner?.avatarUrl ||
+                'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            }}
+            style={styles.headerAvatar}
+          />
           <View style={styles.headerTextContainer}>
             <ThemedText type="smallBold" style={{ color: colors.text }}>
-              {chat.user.name}
+              {partner?.displayName || partner?.username || 'Chat'}
             </ThemedText>
             <ThemedText
               type="small"
-              style={{ color: chat.user.isOnline ? '#4CD964' : colors.textSecondary }}
+              style={{ color: isPartnerOnline ? '#4CD964' : colors.textSecondary }}
             >
-              {chat.user.isOnline ? 'Active now' : 'Offline'}
+              {isPartnerOnline ? 'Active now' : 'Offline'}
             </ThemedText>
           </View>
         </View>
@@ -143,8 +335,7 @@ export default function ChatRoomScreen() {
         </View>
       </View>
 
-      {/* ── Content: messages + input bar ──────────────────────────────
-          paddingBottom lifts the entire area above the open keyboard.  */}
+      {/* ── Content Area: Message List + Input ── */}
       <View style={[styles.content, { paddingBottom: bottomOffset }]}>
         <FlatList
           ref={flatListRef}
@@ -154,48 +345,109 @@ export default function ChatRoomScreen() {
           contentContainerStyle={styles.messageList}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const isMe = item.senderId === currentUser.id;
-            return (
-              <View
-                style={[
-                  styles.messageRow,
-                  isMe ? styles.myMessageRow : styles.otherMessageRow,
-                ]}
-              >
-                {!isMe && (
-                  <Image
-                    source={{ uri: chat.user.avatar }}
-                    style={styles.messageAvatar}
-                  />
-                )}
+          inverted={true}
+          onEndReached={fetchMoreMessages}
+          onEndReachedThreshold={0.2}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#0064E0" />
+              </View>
+            ) : null
+          }
+          ListHeaderComponent={
+            partnerIsTyping ? (
+              <View style={[styles.messageRow, styles.otherMessageRow, { marginTop: 4 }]}>
+                <Image
+                  source={{
+                    uri:
+                      partner?.avatarUrl ||
+                      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                  }}
+                  style={styles.messageAvatar}
+                />
                 <View
                   style={[
                     styles.bubble,
                     {
-                      backgroundColor: isMe
-                        ? colors.primary
-                        : isDark
-                        ? '#2A2A2A'
-                        : '#E8E8E8',
-                      borderBottomRightRadius: isMe ? 4 : 18,
-                      borderBottomLeftRadius: isMe ? 18 : 4,
+                      backgroundColor: isDark ? '#2C2C2E' : '#E8E8E8',
+                      borderBottomLeftRadius: 4,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
                     },
                   ]}
                 >
-                  <ThemedText style={{ color: isMe ? '#FFFFFF' : colors.text, lineHeight: 20 }}>
-                    {item.text}
-                  </ThemedText>
-                  <ThemedText
-                    style={{
-                      color: isMe ? 'rgba(255,255,255,0.65)' : colors.textSecondary,
-                      fontSize: 10,
-                      marginTop: 4,
-                      alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    }}
+                  <AnimatedDot delay={0} />
+                  <AnimatedDot delay={150} />
+                  <AnimatedDot delay={300} />
+                </View>
+              </View>
+            ) : null
+          }
+          renderItem={({ item, index }) => {
+            const isMe = item.senderId === currentUser?.id;
+            const showDateSeparator =
+              index === messages.length - 1 ||
+              (index < messages.length - 1 &&
+                new Date(item.createdAt).toDateString() !==
+                  new Date(messages[index + 1].createdAt).toDateString());
+
+            return (
+              <View>
+                {showDateSeparator && (
+                  <View style={styles.dateSeparator}>
+                    <ThemedText style={[styles.dateSeparatorText, { color: colors.textSecondary }]}>
+                      {formatSeparatorDate(item.createdAt)}
+                    </ThemedText>
+                  </View>
+                )}
+
+                <View
+                  style={[
+                    styles.messageRow,
+                    isMe ? styles.myMessageRow : styles.otherMessageRow,
+                  ]}
+                >
+                  {!isMe && (
+                    <Image
+                      source={{
+                        uri:
+                          partner?.avatarUrl ||
+                          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                      }}
+                      style={styles.messageAvatar}
+                    />
+                  )}
+                  <View
+                    style={[
+                      styles.bubble,
+                      {
+                        backgroundColor: isMe
+                          ? colors.primary
+                          : isDark
+                          ? '#2C2C2E'
+                          : '#E8E8E8',
+                        borderBottomRightRadius: isMe ? 4 : 18,
+                        borderBottomLeftRadius: isMe ? 18 : 4,
+                      },
+                    ]}
                   >
-                    {item.timestamp}
-                  </ThemedText>
+                    <ThemedText style={{ color: isMe ? '#FFFFFF' : colors.text, lineHeight: 20 }}>
+                      {item.text}
+                    </ThemedText>
+                    <ThemedText
+                      style={{
+                        color: isMe ? 'rgba(255,255,255,0.65)' : colors.textSecondary,
+                        fontSize: 10,
+                        marginTop: 4,
+                        alignSelf: isMe ? 'flex-end' : 'flex-start',
+                      }}
+                    >
+                      {formatMessageTime(item.createdAt)}
+                    </ThemedText>
+                  </View>
                 </View>
               </View>
             );
@@ -230,7 +482,7 @@ export default function ChatRoomScreen() {
               placeholder="Message..."
               placeholderTextColor="#8E8E8F"
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleInputChange}
               style={[styles.inputField, { color: colors.text }]}
               multiline
             />
@@ -267,8 +519,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // ── Header ──────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -298,26 +548,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-
-  // ── Content area ─────────────────────────────────────────────────────
   content: {
-    flex: 1,          // fills all space below header
+    flex: 1,
   },
   flatList: {
-    flex: 1,          // fills all space between header and input bar
+    flex: 1,
   },
   messageList: {
-    flexGrow: 1,                 // content fills the full scroll-view height
-    justifyContent: 'flex-end',  // messages anchor at the bottom
+    flexGrow: 1,
     padding: 15,
     gap: 12,
   },
-
-  // ── Message bubbles ────────────────────────────────────────────────
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     maxWidth: '75%',
+    marginVertical: 2,
   },
   myMessageRow: {
     alignSelf: 'flex-end',
@@ -337,8 +583,19 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     maxWidth: '100%',
   },
-
-  // ── Input bar ─────────────────────────────────────────────────────
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 12,
+    width: '100%',
+  },
+  dateSeparatorText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  footerLoader: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
   inputBarContainer: {
     paddingHorizontal: 15,
     paddingVertical: 12,

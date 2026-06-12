@@ -364,7 +364,7 @@ const BottomLinkItem = ({
 export default function EditProfileScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, refreshProfile } = useAuth();
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState<ProfileFormData>({
@@ -397,6 +397,11 @@ export default function EditProfileScreen() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const saveButtonScale = useSharedValue(1);
+
+  // Fetch fresh profile on mount to ensure local state is synced
+  useEffect(() => {
+    refreshProfile();
+  }, []);
 
   // Sync form state when user changes (e.g., after direct-to-database updates from modals)
   useEffect(() => {
@@ -745,6 +750,7 @@ export default function EditProfileScreen() {
           try {
             const success = await updateProfile(formData.name, formData.bio, uri);
             if (success) {
+              await refreshProfile();
               showToast({
                 title: 'Success',
                 message: 'Profile picture updated successfully.',
@@ -1037,6 +1043,7 @@ export default function EditProfileScreen() {
                 formData.pronouns
               );
               if (success) {
+                await refreshProfile();
                 showToast({
                   title: 'Success',
                   message: 'Profile picture removed successfully.',

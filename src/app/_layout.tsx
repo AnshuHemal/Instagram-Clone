@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { SocketProvider } from '@/contexts/SocketContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { ReelsProvider } from '@/contexts/ReelsContext';
 import { PostsProvider } from '@/contexts/PostsContext';
@@ -49,15 +50,17 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <LoadingProvider>
           <AuthProvider>
-            <ThemeProvider>
-              <ReelsProvider>
-                <PostsProvider>
-                  <ToastProvider>
-                    <RootLayoutContent />
-                  </ToastProvider>
-                </PostsProvider>
-              </ReelsProvider>
-            </ThemeProvider>
+            <SocketProvider>
+              <ThemeProvider>
+                <ReelsProvider>
+                  <PostsProvider>
+                    <ToastProvider>
+                      <RootLayoutContent />
+                    </ToastProvider>
+                  </PostsProvider>
+                </ReelsProvider>
+              </ThemeProvider>
+            </SocketProvider>
           </AuthProvider>
         </LoadingProvider>
       </SafeAreaProvider>
