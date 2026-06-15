@@ -81,20 +81,22 @@ const styles = StyleSheet.create({
 
 // ─── Feed Skeleton ────────────────────────────────────────────────────────────
 
-export const FeedSkeleton = () => {
+export const FeedSkeleton = ({ showStories = true }: { showStories?: boolean }) => {
   const { isDark } = useTheme();
 
   return (
     <View style={[stylesFeed.container, { backgroundColor: isDark ? '#000' : '#FFF' }]}>
       {/* Stories row skeleton */}
-      <View style={stylesFeed.storiesRow}>
-        {[...Array(7)].map((_, i) => (
-          <View key={i} style={stylesFeed.storyItem}>
-            <Skeleton width={66} height={66} borderRadius={33} />
-            <Skeleton width={40} height={10} borderRadius={5} style={{ marginTop: 6 }} />
-          </View>
-        ))}
-      </View>
+      {showStories && (
+        <View style={stylesFeed.storiesRow}>
+          {[...Array(7)].map((_, i) => (
+            <View key={i} style={stylesFeed.storyItem}>
+              <Skeleton width={66} height={66} borderRadius={33} />
+              <Skeleton width={40} height={10} borderRadius={5} style={{ marginTop: 6 }} />
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Post skeleton 1 */}
       <PostSkeleton />

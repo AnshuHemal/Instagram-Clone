@@ -1,11 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, useWindowDimensions } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  ActivityIndicator,
+  useWindowDimensions,
+  Pressable,
+  Text,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useReels } from '@/contexts/ReelsContext';
 import { ReelItem } from '@/components/ReelItem';
-import { ThemedText } from '@/components/themed-text';
 import { Fonts } from '@/constants/theme';
 import ReAnimated, {
   useSharedValue,
@@ -261,8 +269,14 @@ export default function ReelsScreen({ isTabActive = true }: { isTabActive?: bool
   const renderEmpty = () => {
     if (isLoading || isRefreshing) return null;
     return (
-      <View style={styles.emptyContainer}>
-        <ThemedText style={styles.emptyText}>No reels found</ThemedText>
+      <View style={[styles.emptyContainer, { height: windowHeight }]}>
+        <View style={styles.emptyIconCircle}>
+          <Ionicons name="film-outline" size={40} color="rgba(255,255,255,0.5)" />
+        </View>
+        <Text style={styles.emptyTitle}>No Reels Yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Reels from people you follow will appear here.
+        </Text>
       </View>
     );
   };
@@ -341,6 +355,29 @@ const styles = StyleSheet.create({
     height: 500,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 20,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: '#A8A8A8',
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 40,
   },
   emptyText: {
     color: '#A8A8A8',

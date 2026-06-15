@@ -87,6 +87,7 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const player = ExpoVideo.createVideoPlayer(cleanUrl);
       player.loop = true;
+      player.pause(); // Explicitly pause to ensure preloaded player doesn't start playing audio
       return player;
     } catch (e: any) {
       console.error('Error creating player in pool:', e.message);
@@ -109,8 +110,8 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const activeIndex = reels.findIndex(r => r.id === activeId);
     if (activeIndex === -1) return;
 
-    // We pre preload [index-1, index, index+1] (previous, active, next)
-    const targetIndices = [activeIndex - 1, activeIndex, activeIndex + 1].filter(
+    // We preload [index-1, index, index+1, index+2] (previous, active, next, and next-next)
+    const targetIndices = [activeIndex - 1, activeIndex, activeIndex + 1, activeIndex + 2].filter(
       idx => idx >= 0 && idx < reels.length
     );
 
@@ -183,6 +184,7 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       musicName: item.audioName || 'Original Audio',
       views: Number(item.viewsCount || 0).toLocaleString(),
       hlsUrl: item.hlsUrl || undefined,
+      durationSeconds: item.durationSeconds ? Number(item.durationSeconds) : undefined,
     };
   };
 
@@ -263,13 +265,15 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setReels([]);
       setCursor(null);
       setHasMore(true);
-      if (prewarmedPlayer) {
-        safelyReleasePlayer('prewarmed', prewarmedPlayer);
-      }
-      setPrewarmedPlayer(null);
+      setPrewarmedPlayer((prev: any) => {
+        if (prev) safelyReleasePlayer('prewarmed', prev);
+        return null;
+      });
       prewarmedUrlRef.current = null;
     }
-  }, [user, prewarmedPlayer]);
+    // Only depend on user — not prewarmedPlayer, which would cause an infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleLikeToggle = (id: string) => {
     setReels(prevReels =>

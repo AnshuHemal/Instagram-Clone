@@ -304,8 +304,26 @@ export const ReelItem = React.memo(({
   const holdTimeout = useRef<any>(null);
 
   
-  // Track View Duration
-  const viewStartTime = useRef<number | null>(null);
+  // Precision View Tracking Refs
+  const viewFired = useRef(false);
+  const completedFired = useRef(false);
+  const accumulatedTime = useRef(0);
+  const lastStartPlay = useRef(0);
+  const viewTimeout = useRef<any>(null);
+
+  // Reset view tracking refs when active state changes
+  useEffect(() => {
+    if (isActive) {
+      viewFired.current = false;
+      completedFired.current = false;
+      accumulatedTime.current = 0;
+      lastStartPlay.current = 0;
+      if (viewTimeout.current) {
+        clearTimeout(viewTimeout.current);
+        viewTimeout.current = null;
+      }
+    }
+  }, [isActive]);
 
   // Animations
   const rotateValue = useRef(new Animated.Value(0)).current;
@@ -416,41 +434,96 @@ export const ReelItem = React.memo(({
     };
   }, [isPlaying]);
 
-  // View analytics tracking trigger
+  // Precision View Tracking Trigger
   useEffect(() => {
+    const handleThreeSecondView = async () => {
+      if (!viewFired.current) {
+        viewFired.current = true;
+        // Fire immediate 3s watch event
+        await recordViewAPI(3000, false);
+      }
+    };
+
     if (isPlaying) {
-      viewStartTime.current = Date.now();
+      lastStartPlay.current = Date.now();
+      
+      // Schedule the 3-second watch trigger
+      if (!viewFired.current) {
+        const remainingTime = Math.max(0, 3000 - accumulatedTime.current);
+        viewTimeout.current = setTimeout(() => {
+          handleThreeSecondView();
+        }, remainingTime);
+      }
     } else {
-      if (viewStartTime.current !== null) {
-        const duration = Date.now() - viewStartTime.current;
-        if (duration >= 1500) {
-          recordViewAPI(duration);
+      // Clear 3-second timeout
+      if (viewTimeout.current) {
+        clearTimeout(viewTimeout.current);
+        viewTimeout.current = null;
+      }
+
+      if (lastStartPlay.current > 0) {
+        const sessionDuration = Date.now() - lastStartPlay.current;
+        accumulatedTime.current += sessionDuration;
+        lastStartPlay.current = 0;
+
+        // Perform scroll-away flush if they watched for at least 3s total but it didn't fire yet
+        if (accumulatedTime.current >= 3000 && !viewFired.current) {
+          viewFired.current = true;
+          recordViewAPI(accumulatedTime.current, false);
         }
-        viewStartTime.current = null;
+
+        // Check completion state (80% watched)
+        const playerInstance = preloadedPlayer || activePlayerRef.current;
+        const durationSeconds = playerInstance?.duration || reel.durationSeconds || 30;
+        const durationMs = durationSeconds * 1000;
+
+        if (accumulatedTime.current >= durationMs * 0.8 && !completedFired.current) {
+          completedFired.current = true;
+          recordViewAPI(accumulatedTime.current, true);
+        }
       }
     }
 
     return () => {
-      if (viewStartTime.current !== null) {
-        const duration = Date.now() - viewStartTime.current;
-        if (duration >= 1500) {
-          recordViewAPI(duration);
+      if (viewTimeout.current) {
+        clearTimeout(viewTimeout.current);
+        viewTimeout.current = null;
+      }
+      if (lastStartPlay.current > 0) {
+        const sessionDuration = Date.now() - lastStartPlay.current;
+        const totalTime = accumulatedTime.current + sessionDuration;
+
+        // Flush 3-second view if not fired
+        if (totalTime >= 3000 && !viewFired.current) {
+          viewFired.current = true;
+          recordViewAPI(totalTime, false);
         }
-        viewStartTime.current = null;
+
+        // Flush completion if not fired
+        const playerInstance = preloadedPlayer || activePlayerRef.current;
+        const durationSeconds = playerInstance?.duration || reel.durationSeconds || 30;
+        const durationMs = durationSeconds * 1000;
+
+        if (totalTime >= durationMs * 0.8 && !completedFired.current) {
+          completedFired.current = true;
+          recordViewAPI(totalTime, true);
+        }
+        
+        lastStartPlay.current = 0;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying]);
 
-  const recordViewAPI = async (watchTimeMs: number) => {
+  const recordViewAPI = async (watchTimeMs: number, completed: boolean) => {
     try {
-      const completed = watchTimeMs >= 15000;
       await api.post(`/reels/${reel.id}/view`, {
         watchDurationMs: Math.round(watchTimeMs),
         completed,
         quality: '720p',
       });
-    } catch (err) {
-      // Fail silently for views tracker calls
+    } catch {
+      // Fail silently for view tracking
     }
   };
 

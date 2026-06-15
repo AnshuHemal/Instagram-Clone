@@ -13,8 +13,6 @@ import { api } from '@/services/api';
 export default function UsernameScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
-  const { signup } = useAuth();
-  const { showLoading, hideLoading } = useLoading();
   const params = useLocalSearchParams<{ 
     phoneOrEmail?: string; 
     isPhone?: string; 

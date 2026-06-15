@@ -17,8 +17,6 @@ export default function SignupScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ step?: SignupStep; phoneOrEmail?: string; isPhone?: string; password?: string; birthday?: string; username?: string; signupToken?: string }>();
   const { colors, isDark } = useTheme();
-  const { signup } = useAuth();
-  const { showLoading, hideLoading } = useLoading();
 
   const [step, setStep] = useState<SignupStep>('PHONE_OR_EMAIL');
   const [isPhoneMode, setIsPhoneMode] = useState(true);
@@ -145,31 +143,6 @@ export default function SignupScreen() {
             signupToken,
           },
         });
-      }, 600);
-    }
-  };
-
-  const handleSignup = async () => {
-    if (!isStep4Valid) {
-      setError('Please choose a username of at least 3 characters.');
-      return;
-    }
-    setError('');
-    showLoading();
-
-    try {
-      const emailVal = isPhoneMode ? `${username}@example.com` : phoneOrEmail;
-      const success = await signup(username, name, emailVal);
-      if (success) {
-        router.replace('/(tabs)');
-      } else {
-        setError('Signup failed. Please try again.');
-      }
-    } catch (err) {
-      setError('Signup failed. Please try again.');
-    } finally {
-      setTimeout(() => {
-        hideLoading();
       }, 600);
     }
   };

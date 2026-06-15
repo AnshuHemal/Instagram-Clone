@@ -133,10 +133,18 @@ function TabLayout() {
     }
   }, [lastSegment, tabParam]);
 
-  // Redirect to login if user is not authenticated
+  // Redirect to login if user is not authenticated, or to onboarding if mid-flow
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return;
+    if (!user) {
       router.replace('/(auth)/login');
+      return;
+    }
+    if (!user.isOnboarded) {
+      // User somehow landed on tabs before finishing onboarding — send them back
+      const { getOnboardingRoute } = require('@/contexts/AuthContext');
+      const targetRoute = getOnboardingRoute(user.onboardingStep);
+      router.replace({ pathname: targetRoute as any, params: { isPhone: 'false' } });
     }
   }, [user, isLoading]);
 

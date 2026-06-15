@@ -1,5 +1,21 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api, TokenManager } from '@/services/api';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
+import {
+  api,
+  TokenManager,
+  decodeJwt,
+  isTokenExpired,
+  registerUnauthorizedHandler,
+  unregisterUnauthorizedHandler,
+} from '@/services/api';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UserLink {
   id: string;
@@ -27,18 +43,32 @@ export interface User {
   birthday?: string;
 }
 
+/**
+ * Maps the backend onboardingStep value to the correct frontend route.
+ */
+export const ONBOARDING_STEP_ROUTES: Record<string, string> = {
+  PERMISSIONS: '/(auth)/permissions',
+  PROFILE_PICTURE: '/(auth)/profile-picture',
+  ADD_CONTACT: '/(auth)/add-contact',
+  FOLLOW: '/(auth)/follow-suggestions',
+  COMPLETED: '/(tabs)',
+};
+
+export function getOnboardingRoute(step: string): string {
+  return ONBOARDING_STEP_ROUTES[step] ?? '/(auth)/permissions';
+}
+
 interface AuthContextProps {
   user: User | null;
   isLoading: boolean;
-  login: (username: string, password?: string) => Promise<boolean>;
-  signup: (username: string, name: string, email: string) => Promise<boolean>;
+  login: (identifier: string, password: string) => Promise<User | null>;
   registerComplete: (
     signupToken: string,
     password: string,
     birthday: string,
     name: string,
-    username: string
-  ) => Promise<boolean>;
+    username: string,
+  ) => Promise<User | null>;
   logout: () => Promise<void>;
   updateProfile: (
     name: string,
@@ -50,81 +80,99 @@ interface AuthContextProps {
     gender?: string,
     pronouns?: string,
     links?: UserLink[],
-    showPronounsToFollowers?: boolean
+    showPronounsToFollowers?: boolean,
   ) => Promise<boolean>;
   refreshProfile: () => Promise<void>;
   updateBirthday: (birthday: string) => Promise<boolean>;
 }
 
+// ─── Context ──────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-function decodeJwt(token: string) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    
-    // Polyfill decode using standard escape/encodeURIComponent mapping
-    const jsonPayload = decodeURIComponent(
-      // In JS, atob is global (in browser and modern RN)
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error('Failed to decode JWT:', e);
-    return null;
-  }
+// ─── Mapper — raw API user → local User shape ─────────────────────────────────
+
+function mapApiUser(u: any, fallback?: Partial<User>): User {
+  return {
+    id: u.id ?? fallback?.id ?? '',
+    username: u.username ?? fallback?.username ?? '',
+    name: u.displayName ?? u.name ?? fallback?.name ?? u.username ?? '',
+    email: u.email ?? fallback?.email ?? '',
+    avatar: u.avatarUrl ?? u.avatar ?? fallback?.avatar ?? '',
+    bio: u.bio ?? fallback?.bio ?? '',
+    gender: u.gender ?? fallback?.gender ?? '',
+    pronouns: u.pronouns ?? fallback?.pronouns ?? '',
+    showPronounsToFollowers:
+      u.showPronounsToFollowers ?? fallback?.showPronounsToFollowers ?? false,
+    links: u.links ?? fallback?.links ?? [],
+    followersCount: u.followersCount ?? fallback?.followersCount ?? 0,
+    followingCount: u.followingCount ?? fallback?.followingCount ?? 0,
+    postsCount: u.postsCount ?? fallback?.postsCount ?? 0,
+    isOnboarded: u.isOnboarded ?? fallback?.isOnboarded ?? false,
+    onboardingStep: u.onboardingStep ?? fallback?.onboardingStep ?? 'PERMISSIONS',
+    phone: u.phone ?? fallback?.phone ?? '',
+    birthday: u.birthday ?? fallback?.birthday ?? '',
+  };
 }
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Start as loading to prevent visual flicker before check
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Keep a stable ref to logout so the interceptor callback never becomes stale
+  const logoutRef = useRef<() => Promise<void>>(async () => {});
+
+  // ── Session initialisation ─────────────────────────────────────────────────
 
   useEffect(() => {
-    const initializeAuth = async () => {
+    const initSession = async () => {
       try {
         const token = await TokenManager.getToken();
-        if (token) {
-          const payload = decodeJwt(token);
-          if (payload && payload.username) {
-            try {
-              const res = await api.get('/auth/profile');
-              if (res.data && res.data.user) {
-                const u = res.data.user;
-                setUser({
-                  id: u.id,
-                  username: u.username,
-                  name: u.displayName || u.username,
-                  email: u.email,
-                  avatar: u.avatarUrl || '',
-                  bio: u.bio || 'Welcome back to Instagram Clone!',
-                  gender: u.gender || '',
-                  pronouns: u.pronouns || '',
-                  showPronounsToFollowers: u.showPronounsToFollowers || false,
-                  links: u.links || [],
-                  followersCount: u.followersCount ?? 0,
-                  followingCount: u.followingCount ?? 0,
-                  postsCount: u.postsCount ?? 0,
-                  isOnboarded: u.isOnboarded,
-                  onboardingStep: u.onboardingStep,
-                  phone: u.phone || '',
-                  birthday: u.birthday || '',
-                });
-                return;
-              }
-            } catch (apiErr) {
-              console.warn('Failed to fetch fresh user profile from API, falling back to local JWT payload:', apiErr);
-            }
 
+        if (!token) {
+          // No stored token → user is logged out
+          return;
+        }
+
+        if (isTokenExpired(token)) {
+          // Token is expired → check if we have a refresh token to attempt auto-recovery
+          const refreshToken = await TokenManager.getRefreshToken();
+          if (!refreshToken) {
+            await TokenManager.clearToken();
+            return;
+          }
+        }
+
+        // Token looks valid — fetch a fresh profile from the server
+        try {
+          const res = await api.get('/auth/profile');
+          const u = res.data?.user ?? res.data;
+          if (u?.id) {
+            setUser(mapApiUser(u));
+            return;
+          }
+        } catch (apiErr: any) {
+          // 401 means the token was rejected server-side — already cleared by interceptor
+          if (apiErr?.response?.status === 401) return;
+
+          // Network error — fall back to JWT payload so the user isn't unexpectedly logged out
+          console.warn(
+            '[Auth] Profile fetch failed, falling back to JWT payload:',
+            apiErr?.message,
+          );
+          const payload = decodeJwt(token);
+          if (payload?.sub) {
             setUser({
               id: payload.sub,
-              username: payload.username,
-              name: payload.username.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-              email: payload.email,
+              username: payload.username ?? '',
+              name: payload.username ?? '',
+              email: payload.email ?? '',
               avatar: '',
-              bio: 'Welcome back to Instagram Clone!',
+              bio: '',
               followersCount: 0,
               followingCount: 0,
               postsCount: 0,
@@ -134,259 +182,219 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch (e) {
-        console.error('Failed to restore auth session:', e);
+        console.error('[Auth] Failed to restore session:', e);
       } finally {
         setIsLoading(false);
       }
     };
-    initializeAuth();
+
+    initSession();
   }, []);
 
-  const login = async (usernameOrEmailOrPhone: string, password?: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const res = await api.post('/auth/login', {
-        usernameOrEmailOrPhone,
-        password: password || '123456',
-      });
+  // ── Register the 401 interceptor callback ─────────────────────────────────
 
-      if (res.data && res.data.accessToken) {
-        await TokenManager.saveToken(res.data.accessToken);
-        
-        const userPayload = res.data.user;
-        setUser({
-          id: userPayload.id,
-          username: userPayload.username,
-          name: userPayload.displayName || userPayload.username,
-          email: userPayload.email,
-          avatar: userPayload.avatarUrl || '',
-          bio: userPayload.bio || 'Welcome to Instagram Clone!',
-          gender: userPayload.gender || '',
-          pronouns: userPayload.pronouns || '',
-          showPronounsToFollowers: userPayload.showPronounsToFollowers || false,
-          links: userPayload.links || [],
-          followersCount: userPayload.followersCount ?? 0,
-          followingCount: userPayload.followingCount ?? 0,
-          postsCount: userPayload.postsCount ?? 0,
-          isOnboarded: userPayload.isOnboarded,
-          onboardingStep: userPayload.onboardingStep,
-          phone: userPayload.phone || '',
-          birthday: userPayload.birthday || '',
-        });
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Login error:', err);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    const handler = () => {
+      logoutRef.current();
+    };
+    registerUnauthorizedHandler(handler);
+    return () => unregisterUnauthorizedHandler();
+  }, []);
 
-  const signup = async (username: string, name: string, email: string): Promise<boolean> => {
-    // Keep this signature for backward compatibility, but in new flows we use registerComplete
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setUser({
-      id: 'mock_user_' + Date.now(),
-      username: username.toLowerCase().trim(),
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      avatar: '',
-      bio: 'New user joined!',
-      followersCount: 0,
-      followingCount: 0,
-      postsCount: 0,
-      isOnboarded: false,
-      onboardingStep: 'PERMISSIONS',
-    });
-    setIsLoading(false);
-    return true;
-  };
+  // ── Logout ─────────────────────────────────────────────────────────────────
 
-  const registerComplete = async (
-    signupToken: string,
-    password: string,
-    birthday: string,
-    name: string,
-    username: string
-  ): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const res = await api.post('/auth/register/complete', {
-        signupToken,
-        password,
-        birthday,
-        name,
-        username,
-      });
-
-      if (res.data && res.data.accessToken) {
-        await TokenManager.saveToken(res.data.accessToken);
-
-        const userPayload = res.data.user;
-        setUser({
-          id: userPayload.id,
-          username: userPayload.username,
-          name: userPayload.displayName || userPayload.username,
-          email: userPayload.email,
-          avatar: userPayload.avatarUrl || '',
-          bio: userPayload.bio || 'Welcome to Instagram Clone!',
-          showPronounsToFollowers: userPayload.showPronounsToFollowers || false,
-          links: userPayload.links || [],
-          followersCount: userPayload.followersCount ?? 0,
-          followingCount: userPayload.followingCount ?? 0,
-          postsCount: userPayload.postsCount ?? 0,
-          isOnboarded: userPayload.isOnboarded,
-          onboardingStep: userPayload.onboardingStep,
-          phone: userPayload.phone || '',
-          birthday: userPayload.birthday || '',
-        });
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Registration completion error:', err);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const refreshProfile = async (): Promise<void> => {
-    try {
-      const res = await api.get('/auth/profile');
-      if (res.data && res.data.user) {
-        const u = res.data.user;
-        setUser((prev) => prev ? {
-          ...prev,
-          name: u.displayName || prev.name,
-          username: u.username || prev.username,
-          email: u.email || prev.email,
-          avatar: u.avatarUrl !== undefined ? (u.avatarUrl || '') : prev.avatar,
-          bio: u.bio || prev.bio,
-          gender: u.gender !== undefined ? u.gender : prev.gender,
-          pronouns: u.pronouns !== undefined ? u.pronouns : prev.pronouns,
-          showPronounsToFollowers: u.showPronounsToFollowers !== undefined ? u.showPronounsToFollowers : prev.showPronounsToFollowers,
-          links: u.links !== undefined ? u.links : prev.links,
-          isOnboarded: u.isOnboarded ?? prev.isOnboarded,
-          onboardingStep: u.onboardingStep || prev.onboardingStep,
-          followersCount: u.followersCount ?? prev.followersCount,
-          followingCount: u.followingCount ?? prev.followingCount,
-          postsCount: u.postsCount ?? prev.postsCount,
-          phone: u.phone !== undefined ? u.phone : prev.phone,
-          birthday: u.birthday !== undefined ? u.birthday : prev.birthday,
-        } : prev);
-      }
-    } catch (err) {
-      console.warn('[refreshProfile] Failed to refresh user profile:', err);
-    }
-  };
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setIsLoading(true);
     await TokenManager.clearToken();
     setUser(null);
     setIsLoading(false);
-  };
+  }, []);
 
-  const updateProfile = async (
-    name: string,
-    bio: string,
-    avatar: string,
-    isOnboarded?: boolean,
-    onboardingStep?: string,
-    username?: string,
-    gender?: string,
-    pronouns?: string,
-    links?: UserLink[],
-    showPronounsToFollowers?: boolean
-  ): Promise<boolean> => {
-    try {
-      const res = await api.patch('/auth/profile', {
-        name,
-        bio,
-        avatarUrl: avatar,
-        isOnboarded,
-        onboardingStep,
-        username,
-        gender,
-        pronouns,
-        links,
-        showPronounsToFollowers,
-      });
-      if (res.data && res.data.user) {
-        const u = res.data.user;
-        setUser((prev) => prev ? {
-          ...prev,
-          name: u.displayName || prev.name,
-          username: u.username || prev.username,
-          bio: u.bio || prev.bio,
-          avatar: u.avatarUrl !== undefined ? (u.avatarUrl || '') : prev.avatar,
-          gender: u.gender || '',
-          pronouns: u.pronouns || '',
-          showPronounsToFollowers: u.showPronounsToFollowers || false,
-          links: u.links || [],
-          isOnboarded: u.isOnboarded,
-          onboardingStep: u.onboardingStep,
-          followersCount: u.followersCount ?? prev.followersCount,
-          followingCount: u.followingCount ?? prev.followingCount,
-          postsCount: u.postsCount ?? prev.postsCount,
-          phone: u.phone || '',
-          birthday: u.birthday || '',
-        } : null);
-        return true;
+  // Keep the ref in sync
+  useEffect(() => {
+    logoutRef.current = logout;
+  }, [logout]);
+
+  // ── Login ──────────────────────────────────────────────────────────────────
+
+  const login = useCallback(
+    async (identifier: string, password: string): Promise<User | null> => {
+      setIsLoading(true);
+      try {
+        const res = await api.post('/auth/login', {
+          usernameOrEmailOrPhone: identifier.trim(),
+          password,
+        });
+
+        const { accessToken, refreshToken, user: u } = res.data;
+        if (!accessToken) return null;
+
+        await TokenManager.saveToken(accessToken, refreshToken);
+        const mapped = mapApiUser(u);
+        setUser(mapped);
+        return mapped;
+      } catch (err) {
+        console.error('[Auth] Login error:', err);
+        return null;
+      } finally {
+        setIsLoading(false);
       }
-      return false;
+    },
+    [],
+  );
+
+  // ── Complete Registration ──────────────────────────────────────────────────
+
+  const registerComplete = useCallback(
+    async (
+      signupToken: string,
+      password: string,
+      birthday: string,
+      name: string,
+      username: string,
+    ): Promise<User | null> => {
+      setIsLoading(true);
+      try {
+        const res = await api.post('/auth/register/complete', {
+          signupToken,
+          password,
+          birthday,
+          name,
+          username,
+        });
+
+        const { accessToken, refreshToken, user: u } = res.data;
+        if (!accessToken) return null;
+
+        await TokenManager.saveToken(accessToken, refreshToken);
+        const mapped = mapApiUser(u);
+        setUser(mapped);
+        return mapped;
+      } catch (err) {
+        console.error('[Auth] Register complete error:', err);
+        return null;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
+  // ── Refresh Profile ────────────────────────────────────────────────────────
+
+  const refreshProfile = useCallback(async (): Promise<void> => {
+    try {
+      const res = await api.get('/auth/profile');
+      const u = res.data?.user ?? res.data;
+      if (u?.id) {
+        setUser((prev) => mapApiUser(u, prev ?? undefined));
+      }
     } catch (err) {
-      console.error('Failed to update profile:', err);
-      // Fallback local update if API fails (offline/mock)
-      if (user) {
-        setUser({
-          ...user,
+      console.warn('[Auth] refreshProfile failed:', err);
+    }
+  }, []);
+
+  // ── Update Profile ─────────────────────────────────────────────────────────
+
+  const updateProfile = useCallback(
+    async (
+      name: string,
+      bio: string,
+      avatar: string,
+      isOnboarded?: boolean,
+      onboardingStep?: string,
+      username?: string,
+      gender?: string,
+      pronouns?: string,
+      links?: UserLink[],
+      showPronounsToFollowers?: boolean,
+    ): Promise<boolean> => {
+      try {
+        const res = await api.patch('/auth/profile', {
           name,
           bio,
-          avatar: avatar !== undefined ? avatar : (user ? user.avatar : ''),
+          avatarUrl: avatar,
+          ...(isOnboarded !== undefined && { isOnboarded }),
+          ...(onboardingStep !== undefined && { onboardingStep }),
           ...(username !== undefined && { username }),
           ...(gender !== undefined && { gender }),
           ...(pronouns !== undefined && { pronouns }),
           ...(links !== undefined && { links }),
           ...(showPronounsToFollowers !== undefined && { showPronounsToFollowers }),
-          ...(isOnboarded !== undefined && { isOnboarded }),
-          ...(onboardingStep !== undefined && { onboardingStep }),
         });
-      }
-      return false;
-    }
-  };
 
-  const updateBirthday = async (birthday: string): Promise<boolean> => {
+        const u = res.data?.user ?? res.data;
+        if (u?.id) {
+          setUser((prev) => mapApiUser(u, prev ?? undefined));
+          return true;
+        }
+        return false;
+      } catch (err) {
+        console.error('[Auth] updateProfile error:', err);
+
+        // Optimistic local update so UI doesn't feel broken on network errors
+        setUser((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            name,
+            bio,
+            avatar,
+            ...(username !== undefined && { username }),
+            ...(gender !== undefined && { gender }),
+            ...(pronouns !== undefined && { pronouns }),
+            ...(links !== undefined && { links }),
+            ...(showPronounsToFollowers !== undefined && { showPronounsToFollowers }),
+            ...(isOnboarded !== undefined && { isOnboarded }),
+            ...(onboardingStep !== undefined && { onboardingStep }),
+          };
+        });
+        return false;
+      }
+    },
+    [],
+  );
+
+  // ── Update Birthday ────────────────────────────────────────────────────────
+
+  const updateBirthday = useCallback(async (birthday: string): Promise<boolean> => {
     try {
       const res = await api.patch('/auth/profile', { birthday });
-      if (res.data && res.data.user) {
-        const u = res.data.user;
-        setUser((prev) => prev ? {
-          ...prev,
-          birthday: u.birthday || birthday,
-        } : prev);
+      const u = res.data?.user ?? res.data;
+      if (u?.id) {
+        setUser((prev) => mapApiUser(u, prev ?? undefined));
         return true;
       }
       return false;
     } catch (err) {
-      console.error('Failed to update birthday:', err);
+      console.error('[Auth] updateBirthday error:', err);
       return false;
     }
-  };
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, registerComplete, logout, updateProfile, refreshProfile, updateBirthday }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        registerComplete,
+        logout,
+        updateProfile,
+        refreshProfile,
+        updateBirthday,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export const useAuth = (): AuthContextProps => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');

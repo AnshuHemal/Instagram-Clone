@@ -1,51 +1,58 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, getOnboardingRoute } from '@/contexts/AuthContext';
 import { SplashScreen } from '@/components/SplashScreen';
 import { useTheme } from '@/contexts/ThemeContext';
-import { StyleSheet, View } from 'react-native';
+
+// Minimum time (ms) to show the splash screen even if auth resolves instantly.
+// This prevents a jarring flash of the splash before the first real screen.
+const SPLASH_MIN_DURATION = 900;
 
 export default function RootIndex() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const { isDark } = useTheme();
+
   const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
-  // 1. Enforce a minimum display time for the splash logo (e.g., 800ms)
+  // ── Minimum splash display timer ──────────────────────────────────────────
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMinTimeElapsed(true);
-    }, 800);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setMinTimeElapsed(true), SPLASH_MIN_DURATION);
+    return () => clearTimeout(t);
   }, []);
 
-  // 2. Trigger navigation only AFTER auth details are fully resolved and minimum time has elapsed
+  // ── Navigate once both guards are satisfied ───────────────────────────────
   useEffect(() => {
-    if (minTimeElapsed && !authLoading) {
-      if (user) {
-        if (user.isOnboarded) {
-          router.replace('/(tabs)');
-        } else {
-          // Route the user to their specific pending step from user.onboardingStep
-          const stepRouteMap: { [key: string]: string } = {
-            PERMISSIONS: '/(auth)/permissions',
-            PROFILE_PICTURE: '/(auth)/profile-picture',
-            FOLLOW: '/(auth)/follow-suggestions',
-          };
-          const targetRoute = stepRouteMap[user.onboardingStep] || '/(auth)/permissions';
-          router.replace({
-            pathname: targetRoute as any,
-            params: { isPhone: 'false' }
-          });
-        }
-      } else {
-        router.replace('/(auth)/login');
-      }
+    if (!minTimeElapsed || authLoading) return;
+
+    if (!user) {
+      // No authenticated session → show login
+      router.replace('/(auth)/login');
+      return;
     }
+
+    if (user.isOnboarded) {
+      // Fully onboarded → go straight to the main app
+      router.replace('/(tabs)');
+      return;
+    }
+
+    // Mid-onboarding → resume from where they left off
+    const targetRoute = getOnboardingRoute(user.onboardingStep);
+    router.replace({
+      pathname: targetRoute as any,
+      params: { isPhone: 'false' },
+    });
   }, [minTimeElapsed, authLoading, user]);
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#000000' : '#FFFFFF' }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? '#000000' : '#FFFFFF' },
+      ]}
+    >
       <SplashScreen />
     </View>
   );

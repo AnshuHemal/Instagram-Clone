@@ -16,12 +16,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { FeedHeader } from '@/components/FeedHeader';
 import { StoryCircle } from '@/components/StoryCircle';
 import { PostCard } from '@/components/PostCard';
-import { FeedSkeleton } from '@/components/Skeleton';
+import { FeedSkeleton, Skeleton } from '@/components/Skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import { usePosts } from '@/contexts/PostsContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useStories } from '@/contexts/StoriesContext';
+import { useStories, UserStoryGroup } from '@/contexts/StoriesContext';
 import { useToast } from '@/contexts/ToastContext';
 import { StoryPlayerModal } from '@/components/StoryPlayerModal';
 import * as ImagePicker from 'expo-image-picker';
@@ -126,7 +126,7 @@ export default function FeedScreen() {
     handleAddComment,
   } = usePosts();
 
-  const { stories, fetchStories, uploadStory, viewStory } = useStories();
+  const { stories, fetchStories, uploadStory, viewStory, loading: storiesLoading } = useStories();
   const { showToast } = useToast();
   const [playerVisible, setPlayerVisible] = useState(false);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
@@ -178,7 +178,7 @@ export default function FeedScreen() {
     isRefreshingShared.value = false;
   }, []);
 
-  const triggerRefresh = useCallback(() => {
+  const triggerRefresh = useCallback(async () => {
     if (isRefreshingShared.value) return;
     isRefreshingShared.value = true;
 
@@ -194,13 +194,18 @@ export default function FeedScreen() {
       false
     );
 
-    // Fire real API refresh; close bar when done (or after max 4s)
-    fetchPosts(null, true);
-    fetchStories();
-    setTimeout(() => {
+    // Fire real API refresh; close bar when done
+    try {
+      await Promise.all([
+        fetchPosts(null, true),
+        fetchStories(),
+      ]);
+    } catch (err) {
+      console.error('[FeedScreen] Refresh failed:', err);
+    } finally {
       runOnJS(finishRefresh)();
-    }, 2000);
-  }, [fetchPosts, finishRefresh]);
+    }
+  }, [fetchPosts, fetchStories, finishRefresh]);
 
   const panGesture = Gesture.Pan()
     .manualActivation(true)
@@ -431,6 +436,12 @@ export default function FeedScreen() {
       );
     };
 
+    const otherStories = stories.filter((g) => g.userId !== user?.id);
+    const showSkeletons = storiesLoading && otherStories.length === 0;
+    const storiesData: (string | UserStoryGroup)[] = showSkeletons 
+      ? ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] 
+      : otherStories;
+
     return (
       <View style={[styles.storiesContainer, { borderBottomColor: colors.border }]}>
         <View
@@ -444,12 +455,20 @@ export default function FeedScreen() {
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={stories.filter((g) => g.userId !== user?.id)}
-            keyExtractor={(item) => item.userId}
+            data={storiesData}
+            keyExtractor={(item) => (typeof item === 'string' ? item : item.userId)}
             contentContainerStyle={styles.storiesList}
             ListHeaderComponent={renderYourStory}
             nestedScrollEnabled={true}
             renderItem={({ item }) => {
+              if (typeof item === 'string') {
+                return (
+                  <View style={{ marginRight: 15, alignItems: 'center', width: 66 }}>
+                    <Skeleton width={66} height={66} borderRadius={33} />
+                    <Skeleton width={45} height={10} borderRadius={5} style={{ marginTop: 6 }} />
+                  </View>
+                );
+              }
               const globalIndex = stories.findIndex((g) => g.userId === item.userId);
               return (
                 <StoryCircle
@@ -464,7 +483,7 @@ export default function FeedScreen() {
         </View>
       </View>
     );
-  }, [stories, colors.border, colors.storyRing, isDark, user, setPagerScrollEnabled]);
+  }, [stories, storiesLoading, colors.border, colors.storyRing, isDark, user, setPagerScrollEnabled]);
 
   const renderFooter = () => {
     if (!isLoading || isRefreshing) return null;
@@ -519,7 +538,7 @@ export default function FeedScreen() {
             contentContainerStyle={styles.feedScroll}
             ListEmptyComponent={
               isLoading ? (
-                <FeedSkeleton />
+                <FeedSkeleton showStories={false} />
               ) : !isLoading ? (
                 <View style={styles.emptyFeed}>
                   <ThemedText style={{ color: colors.textSecondary }}>

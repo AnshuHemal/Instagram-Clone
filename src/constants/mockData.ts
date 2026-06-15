@@ -43,6 +43,7 @@ export interface Reel {
   musicName: string;
   views: string;
   hlsUrl?: string;
+  durationSeconds?: number;
 }
 
 export interface Message {

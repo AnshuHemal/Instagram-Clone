@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { api } from '@/services/api';
 
 export interface Comment {
@@ -60,8 +60,10 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
 
   const fetchPosts = useCallback(async (nextCursor: string | null = null, refresh: boolean = false) => {
+    if (fetchingRef.current) return;
     if (isLoading || (isRefreshing && !refresh)) return;
 
     if (refresh) {
@@ -69,6 +71,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       setIsLoading(true);
     }
+    fetchingRef.current = true;
 
     try {
       const activeCursor = refresh ? null : nextCursor;
@@ -95,6 +98,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      fetchingRef.current = false;
     }
   }, [isLoading, isRefreshing]);
 
