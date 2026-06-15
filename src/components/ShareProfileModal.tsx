@@ -6,6 +6,7 @@ import {
   Dimensions,
   Modal,
   Share,
+  BackHandler,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import Animated, {
@@ -99,6 +100,22 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
       }
     );
   };
+
+  useEffect(() => {
+    if (visible) {
+      const backAction = () => {
+        handleClose();
+        return true;
+      };
+
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        backAction
+      );
+
+      return () => backHandler.remove();
+    }
+  }, [visible]);
 
   const toggleFlip = () => {
     const nextFlippedState = !isFlipped;
