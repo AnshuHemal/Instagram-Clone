@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
 import {
   useFonts,
   Outfit_400Regular,
@@ -20,6 +21,32 @@ import {
   Outfit_600SemiBold,
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
+
+// Configure how notifications are displayed while the app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+// Create a default Android notification channel
+(async () => {
+  if (typeof Notifications.setNotificationChannelAsync === 'function') {
+    try {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Default',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#E1306C',
+      });
+    } catch (_) {
+      // Not on Android or already set
+    }
+  }
+})();
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -72,6 +99,23 @@ export default function RootLayout() {
 }
 
 function RootLayoutContent() {
+  const router = useRouter();
+
+  // Handle notification taps: navigate to notifications screen
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        // Navigate to notifications screen whenever user taps a push notification
+        try {
+          router.push('/notifications');
+        } catch (err) {
+          console.warn('[PushTap] Navigation failed:', err);
+        }
+      },
+    );
+    return () => subscription.remove();
+  }, [router]);
+
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>

@@ -14,6 +14,8 @@ import {
   registerUnauthorizedHandler,
   unregisterUnauthorizedHandler,
 } from '@/services/api';
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -153,6 +155,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const u = res.data?.user ?? res.data;
           if (u?.id) {
             setUser(mapApiUser(u));
+            // Register device push token (non-blocking, best-effort)
+            registerExpoPushToken();
             return;
           }
         } catch (apiErr: any) {
@@ -232,6 +236,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await TokenManager.saveToken(accessToken, refreshToken);
         const mapped = mapApiUser(u);
         setUser(mapped);
+        // Register device push token after login (non-blocking)
+        registerExpoPushToken();
         return mapped;
       } catch (err) {
         console.error('[Auth] Login error:', err);
@@ -269,6 +275,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await TokenManager.saveToken(accessToken, refreshToken);
         const mapped = mapApiUser(u);
         setUser(mapped);
+        // Register device push token after registration (non-blocking)
+        registerExpoPushToken();
         return mapped;
       } catch (err) {
         console.error('[Auth] Register complete error:', err);
@@ -401,3 +409,37 @@ export const useAuth = (): AuthContextProps => {
   }
   return context;
 };
+
+// ─── Push Token Registration ─────────────────────────────────────────────────
+// Called once after login / session restore on a physical device.
+// Silently fails on emulators / web where push tokens are unavailable.
+
+export async function registerExpoPushToken(): Promise<void> {
+  try {
+    if (Platform.OS === 'web') return;
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.log('[PushToken] Permission not granted — skipping token registration.');
+      return;
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const pushToken = tokenData.data;
+
+    if (!pushToken) return;
+
+    await api.post('/auth/push-token', { pushToken });
+    console.log('[PushToken] Registered:', pushToken);
+  } catch (err) {
+    // Non-fatal — push is best-effort
+    console.warn('[PushToken] Registration failed (non-fatal):', err);
+  }
+}
