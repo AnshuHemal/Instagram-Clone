@@ -25,6 +25,9 @@ import { useStories, UserStoryGroup } from '@/contexts/StoriesContext';
 import { useToast } from '@/contexts/ToastContext';
 import { StoryPlayerModal } from '@/components/StoryPlayerModal';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { followService } from '@/services/follow';
+import { api } from '@/services/api';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import { useTabPager } from '@/contexts/TabPagerContext';
 import * as SecureStore from 'expo-secure-store';
@@ -114,6 +117,7 @@ const PullToRefreshSpinner = ({
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const router = useRouter();
   const { setPagerScrollEnabled } = useTabPager();
   const {
     posts,
@@ -131,6 +135,54 @@ export default function FeedScreen() {
   const [playerVisible, setPlayerVisible] = useState(false);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const fetchSuggestions = async () => {
+    try {
+      setLoadingSuggestions(true);
+      const res = await api.get('/auth/users/suggestions');
+      if (res.data && Array.isArray(res.data)) {
+        setSuggestions(res.data);
+      }
+    } catch (err) {
+      console.error('[FeedScreen] Failed to fetch follow suggestions:', err);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (posts.length === 0 && !isLoading) {
+      fetchSuggestions();
+    }
+  }, [posts.length, isLoading]);
+
+  const handleFollowSuggestion = async (targetId: string) => {
+    // Optimistic toggle
+    setSuggestions(prev => prev.map(u => u.id === targetId ? { ...u, checked: !u.checked } : u));
+    
+    try {
+      const u = suggestions.find(s => s.id === targetId);
+      if (u) {
+        if (u.checked) {
+          await followService.unfollowUser(targetId);
+        } else {
+          await followService.followUser(targetId);
+        }
+        triggerRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to toggle follow suggestion:', err);
+      // Rollback
+      setSuggestions(prev => prev.map(u => u.id === targetId ? { ...u, checked: !u.checked } : u));
+    }
+  };
+
+  const handleDismissSuggestion = (targetId: string) => {
+    setSuggestions(prev => prev.filter(u => u.id !== targetId));
+  };
 
   // Initial load
   useEffect(() => {
@@ -494,6 +546,123 @@ export default function FeedScreen() {
     );
   };
 
+  const renderEmptyFeed = () => {
+    if (isLoading) {
+      return <FeedSkeleton showStories={false} />;
+    }
+
+    return (
+      <View style={styles.emptyFeedContainer}>
+        <View style={styles.emptyFeedHeader}>
+          <Ionicons name="people-circle-outline" size={54} color={colors.primary} />
+          <ThemedText style={[styles.emptyFeedTitle, { color: colors.text }]}>
+            Welcome to your Feed!
+          </ThemedText>
+          <ThemedText style={styles.emptyFeedSubtitle}>
+            Follow accounts to see photos and videos in your timeline.
+          </ThemedText>
+        </View>
+
+        {loadingSuggestions && suggestions.length === 0 ? (
+          <ActivityIndicator size="small" color={colors.primary} style={{ marginTop: 24 }} />
+        ) : suggestions.length > 0 ? (
+          <View style={styles.suggestionsWrapper}>
+            <View style={styles.suggestionsHeaderRow}>
+              <ThemedText style={[styles.suggestionsSectionTitle, { color: colors.text }]}>
+                Suggested for you
+              </ThemedText>
+              <Pressable onPress={() => router.push('/(auth)/follow-suggestions')}>
+                <ThemedText style={{ color: '#0095F6', fontFamily: Fonts.bold, fontSize: 13.5 }}>
+                  See All
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={suggestions}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.suggestionsCarouselList}
+              renderItem={({ item, index }) => (
+                <ReAnimated.View
+                  entering={FadeIn.delay(index * 100).duration(300)}
+                  style={[
+                    styles.suggestionFeedCard,
+                    {
+                      backgroundColor: isDark ? '#1C1C1E' : '#F9F9F9',
+                      borderColor: isDark ? '#2C2C2E' : '#E5E5E5',
+                    },
+                  ]}
+                >
+                  <Pressable 
+                    onPress={() => handleDismissSuggestion(item.id)} 
+                    style={styles.dismissFeedSuggestion} 
+                    hitSlop={6}
+                  >
+                    <Ionicons name="close" size={13} color={colors.textSecondary} />
+                  </Pressable>
+
+                  <Pressable onPress={() => router.push({ pathname: '/profile', params: { userId: item.id } })}>
+                    <Image source={{ uri: item.avatarUrl }} style={styles.suggestionFeedAvatar} />
+                  </Pressable>
+
+                  <View style={styles.suggestionFeedNameRow}>
+                    <ThemedText
+                      numberOfLines={1}
+                      style={[styles.suggestionFeedUsername, { color: colors.text }]}
+                    >
+                      {item.username}
+                    </ThemedText>
+                    {item.verified && (
+                      <Ionicons name="checkmark-circle" size={13} color="#0095F6" />
+                    )}
+                  </View>
+
+                  <ThemedText
+                    numberOfLines={1}
+                    style={[styles.suggestionFeedDisplayName, { color: colors.textSecondary }]}
+                  >
+                    {item.displayName}
+                  </ThemedText>
+
+                  <Pressable
+                    onPress={() => handleFollowSuggestion(item.id)}
+                    style={[
+                      styles.suggestionFeedFollowBtn,
+                      item.checked
+                        ? {
+                            backgroundColor: 'transparent',
+                            borderWidth: 0.8,
+                            borderColor: isDark ? '#555' : '#DBDBDB',
+                          }
+                        : { backgroundColor: '#0095F6' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.suggestionFeedFollowBtnText,
+                        { color: item.checked ? colors.text : '#FFFFFF' },
+                      ]}
+                    >
+                      {item.checked ? 'Following' : 'Follow'}
+                    </Text>
+                  </Pressable>
+                </ReAnimated.View>
+              )}
+            />
+          </View>
+        ) : (
+          <View style={styles.emptyFeedPlaceholderContainer}>
+            <ThemedText style={{ color: colors.textSecondary, textAlign: 'center' }}>
+              No suggestions available. Create a post to start the conversation!
+            </ThemedText>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -536,17 +705,7 @@ export default function FeedScreen() {
             onEndReachedThreshold={0.5}
             ListFooterComponent={renderFooter}
             contentContainerStyle={styles.feedScroll}
-            ListEmptyComponent={
-              isLoading ? (
-                <FeedSkeleton showStories={false} />
-              ) : !isLoading ? (
-                <View style={styles.emptyFeed}>
-                  <ThemedText style={{ color: colors.textSecondary }}>
-                    No posts available. Be the first to create one!
-                  </ThemedText>
-                </View>
-              ) : null
-            }
+            ListEmptyComponent={renderEmptyFeed}
           />
         </View>
       </GestureDetector>
@@ -816,5 +975,111 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 66,
     height: 66,
+  },
+  // ── Empty Feed & Follow Suggestions
+  emptyFeedContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  emptyFeedHeader: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    marginBottom: 32,
+  },
+  emptyFeedTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 20,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  emptyFeedSubtitle: {
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  suggestionsWrapper: {
+    width: '100%',
+    paddingLeft: 16,
+  },
+  suggestionsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 24,
+    marginBottom: 16,
+  },
+  suggestionsSectionTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+  },
+  suggestionsCarouselList: {
+    paddingRight: 24,
+    paddingBottom: 10,
+  },
+  suggestionFeedCard: {
+    width: 140,
+    borderRadius: 12,
+    borderWidth: 0.8,
+    padding: 12,
+    alignItems: 'center',
+    marginRight: 12,
+    position: 'relative',
+  },
+  dismissFeedSuggestion: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 2,
+    padding: 2,
+  },
+  suggestionFeedAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 8,
+  },
+  suggestionFeedNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    width: '100%',
+    marginBottom: 2,
+  },
+  suggestionFeedUsername: {
+    fontFamily: Fonts.bold,
+    fontSize: 12.5,
+    textAlign: 'center',
+    maxWidth: '80%',
+  },
+  suggestionFeedDisplayName: {
+    fontFamily: Fonts.regular,
+    fontSize: 11,
+    textAlign: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  suggestionFeedFollowBtn: {
+    width: '100%',
+    height: 28,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  suggestionFeedFollowBtnText: {
+    fontFamily: Fonts.bold,
+    fontSize: 12,
+  },
+  emptyFeedPlaceholderContainer: {
+    paddingHorizontal: 40,
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

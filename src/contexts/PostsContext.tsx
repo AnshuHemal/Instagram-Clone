@@ -79,6 +79,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         params: {
           limit: 10,
           cursor: activeCursor,
+          type: 'following',
         },
       });
 
