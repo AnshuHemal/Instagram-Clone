@@ -40,8 +40,8 @@ export const StoriesProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setLoading(true);
       const res = await api.get('/stories');
-      if (res.data) {
-        setStories(res.data);
+      if (res.data && res.data.data) {
+        setStories(res.data.data);
       }
     } catch (err) {
       console.error('[StoriesContext] Fetch stories failed:', err);
