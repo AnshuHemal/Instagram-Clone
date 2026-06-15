@@ -90,7 +90,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
 
         newSocket.on('connect_error', (err) => {
-          console.error('[Socket] Connection error:', err.message);
+          if (wsUrl.includes('vercel.app')) {
+            console.log('[Socket] Connection status: offline (Real-time WebSockets are not supported on serverless Vercel backends)');
+          } else {
+            console.warn('[Socket] Connection error:', err.message);
+          }
           if (active) {
             setIsConnected(false);
           }
