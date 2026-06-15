@@ -20,6 +20,7 @@ import Animated, {
   Easing,
   interpolate,
   Extrapolation,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -45,8 +46,15 @@ interface StoryPlayerModalProps {
   onStoryViewed: (storyId: string) => void;
 }
 
-const StoryVideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ mediaUrl, isActive }) => {
+const StoryVideoItem: React.FC<{
+  mediaUrl: string;
+  isActive: boolean;
+  isPaused: boolean;
+  onProgress: (progress: number) => void;
+  onEnd: () => void;
+}> = ({ mediaUrl, isActive, isPaused, onProgress, onEnd }) => {
   const [player, setPlayer] = useState<any>(null);
+  const [playerStatus, setPlayerStatus] = useState<string>('loading');
 
   useEffect(() => {
     if (!ExpoVideo || !mediaUrl) return;
@@ -57,12 +65,14 @@ const StoryVideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ med
       p.loop = false;
       p.muted = false;
       p.showNowPlayingNotification = false;
-      if (isActive) {
+      p.timeUpdateEventInterval = 0.05; // 50ms updates for smooth progress bar
+      if (isActive && !isPaused) {
         p.play();
       } else {
         p.pause();
       }
       setPlayer(p);
+      setPlayerStatus(p.status);
     } catch (err) {
       console.error('Error creating video player in StoryPlayerModal:', err);
     }
@@ -83,13 +93,50 @@ const StoryVideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ med
 
   useEffect(() => {
     if (player) {
-      if (isActive) {
+      if (isActive && !isPaused) {
         player.play();
       } else {
         player.pause();
       }
     }
-  }, [isActive, player]);
+  }, [isActive, isPaused, player]);
+
+  // Track statusChange listener
+  useEffect(() => {
+    if (!player) return;
+    const subscription = player.addListener('statusChange', ({ status }: any) => {
+      setPlayerStatus(status);
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [player]);
+
+  // Track progress using timeUpdate listener
+  useEffect(() => {
+    if (!player) return;
+    const subscription = player.addListener('timeUpdate', (payload: any) => {
+      if (player.duration && onProgress) {
+        onProgress(payload.currentTime / player.duration);
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [player, onProgress]);
+
+  // Track video completion
+  useEffect(() => {
+    if (!player) return;
+    const subscription = player.addListener('playToEnd', () => {
+      if (onEnd) {
+        onEnd();
+      }
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, [player, onEnd]);
 
   if (!ExpoVideo) {
     return (
@@ -100,12 +147,19 @@ const StoryVideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({ med
   }
 
   return (
-    <ExpoVideo.VideoView
-      player={player}
-      style={StyleSheet.absoluteFill}
-      contentFit="cover"
-      nativeControls={false}
-    />
+    <View style={StyleSheet.absoluteFill}>
+      <ExpoVideo.VideoView
+        player={player}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        nativeControls={false}
+      />
+      {playerStatus !== 'readyToPlay' && (
+        <View style={[StyleSheet.absoluteFill, styles.videoLoadingOverlay]}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -121,6 +175,8 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
 
   const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
   const [storyIndex, setStoryIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [resetCounter, setResetCounter] = useState(0);
 
   const translateY = useSharedValue(0);
   const dragStartY = useSharedValue(0);
@@ -182,47 +238,97 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
         setStoryIndex(prevGroup.stories.length - 1);
       } else {
         // Reset progress if at the absolute start
-        progress.value = 0;
-        restartAnimation();
+        setResetCounter((prev) => prev + 1);
       }
     }
-  };
-
-  const restartAnimation = () => {
-    progress.value = 0;
-    progress.value = withTiming(
-      1,
-      { duration: 4000, easing: Easing.linear },
-      (finished) => {
-        if (finished) {
-          runOnJS(handleNextStory)();
-        }
-      }
-    );
   };
 
   // Animate progress bar filling and trigger viewing logger on load
   useEffect(() => {
     if (visible && activeStory) {
-      restartAnimation();
+      setIsPaused(false);
+      
+      if (activeStory.mediaType === 'VIDEO') {
+        progress.value = 0;
+      } else {
+        // Image progress animation (5 seconds)
+        progress.value = 0;
+        progress.value = withTiming(
+          1,
+          { duration: 5000, easing: Easing.linear },
+          (finished) => {
+            if (finished) {
+              runOnJS(handleNextStory)();
+            }
+          }
+        );
+      }
       onStoryViewed(activeStory.id);
     } else {
       progress.value = 0;
+      cancelAnimation(progress);
     }
-  }, [groupIndex, storyIndex, visible, activeStory]);
+  }, [groupIndex, storyIndex, visible, activeStory, resetCounter]);
 
-  const handleScreenPress = (evt: any) => {
-    const x = evt.nativeEvent.locationX;
-    const thirdWidth = SCREEN_WIDTH / 3;
+  // Handle Pause/Resume for image stories
+  useEffect(() => {
+    if (!visible || !activeStory) return;
 
-    if (x < thirdWidth) {
-      handlePrevStory();
-    } else {
-      handleNextStory();
+    if (activeStory.mediaType === 'IMAGE') {
+      if (isPaused) {
+        cancelAnimation(progress);
+      } else {
+        // Resume image progress timing from current progress
+        const remainingPercent = 1 - progress.value;
+        const remainingDuration = remainingPercent * 5000;
+        
+        progress.value = withTiming(
+          1,
+          { duration: remainingDuration, easing: Easing.linear },
+          (finished) => {
+            if (finished) {
+              runOnJS(handleNextStory)();
+            }
+          }
+        );
+      }
+    }
+  }, [isPaused, visible, activeStory]);
+
+  // Touch and Hold Gesture variables
+  const pressStartTime = useRef<number>(0);
+  const isHolding = useRef<boolean>(false);
+
+  const handlePressIn = () => {
+    pressStartTime.current = Date.now();
+    isHolding.current = true;
+    setIsPaused(true);
+  };
+
+  const handlePressOut = () => {
+    isHolding.current = false;
+    const duration = Date.now() - pressStartTime.current;
+    if (duration >= 300) {
+      // Resume playback after releasing long-press
+      setIsPaused(false);
     }
   };
 
-  // Swipe gesture handling
+  const handlePress = (evt: any) => {
+    const duration = Date.now() - pressStartTime.current;
+    if (duration < 300) {
+      // Treat as a tap: left 1/3 goes back, right 2/3 goes forward
+      const x = evt.nativeEvent.locationX;
+      const thirdWidth = SCREEN_WIDTH / 3;
+      if (x < thirdWidth) {
+        handlePrevStory();
+      } else {
+        handleNextStory();
+      }
+    }
+  };
+
+  // Swipe gesture handling for dismissal
   const panGesture = Gesture.Pan()
     .onBegin(() => {
       dragStartY.value = translateY.value;
@@ -263,14 +369,26 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.playerSheet, animatedSheetStyle]}>
             {/* Pressable media surface */}
-            <Pressable style={styles.mediaContainer} onPress={handleScreenPress}>
+            <Pressable
+              style={styles.mediaContainer}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              onPress={handlePress}
+            >
               {activeStory.mediaType === 'VIDEO' ? (
                 <StoryVideoItem
+                  key={`${activeStory.id}-${resetCounter}`}
                   mediaUrl={activeStory.mediaUrl}
                   isActive={visible}
+                  isPaused={isPaused}
+                  onProgress={(p) => {
+                    progress.value = p;
+                  }}
+                  onEnd={handleNextStory}
                 />
               ) : (
                 <Image
+                  key={`${activeStory.id}-${resetCounter}`}
                   source={{ uri: activeStory.mediaUrl }}
                   style={StyleSheet.absoluteFill}
                   resizeMode="cover"
@@ -329,6 +447,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+  },
+  videoLoadingOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerContainer: {
     left: 0,
