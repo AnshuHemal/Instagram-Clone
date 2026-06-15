@@ -60,6 +60,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           reconnectionDelay: 2000,
         });
 
+        newSocket.on('reconnect_attempt', async () => {
+          console.log('[Socket] Reconnection attempt. Updating authorization token...');
+          try {
+            const freshToken = await TokenManager.getToken();
+            if (freshToken) {
+              newSocket.auth = {
+                token: `Bearer ${freshToken}`,
+              };
+            }
+          } catch (err) {
+            console.error('[Socket] Failed to update token on reconnect:', err);
+          }
+        });
+
         newSocket.on('connect', () => {
           console.log('[Socket] Connected, ID:', newSocket.id);
           if (active) {

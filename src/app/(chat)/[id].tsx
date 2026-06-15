@@ -20,12 +20,15 @@ import Animated, {
   withSequence,
   withTiming,
   withDelay,
+  FadeInUp,
+  FadeOutUp,
 } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/contexts/SocketContext';
 import { ThemedText } from '@/components/themed-text';
 import { api } from '@/services/api';
+import { Fonts } from '@/constants/theme';
 
 interface Sender {
   id: string;
@@ -44,6 +47,7 @@ interface Message {
   isRead: boolean;
   createdAt: string;
   sender: Sender;
+  status?: 'sending' | 'sent' | 'failed';
 }
 
 const AnimatedDot = ({ delay }: { delay: number }) => {
@@ -89,7 +93,7 @@ export default function ChatRoomScreen() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user: currentUser } = useAuth();
-  const { socket, joinConversation, leaveConversation, sendMessage, sendTypingStatus, onlineUsers } = useSocket();
+  const { socket, isConnected, joinConversation, leaveConversation, sendMessage, sendTypingStatus, onlineUsers } = useSocket();
   const insets = useSafeAreaInsets();
 
   const [partner, setPartner] = useState<Sender | null>(null);
@@ -173,7 +177,22 @@ export default function ChatRoomScreen() {
     const handleMessageReceived = (message: Message) => {
       console.log('[ChatRoom] messageReceived:', message);
       if (message.conversationId === id) {
-        setMessages((prev) => [message, ...prev]);
+        setMessages((prev) => {
+          if (message.senderId === currentUser?.id) {
+            // Find if there is an optimistic sending message with the same text
+            const optIndex = prev.findIndex((m) => m.status === 'sending' && m.text === message.text);
+            if (optIndex !== -1) {
+              const next = [...prev];
+              next[optIndex] = { ...message, status: 'sent' };
+              return next;
+            }
+          }
+          if (prev.some((m) => m.id === message.id)) {
+            return prev;
+          }
+          return [message, ...prev];
+        });
+        
         // When message is received, clear typing bubble immediately
         if (message.senderId === partner?.id) {
           setPartnerIsTyping(false);
@@ -236,6 +255,65 @@ export default function ChatRoomScreen() {
     }, 2000);
   };
 
+  const sendChatMessage = async (text: string, existingOptimisticId?: string) => {
+    if (!currentUser || !id) return;
+
+    const tempId = existingOptimisticId || `opt-${Date.now()}-${Math.random()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      conversationId: id,
+      senderId: currentUser.id,
+      text,
+      isRead: false,
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: currentUser.id,
+        username: currentUser.username,
+        displayName: currentUser.name,
+        avatarUrl: currentUser.avatar,
+      },
+      status: 'sending',
+    };
+
+    if (!existingOptimisticId) {
+      setMessages((prev) => [optimisticMessage, ...prev]);
+    } else {
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: 'sending' } : msg))
+      );
+    }
+
+    try {
+      const response = await sendMessage(id, text);
+      if (response && response.success) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId
+              ? {
+                  ...msg,
+                  id: response.messageId || msg.id,
+                  status: 'sent',
+                }
+              : msg
+          )
+        );
+      } else {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId ? { ...msg, status: 'failed' } : msg
+          )
+        );
+      }
+    } catch (err) {
+      console.error('[ChatRoom] Send message failed:', err);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempId ? { ...msg, status: 'failed' } : msg
+        )
+      );
+    }
+  };
+
   const handleSend = async () => {
     if (!inputText.trim() || !currentUser || !id) return;
 
@@ -245,11 +323,7 @@ export default function ChatRoomScreen() {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     sendTypingStatus(id, false);
 
-    try {
-      await sendMessage(id, textToSend);
-    } catch (err) {
-      console.error('[ChatRoom] Send message failed:', err);
-    }
+    await sendChatMessage(textToSend);
   };
 
   const formatMessageTime = (isoString: string) => {
@@ -335,6 +409,19 @@ export default function ChatRoomScreen() {
         </View>
       </View>
 
+      {/* ── Connection Banner ── */}
+      {!isConnected && (
+        <Animated.View
+          entering={FadeInUp}
+          exiting={FadeOutUp}
+          style={[styles.connectionBanner, { backgroundColor: '#FF9500' }]}
+        >
+          <ThemedText style={styles.connectionBannerText}>
+            Reconnecting to chat...
+          </ThemedText>
+        </Animated.View>
+      )}
+
       {/* ── Content Area: Message List + Input ── */}
       <View style={[styles.content, { paddingBottom: bottomOffset }]}>
         <FlatList
@@ -408,8 +495,18 @@ export default function ChatRoomScreen() {
                   style={[
                     styles.messageRow,
                     isMe ? styles.myMessageRow : styles.otherMessageRow,
+                    { opacity: item.status === 'sending' ? 0.6 : 1 },
                   ]}
                 >
+                  {isMe && item.status === 'failed' && (
+                    <Pressable
+                      onPress={() => sendChatMessage(item.text, item.id)}
+                      style={{ marginRight: 8, alignSelf: 'center' }}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="alert-circle" size={20} color="#FF3B30" />
+                    </Pressable>
+                  )}
                   {!isMe && (
                     <Image
                       source={{
@@ -595,6 +692,18 @@ const styles = StyleSheet.create({
   footerLoader: {
     alignItems: 'center',
     paddingVertical: 10,
+  },
+  connectionBanner: {
+    width: '100%',
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FF9500',
+  },
+  connectionBannerText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: Fonts.medium,
   },
   inputBarContainer: {
     paddingHorizontal: 15,
