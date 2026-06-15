@@ -104,9 +104,9 @@ export const NewMessageBottomSheet: React.FC<NewMessageBottomSheetProps> = ({
     try {
       setLoading(true);
       const res = await api.get('/auth/users/suggestions');
-      if (res.data) {
-        setSuggestions(res.data);
-        setFilteredSuggestions(res.data);
+      if (res.data && res.data.data) {
+        setSuggestions(res.data.data);
+        setFilteredSuggestions(res.data.data);
       }
     } catch (err) {
       console.error('[NewMessageBottomSheet] Fetch suggestions failed:', err);
@@ -135,8 +135,8 @@ export const NewMessageBottomSheet: React.FC<NewMessageBottomSheetProps> = ({
     try {
       // API call to create or retrieve conversation with target user
       const res = await api.post('/chat/conversations', { partnerId: userId });
-      if (res.data && res.data.id) {
-        onSelectUser(res.data.id);
+      if (res.data && res.data.data && res.data.data.id) {
+        onSelectUser(res.data.data.id);
         onClose();
       }
     } catch (err) {

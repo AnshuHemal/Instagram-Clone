@@ -178,10 +178,6 @@ function TabLayout() {
     }
   };
 
-  if (isLoading || !user) {
-    return null;
-  }
-
   // Calculate dynamic heights for safe area bottom spacing
   const paddingBottom = insets.bottom > 0 ? insets.bottom : 8;
   const tabHeight = Platform.OS === 'ios' 
@@ -203,6 +199,10 @@ function TabLayout() {
       paddingTop: 8,
     };
   });
+
+  if (isLoading || !user) {
+    return null;
+  }
 
   const handleTabPress = (index: number) => {
     setActiveIndex(index);

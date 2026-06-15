@@ -114,8 +114,8 @@ export default function ChatRoomScreen() {
   const fetchConversationDetails = async () => {
     try {
       const res = await api.get(`/chat/conversations/${id}`);
-      if (res.data && res.data.partner) {
-        setPartner(res.data.partner);
+      if (res.data && res.data.data && res.data.data.partner) {
+        setPartner(res.data.data.partner);
       }
     } catch (err) {
       console.error('[ChatRoom] Fetch conversation details failed:', err);
@@ -129,10 +129,10 @@ export default function ChatRoomScreen() {
       const res = await api.get(`/chat/conversations/${id}/messages`, {
         params: { limit: 20 },
       });
-      if (res.data) {
-        setMessages(res.data.messages);
-        setNextCursor(res.data.nextCursor || null);
-        setHasMore(!!res.data.nextCursor);
+      if (res.data && res.data.data) {
+        setMessages(res.data.data.messages || []);
+        setNextCursor(res.data.data.nextCursor || null);
+        setHasMore(!!res.data.data.nextCursor);
       }
     } catch (err) {
       console.error('[ChatRoom] Fetch initial messages failed:', err);
@@ -150,10 +150,10 @@ export default function ChatRoomScreen() {
       const res = await api.get(`/chat/conversations/${id}/messages`, {
         params: { limit: 20, cursor: nextCursor },
       });
-      if (res.data) {
-        setMessages((prev) => [...prev, ...res.data.messages]);
-        setNextCursor(res.data.nextCursor || null);
-        setHasMore(!!res.data.nextCursor);
+      if (res.data && res.data.data) {
+        setMessages((prev) => [...prev, ...(res.data.data.messages || [])]);
+        setNextCursor(res.data.data.nextCursor || null);
+        setHasMore(!!res.data.data.nextCursor);
       }
     } catch (err) {
       console.error('[ChatRoom] Fetch more messages failed:', err);

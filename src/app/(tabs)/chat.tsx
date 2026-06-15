@@ -55,8 +55,8 @@ export default function InboxScreen() {
     try {
       if (showLoader) setLoading(true);
       const res = await api.get('/chat/conversations');
-      if (res.data) {
-        setConversations(res.data);
+      if (res.data && res.data.data) {
+        setConversations(res.data.data);
       }
     } catch (err) {
       console.error('[InboxScreen] Failed to fetch conversations:', err);
