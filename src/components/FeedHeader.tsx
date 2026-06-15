@@ -1,32 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { InstagramLogo } from '@/components/InstagramLogo';
 import { notificationService } from '@/services/notifications';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withRepeat, withTiming } from 'react-native-reanimated';
+import { useSocket } from '@/contexts/SocketContext';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 export const FeedHeader: React.FC = () => {
   const router = useRouter();
   const { colors } = useTheme();
   const [unreadCount, setUnreadCount] = useState(0);
   const badgeScale = useSharedValue(1);
-
-  useEffect(() => {
-    fetchUnreadCount();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (unreadCount > 0) {
-      badgeScale.value = withSpring(1.2, { damping: 10, stiffness: 200 }, () => {
-        badgeScale.value = withSpring(1, { damping: 10, stiffness: 200 });
-      });
-    }
-  }, [unreadCount]);
+  const { socket } = useSocket();
 
   const fetchUnreadCount = async () => {
     try {
@@ -38,6 +25,42 @@ export const FeedHeader: React.FC = () => {
       console.error('Failed to fetch unread count:', error);
     }
   };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUnreadCount();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNotificationReceived = (notification: any) => {
+      console.log('[FeedHeader] Real-time notification received:', notification);
+      setUnreadCount((prev) => prev + 1);
+    };
+
+    socket.on('notificationReceived', handleNotificationReceived);
+
+    return () => {
+      socket.off('notificationReceived', handleNotificationReceived);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    if (unreadCount > 0) {
+      badgeScale.value = withSpring(1.2, { damping: 10, stiffness: 200 }, () => {
+        badgeScale.value = withSpring(1, { damping: 10, stiffness: 200 });
+      });
+    }
+  }, [unreadCount]);
 
   const badgeAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: badgeScale.value }],

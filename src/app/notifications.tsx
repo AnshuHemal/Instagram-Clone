@@ -8,11 +8,13 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { NotificationItem } from '@/components/NotificationItem';
 import { notificationService, Notification } from '@/services/notifications';
+import { useSocket } from '@/contexts/SocketContext';
 import { Fonts } from '@/constants/theme';
 
 export default function NotificationsScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const { socket } = useSocket();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +59,26 @@ export default function NotificationsScreen() {
   useEffect(() => {
     fetchNotifications(true);
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNotificationReceived = (notification: any) => {
+      console.log('[NotificationsScreen] Real-time notification received:', notification);
+      setNotifications((prev) => [notification, ...prev]);
+
+      // Proactively mark as read since user is actively viewing this screen
+      notificationService.markAsRead([notification.id]).catch((err) => {
+        console.error('Failed to mark real-time notification as read:', err);
+      });
+    };
+
+    socket.on('notificationReceived', handleNotificationReceived);
+
+    return () => {
+      socket.off('notificationReceived', handleNotificationReceived);
+    };
+  }, [socket]);
 
   const handleLoadMore = () => {
     if (hasMore && !isLoading && !isRefreshing && cursor) {
