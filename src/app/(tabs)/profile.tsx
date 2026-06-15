@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -34,6 +34,7 @@ import Animated, {
   Easing,
   SharedValue,
   runOnJS,
+  SharedValue as ReanimatedSharedValue,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -52,6 +53,9 @@ import { useTabPager } from '@/contexts/TabPagerContext';
 import { MOCK_STORIES } from '@/constants/mockData';
 import { FollowButton } from '@/components/FollowButton';
 import { followService, UserProfileResponse } from '@/services/follow';
+import { api } from '@/services/api';
+import { PostCard } from '@/components/PostCard';
+import { ReelItem } from '@/components/ReelItem';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -340,6 +344,15 @@ export default function ProfileScreen() {
   const [viewProfile, setViewProfile] = useState<UserProfileResponse['user'] | null>(null);
   const [isViewLoading, setIsViewLoading] = useState(false);
 
+  // Real user media posts & reels states
+  const [userPosts, setUserPosts] = useState<any[]>([]);
+  const [userReels, setUserReels] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingReels, setLoadingReels] = useState(false);
+
+  const [selectedPost, setSelectedPost] = useState<any | null>(null);
+  const [selectedReel, setSelectedReel] = useState<any | null>(null);
+
   const isOwnProfile = !viewUserId || viewUserId === user?.id;
 
   const scrollY = useSharedValue(0);
@@ -391,6 +404,156 @@ export default function ProfileScreen() {
         }
       : user;
 
+  const sortedReels = useMemo(() => {
+    if (reelsSort === 'most_viewed') {
+      return [...userReels].sort((a, b) => {
+        const countA = parseInt(a.views.replace(/,/g, ''), 10) || 0;
+        const countB = parseInt(b.views.replace(/,/g, ''), 10) || 0;
+        return countB - countA;
+      });
+    }
+    return userReels;
+  }, [userReels, reelsSort]);
+
+  const fetchUserMedia = useCallback(async () => {
+    const targetUserId = viewUserId || user?.id;
+    if (!targetUserId) return;
+
+    setLoadingPosts(true);
+    setLoadingReels(true);
+
+    try {
+      const [postsRes, reelsRes] = await Promise.all([
+        api.get(`/posts/user/${targetUserId}`),
+        api.get(`/reels/user/${targetUserId}`),
+      ]);
+
+      if (postsRes.data?.success && postsRes.data?.data?.posts) {
+        const mapped = postsRes.data.data.posts.map((post: any) => ({
+          ...post,
+          isLiked: !!post.isLiked,
+        }));
+        setUserPosts(mapped);
+      }
+      if (reelsRes.data?.success && reelsRes.data?.data?.reels) {
+        const mapped = reelsRes.data.data.reels.map((item: any) => ({
+          id: item.id,
+          username: item.user?.username || profileUser?.username || 'anonymous',
+          avatar: item.user?.avatarUrl || profileUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          imageUrl: item.thumbnailUrl || 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=800',
+          description: item.caption || '',
+          likesCount: Number(item.likesCount || 0),
+          commentsCount: Number(item.commentsCount || 0),
+          isLiked: !!item.isLiked,
+          musicName: item.audioName || 'Original Audio',
+          views: Number(item.viewsCount || 0).toLocaleString(),
+          hlsUrl: item.hlsUrl || undefined,
+          durationSeconds: item.durationSeconds ? Number(item.durationSeconds) : undefined,
+        }));
+        setUserReels(mapped);
+      }
+    } catch (err) {
+      console.warn('[ProfileScreen] Failed to fetch user media:', err);
+    } finally {
+      setLoadingPosts(false);
+      setLoadingReels(false);
+    }
+  }, [viewUserId, user?.id, profileUser?.username, profileUser?.avatar]);
+
+  useEffect(() => {
+    fetchUserMedia();
+  }, [fetchUserMedia]);
+
+  const onPostLikeToggle = async (postId: string) => {
+    try {
+      setUserPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          const isLiked = !p.isLiked;
+          return {
+            ...p,
+            isLiked,
+            likesCount: isLiked ? p.likesCount + 1 : p.likesCount - 1
+          };
+        }
+        return p;
+      }));
+      setSelectedPost((prev: any) => {
+        if (prev && prev.id === postId) {
+          const isLiked = !prev.isLiked;
+          return {
+            ...prev,
+            isLiked,
+            likesCount: isLiked ? prev.likesCount + 1 : prev.likesCount - 1
+          };
+        }
+        return prev;
+      });
+      await api.post(`/posts/${postId}/like`);
+    } catch (err) {
+      console.warn('Failed to toggle like:', err);
+    }
+  };
+
+  const onPostCommentAdd = async (postId: string, text: string) => {
+    try {
+      const res = await api.post(`/posts/${postId}/comment`, { text });
+      if (res.data?.success && res.data?.data) {
+        setUserPosts(prev => prev.map(p => {
+          if (p.id === postId) {
+            return {
+              ...p,
+              commentsCount: (p.commentsCount || 0) + 1,
+            };
+          }
+          return p;
+        }));
+        setSelectedPost((prev: any) => {
+          if (prev && prev.id === postId) {
+            return {
+              ...prev,
+              commentsCount: (prev.commentsCount || 0) + 1,
+            };
+          }
+          return prev;
+        });
+        return res.data.data;
+      }
+    } catch (err) {
+      console.warn('Failed to add comment:', err);
+    }
+    return null;
+  };
+
+  const onReelLikeToggle = async (reelId: string) => {
+    try {
+      setUserReels(prev => prev.map(r => {
+        if (r.id === reelId) {
+          const isLiked = !r.isLiked;
+          return {
+            ...r,
+            isLiked,
+            likesCount: isLiked ? r.likesCount + 1 : r.likesCount - 1
+          };
+        }
+        return r;
+      }));
+      setSelectedReel((prev: any) => {
+        if (prev && prev.id === reelId) {
+          const isLiked = !prev.isLiked;
+          return {
+            ...prev,
+            isLiked,
+            likesCount: isLiked ? prev.likesCount + 1 : prev.likesCount - 1
+          };
+        }
+        return prev;
+      });
+      await api.post(`/reels/${reelId}/like`);
+    } catch (err) {
+      console.warn('Failed to toggle reel like:', err);
+    }
+  };
+
   // Avatar action sheet
   const [showAvatarSheet, setShowAvatarSheet] = useState(false);
   const [showAddPhotoSheet, setShowAddPhotoSheet] = useState(false);
@@ -436,11 +599,14 @@ export default function ProfileScreen() {
       false
     );
 
-    // Fetch fresh profile data from API
+    // Fetch fresh profile data & user media from API
     try {
-      await refreshProfile();
+      await Promise.all([
+        refreshProfile(),
+        fetchUserMedia(),
+      ]);
     } catch (_) {
-      // silently swallow — refreshProfile already warns internally
+      // silently swallow
     }
 
     // Collapse bar
@@ -449,7 +615,7 @@ export default function ProfileScreen() {
     spinValue.value        = 0;
     isRefreshingShared.value = false;
     runOnJS(setIsRefreshing)(false);
-  }, [refreshProfile]);
+  }, [refreshProfile, fetchUserMedia]);
 
   // Pan gesture — purely for pull detection, does NOT translate ScrollView
   const panGesture = Gesture.Pan()
@@ -622,7 +788,8 @@ export default function ProfileScreen() {
 
   const hasBio = !!(profileUser?.bio && profileUser.bio.trim());
   const hasAvatar = !!(profileUser?.avatar && profileUser.avatar.trim());
-  const hasPosts = false; // Will be replaced with real API data
+  const hasPosts = userPosts.length > 0;
+  const hasReels = userReels.length > 0;
 
   const tabIcon = (name: any, filledName: any, tab: ProfileTab) => (
     <Ionicons
@@ -1075,9 +1242,34 @@ export default function ProfileScreen() {
             {/* Page 1: Posts */}
             <View style={{ width: SCREEN_WIDTH }}>
               {hasPosts ? (
-                <View style={styles.gridContainer}>
-                  {/* Real posts would go here */}
-                </View>
+                <FlatList
+                  data={userPosts}
+                  keyExtractor={(item) => item.id}
+                  numColumns={3}
+                  scrollEnabled={false}
+                  renderItem={({ item }) => {
+                    const hasMultipleMedia = item.media && item.media.length > 1;
+                    const isVideo = item.media && item.media[0]?.mediaType === 'VIDEO';
+                    return (
+                      <Pressable
+                        onPress={() => setSelectedPost(item)}
+                        style={styles.gridItem}
+                      >
+                        <Image source={{ uri: item.media[0]?.mediaUrl }} style={styles.gridImage} />
+                        {hasMultipleMedia && (
+                          <View style={styles.gridBadge}>
+                            <Feather name="layers" size={12} color="#FFFFFF" />
+                          </View>
+                        )}
+                        {!hasMultipleMedia && isVideo && (
+                          <View style={styles.gridBadge}>
+                            <Ionicons name="play" size={12} color="#FFFFFF" />
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  }}
+                />
               ) : (
                 <Animated.View
                   entering={FadeInDown.duration(400).delay(100)}
@@ -1105,26 +1297,47 @@ export default function ProfileScreen() {
 
             {/* Page 2: Reels */}
             <View style={{ width: SCREEN_WIDTH }}>
-              <Animated.View
-                entering={FadeInDown.duration(400).delay(80)}
-                layout={LinearTransition}
-                style={styles.emptyStateContainer}
-              >
-                <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-                  <Ionicons name="videocam-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
-                </View>
-                <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
-                  Share your first reel
-                </ThemedText>
-                <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                  {reelsSort === 'most_viewed'
-                    ? 'Your most viewed short videos will appear here.'
-                    : 'Short videos that inspire others.'}
-                </ThemedText>
-                <Pressable style={styles.createButton}>
-                  <ThemedText style={styles.createButtonText}>Create reel</ThemedText>
-                </Pressable>
-              </Animated.View>
+              {hasReels ? (
+                <FlatList
+                  data={sortedReels}
+                  keyExtractor={(item) => item.id}
+                  numColumns={3}
+                  scrollEnabled={false}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      onPress={() => setSelectedReel(item)}
+                      style={styles.reelGridItem}
+                    >
+                      <Image source={{ uri: item.imageUrl }} style={styles.reelGridImage} />
+                      <View style={styles.reelViewsBadge}>
+                        <Ionicons name="play-outline" size={10} color="#FFFFFF" style={{ marginRight: 2 }} />
+                        <ThemedText style={styles.reelViewsText}>{item.views}</ThemedText>
+                      </View>
+                    </Pressable>
+                  )}
+                />
+              ) : (
+                <Animated.View
+                  entering={FadeInDown.duration(400).delay(80)}
+                  layout={LinearTransition}
+                  style={styles.emptyStateContainer}
+                >
+                  <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
+                    <Ionicons name="videocam-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
+                  </View>
+                  <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
+                    Share your first reel
+                  </ThemedText>
+                  <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                    {reelsSort === 'most_viewed'
+                      ? 'Your most viewed short videos will appear here.'
+                      : 'Short videos that inspire others.'}
+                  </ThemedText>
+                  <Pressable style={styles.createButton} onPress={() => router.push('/create')}>
+                    <ThemedText style={styles.createButtonText}>Create reel</ThemedText>
+                  </Pressable>
+                </Animated.View>
+              )}
             </View>
 
             {/* Page 3: Tagged */}
@@ -1267,6 +1480,69 @@ export default function ProfileScreen() {
           }, 300);
         }}
       />
+
+      {/* Post Detail Modal */}
+      {selectedPost && (
+        <Modal
+          visible={selectedPost !== null}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setSelectedPost(null)}
+        >
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+            {/* Modal Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: isDark ? '#2C2C2E' : '#E5E5E5' }]}>
+              <Pressable onPress={() => setSelectedPost(null)} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={colors.text} />
+              </Pressable>
+              <ThemedText style={[styles.modalTitle, { color: colors.text }]}>Posts</ThemedText>
+              <View style={{ width: 40 }} />
+            </View>
+            
+            {/* Detail Scroll */}
+            <Animated.ScrollView showsVerticalScrollIndicator={false}>
+              <PostCard
+                post={selectedPost}
+                onLikeToggle={onPostLikeToggle}
+                onBookmarkToggle={() => {}}
+                onAddComment={onPostCommentAdd}
+              />
+            </Animated.ScrollView>
+          </SafeAreaView>
+        </Modal>
+      )}
+
+      {/* Reel Detail Modal */}
+      {selectedReel && (
+        <Modal
+          visible={selectedReel !== null}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setSelectedReel(null)}
+        >
+          <SafeAreaView style={[styles.modalContainer, { backgroundColor: '#000000' }]} edges={['top', 'bottom']}>
+            {/* Modal Header */}
+            <View style={[styles.modalHeader, { borderBottomColor: '#2C2C2E', backgroundColor: '#000000' }]}>
+              <Pressable onPress={() => setSelectedReel(null)} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              </Pressable>
+              <ThemedText style={[styles.modalTitle, { color: '#FFFFFF' }]}>Reels</ThemedText>
+              <View style={{ width: 40 }} />
+            </View>
+            
+            {/* Detail Content */}
+            <View style={{ flex: 1, backgroundColor: '#000000' }}>
+              <ReelItem
+                reel={selectedReel}
+                isActive={true}
+                isScreenFocused={selectedReel !== null}
+                onLikeToggle={onReelLikeToggle}
+                height={Dimensions.get('window').height - 110}
+              />
+            </View>
+          </SafeAreaView>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -1658,5 +1934,71 @@ const styles = StyleSheet.create({
   refreshSpinnerContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // ── Grid & Modals Custom Styles ──
+  gridItem: {
+    width: GRID_ITEM_SIZE,
+    height: GRID_ITEM_SIZE,
+    padding: 0.5,
+    position: 'relative',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 4,
+    padding: 3,
+  },
+  reelGridItem: {
+    width: GRID_ITEM_SIZE,
+    height: GRID_ITEM_SIZE * 1.5,
+    padding: 0.5,
+    position: 'relative',
+  },
+  reelGridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  reelViewsBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  reelViewsText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.semiBold,
+    fontSize: 10,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    height: 48,
+    borderBottomWidth: 0.5,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
   },
 });
