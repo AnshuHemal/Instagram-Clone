@@ -9,10 +9,17 @@ import {
   Platform,
   Keyboard,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+
+let ExpoVideo: any = null;
+try {
+  ExpoVideo = require('expo-video');
+} catch (_) {}
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -88,18 +95,113 @@ const AnimatedDot = ({ delay }: { delay: number }) => {
   );
 };
 
+// ─── Inline Video Message Player ─────────────────────────────────────────────
+const ChatVideoMessage = ({ mediaUrl }: { mediaUrl: string }) => {
+  const [player, setPlayer] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+
+  useEffect(() => {
+    if (!ExpoVideo || !mediaUrl) return;
+
+    let p: any = null;
+    try {
+      p = ExpoVideo.createVideoPlayer(mediaUrl);
+      p.loop = true;
+      p.muted = isMuted;
+      p.showNowPlayingNotification = false;
+      setPlayer(p);
+    } catch (err) {
+      console.warn('[ChatVideoMessage] createVideoPlayer failed:', err);
+    }
+
+    return () => {
+      if (p) {
+        try {
+          p.pause();
+        } catch (_) {}
+        setTimeout(() => {
+          try {
+            p.release();
+          } catch (_) {}
+        }, 3000);
+      }
+    };
+  }, [mediaUrl]);
+
+  const togglePlay = () => {
+    if (!player) return;
+    try {
+      if (isPlaying) {
+        player.pause();
+        setIsPlaying(false);
+      } else {
+        player.play();
+        setIsPlaying(true);
+      }
+    } catch (e) {}
+  };
+
+  if (!ExpoVideo) {
+    return (
+      <View style={styles.mediaPlaceholder}>
+        <Ionicons name="play-circle-outline" size={36} color="#FFFFFF" />
+      </View>
+    );
+  }
+
+  return (
+    <Pressable onPress={togglePlay} style={styles.chatVideoContainer}>
+      {player && (
+        <ExpoVideo.VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      )}
+      <View style={styles.videoOverlay}>
+        <Ionicons
+          name={isPlaying ? 'pause-circle' : 'play-circle'}
+          size={36}
+          color="#FFFFFF"
+          style={styles.playIcon}
+        />
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            if (player) {
+              const newMuted = !isMuted;
+              player.muted = newMuted;
+              setIsMuted(newMuted);
+            }
+          }}
+          style={styles.muteButton}
+        >
+          <Ionicons
+            name={isMuted ? 'volume-mute' : 'volume-high'}
+            size={16}
+            color="#FFFFFF"
+          />
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+};
+
 export default function ChatRoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user: currentUser } = useAuth();
-  const { socket, isConnected, joinConversation, leaveConversation, sendMessage, sendTypingStatus, onlineUsers } = useSocket();
+  const { socket, isConnected, joinConversation, leaveConversation, sendMessage, sendTypingStatus, onlineUsers, markAsRead } = useSocket();
   const insets = useSafeAreaInsets();
 
   const [partner, setPartner] = useState<Sender | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [mediaUploading, setMediaUploading] = useState(false);
 
   // Pagination states
   const [loading, setLoading] = useState(false);
@@ -172,7 +274,10 @@ export default function ChatRoomScreen() {
 
     joinConversation(id);
     fetchConversationDetails();
-    fetchInitialMessages();
+    fetchInitialMessages().then(() => {
+      // Mark existing messages as read upon entering the room
+      markAsRead(id);
+    });
 
     const handleMessageReceived = (message: Message) => {
       console.log('[ChatRoom] messageReceived:', message);
@@ -196,6 +301,8 @@ export default function ChatRoomScreen() {
         // When message is received, clear typing bubble immediately
         if (message.senderId === partner?.id) {
           setPartnerIsTyping(false);
+          // Mark the incoming message as read instantly
+          markAsRead(id);
         }
       }
     };
@@ -206,15 +313,29 @@ export default function ChatRoomScreen() {
       }
     };
 
+    const handleMessagesRead = (data: { conversationId: string; readerId: string }) => {
+      console.log('[ChatRoom] messagesRead:', data);
+      if (data.conversationId === id && data.readerId !== currentUser?.id) {
+        // Partner has read our messages, update read status locally
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.senderId === currentUser?.id ? { ...msg, isRead: true } : msg
+          )
+        );
+      }
+    };
+
     socket.on('messageReceived', handleMessageReceived);
     socket.on('typingStatusReceived', handleTypingStatus);
+    socket.on('messagesRead', handleMessagesRead);
 
     return () => {
       leaveConversation(id);
       socket.off('messageReceived', handleMessageReceived);
       socket.off('typingStatusReceived', handleTypingStatus);
+      socket.off('messagesRead', handleMessagesRead);
     };
-  }, [id, socket]);
+  }, [id, socket, partner]);
 
   // Keyboard listeners
   useEffect(() => {
@@ -255,7 +376,7 @@ export default function ChatRoomScreen() {
     }, 2000);
   };
 
-  const sendChatMessage = async (text: string, existingOptimisticId?: string) => {
+  const sendChatMessage = async (text: string, existingOptimisticId?: string, mediaUrl?: string) => {
     if (!currentUser || !id) return;
 
     const tempId = existingOptimisticId || `opt-${Date.now()}-${Math.random()}`;
@@ -264,6 +385,7 @@ export default function ChatRoomScreen() {
       conversationId: id,
       senderId: currentUser.id,
       text,
+      mediaUrl,
       isRead: false,
       createdAt: new Date().toISOString(),
       sender: {
@@ -284,7 +406,7 @@ export default function ChatRoomScreen() {
     }
 
     try {
-      const response = await sendMessage(id, text);
+      const response = await sendMessage(id, text, mediaUrl);
       if (response && response.success) {
         setMessages((prev) =>
           prev.map((msg) =>
@@ -311,6 +433,75 @@ export default function ChatRoomScreen() {
           msg.id === tempId ? { ...msg, status: 'failed' } : msg
         )
       );
+    }
+  };
+
+  const handleMediaSelection = async (fromCamera = false) => {
+    try {
+      // Request permission
+      const { status } = fromCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          `Sorry, we need ${fromCamera ? 'camera' : 'gallery'} permissions to send media.`
+        );
+        return;
+      }
+
+      // Launch picker
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            quality: 0.8,
+          });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const mediaAsset = result.assets[0];
+      const localUri = mediaAsset.uri;
+      const isVideo = mediaAsset.mimeType?.startsWith('video') || localUri.toLowerCase().endsWith('.mp4') || localUri.toLowerCase().endsWith('.mov');
+
+      setMediaUploading(true);
+
+      // Create FormData
+      const formData = new FormData();
+      const uriParts = localUri.split('/');
+      const fileName = uriParts[uriParts.length - 1];
+      const fileExt = fileName.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+
+      formData.append('file', {
+        uri: Platform.OS === 'android' ? localUri : localUri.replace('file://', ''),
+        name: fileName || `media.${fileExt}`,
+        type: isVideo ? `video/${fileExt}` : `image/${fileExt}`,
+      } as any);
+
+      const response = await api.post('/chat/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data && response.data.data && response.data.data.secure_url) {
+        const secureUrl = response.data.data.secure_url;
+        const placeholderText = isVideo ? '🎥 Video' : '📷 Photo';
+        await sendChatMessage(placeholderText, undefined, secureUrl);
+      } else {
+        throw new Error('Upload returned invalid response format');
+      }
+    } catch (err) {
+      console.error('[ChatRoom] Media selection / upload failed:', err);
+      Alert.alert('Upload Failed', 'Could not upload media. Please check your network and try again.');
+    } finally {
+      setMediaUploading(false);
     }
   };
 
@@ -528,24 +719,68 @@ export default function ChatRoomScreen() {
                           : '#E8E8E8',
                         borderBottomRightRadius: isMe ? 4 : 18,
                         borderBottomLeftRadius: isMe ? 18 : 4,
+                        paddingHorizontal: item.mediaUrl ? 4 : 14,
+                        paddingVertical: item.mediaUrl ? 4 : 9,
                       },
                     ]}
                   >
-                    <ThemedText style={{ color: isMe ? '#FFFFFF' : colors.text, lineHeight: 20 }}>
-                      {item.text}
-                    </ThemedText>
+                    {item.mediaUrl && (
+                      <View style={{ overflow: 'hidden', borderRadius: 14, marginBottom: (item.text !== '📷 Photo' && item.text !== '🎥 Video') ? 6 : 0 }}>
+                        {item.mediaUrl.includes('.mp4') || item.mediaUrl.includes('.m3u8') || item.text === '🎥 Video' ? (
+                          <ChatVideoMessage mediaUrl={item.mediaUrl} />
+                        ) : (
+                          <Image
+                            source={{ uri: item.mediaUrl }}
+                            style={styles.mediaImage}
+                            resizeMode="cover"
+                          />
+                        )}
+                      </View>
+                    )}
+
+                    {(item.text !== '📷 Photo' && item.text !== '🎥 Video') && (
+                      <ThemedText style={{ color: isMe ? '#FFFFFF' : colors.text, lineHeight: 20, paddingHorizontal: item.mediaUrl ? 10 : 0, paddingVertical: item.mediaUrl ? 4 : 0 }}>
+                        {item.text}
+                      </ThemedText>
+                    )}
+
                     <ThemedText
                       style={{
                         color: isMe ? 'rgba(255,255,255,0.65)' : colors.textSecondary,
                         fontSize: 10,
                         marginTop: 4,
                         alignSelf: isMe ? 'flex-end' : 'flex-start',
+                        paddingHorizontal: item.mediaUrl ? 10 : 0,
+                        paddingBottom: item.mediaUrl ? 4 : 0,
                       }}
                     >
                       {formatMessageTime(item.createdAt)}
                     </ThemedText>
                   </View>
                 </View>
+
+                {/* Read receipt Seen indicator under the last message sent by current user */}
+                {(() => {
+                  const lastMeMessageIndex = messages.findIndex((m) => m.senderId === currentUser?.id);
+                  const isLastMeMessageAndRead = lastMeMessageIndex === index && item.isRead;
+                  if (isLastMeMessageAndRead) {
+                    return (
+                      <ThemedText
+                        style={{
+                          color: colors.textSecondary,
+                          fontSize: 11,
+                          alignSelf: 'flex-end',
+                          marginRight: 15,
+                          marginTop: -8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Seen
+                      </ThemedText>
+                    );
+                  }
+                  return null;
+                })()}
               </View>
             );
           }}
@@ -571,7 +806,7 @@ export default function ChatRoomScreen() {
               },
             ]}
           >
-            <Pressable style={styles.inputIconButton}>
+            <Pressable style={styles.inputIconButton} onPress={() => handleMediaSelection(true)} disabled={mediaUploading}>
               <Ionicons name="camera" size={22} color={colors.text} />
             </Pressable>
 
@@ -582,9 +817,12 @@ export default function ChatRoomScreen() {
               onChangeText={handleInputChange}
               style={[styles.inputField, { color: colors.text }]}
               multiline
+              editable={!mediaUploading}
             />
 
-            {inputText.trim() ? (
+            {mediaUploading ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+            ) : inputText.trim() ? (
               <Pressable onPress={handleSend} style={styles.sendButton}>
                 <ThemedText type="smallBold" style={{ color: colors.primary }}>
                   Send
@@ -595,7 +833,7 @@ export default function ChatRoomScreen() {
                 <Pressable style={styles.inputIconButton}>
                   <Ionicons name="mic-outline" size={22} color={colors.text} />
                 </Pressable>
-                <Pressable style={styles.inputIconButton}>
+                <Pressable style={styles.inputIconButton} onPress={() => handleMediaSelection(false)}>
                   <Ionicons name="image-outline" size={22} color={colors.text} />
                 </Pressable>
               </View>
@@ -735,5 +973,48 @@ const styles = StyleSheet.create({
   sendButton: {
     paddingHorizontal: 10,
     paddingVertical: 5,
+  },
+  mediaImage: {
+    width: 220,
+    height: 180,
+    borderRadius: 14,
+  },
+  chatVideoContainer: {
+    width: 220,
+    height: 180,
+    borderRadius: 14,
+    backgroundColor: '#000000',
+    overflow: 'hidden',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  playIcon: {
+    opacity: 0.85,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  muteButton: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mediaPlaceholder: {
+    width: 220,
+    height: 180,
+    borderRadius: 14,
+    backgroundColor: '#3A3A3C',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

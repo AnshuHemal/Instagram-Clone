@@ -11,6 +11,7 @@ interface SocketContextProps {
   leaveConversation: (conversationId: string) => void;
   sendMessage: (conversationId: string, text: string, mediaUrl?: string) => Promise<{ success: boolean; messageId?: string; error?: string }>;
   sendTypingStatus: (conversationId: string, isTyping: boolean) => void;
+  markAsRead: (conversationId: string) => void;
 }
 
 const SocketContext = createContext<SocketContextProps | undefined>(undefined);
@@ -168,6 +169,12 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const markAsRead = (conversationId: string) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('markAsRead', { conversationId });
+    }
+  };
+
   return (
     <SocketContext.Provider
       value={{
@@ -178,6 +185,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         leaveConversation,
         sendMessage,
         sendTypingStatus,
+        markAsRead,
       }}
     >
       {children}
