@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { api } from '@/services/api';
 
 export interface Comment {
@@ -46,6 +46,8 @@ interface PostsContextType {
   isRefreshing: boolean;
   hasMore: boolean;
   cursor: string | null;
+  feedType: 'for_you' | 'following';
+  setFeedType: (type: 'for_you' | 'following') => void;
   fetchPosts: (nextCursor?: string | null, refresh?: boolean) => Promise<void>;
   handleLikeToggle: (postId: string) => Promise<void>;
   handleAddComment: (postId: string, text: string) => Promise<any>;
@@ -60,6 +62,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [feedType, setFeedType] = useState<'for_you' | 'following'>('following');
   const fetchingRef = useRef(false);
 
   const fetchPosts = useCallback(async (nextCursor: string | null = null, refresh: boolean = false) => {
@@ -79,7 +82,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         params: {
           limit: 10,
           cursor: activeCursor,
-          type: 'following',
+          type: feedType,
         },
       });
 
@@ -101,7 +104,16 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsRefreshing(false);
       fetchingRef.current = false;
     }
-  }, [isLoading, isRefreshing]);
+  }, [isLoading, isRefreshing, feedType]);
+
+  useEffect(() => {
+    // Reset and fetch whenever feedType changes
+    setPosts([]);
+    setCursor(null);
+    setHasMore(true);
+    fetchingRef.current = false;
+    fetchPosts(null, true);
+  }, [feedType, fetchPosts]);
 
   const handleLikeToggle = useCallback(async (postId: string) => {
     // Locate original state for rollback
@@ -174,6 +186,8 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isRefreshing,
         hasMore,
         cursor,
+        feedType,
+        setFeedType,
         fetchPosts,
         handleLikeToggle,
         handleAddComment,
