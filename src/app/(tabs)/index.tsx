@@ -52,6 +52,7 @@ import ReAnimated, {
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Fonts } from '@/constants/theme';
 import { GradientPullRefresh } from '@/components/GradientPullRefresh';
+import { haptics } from '@/utils/haptics';
 
 
 
@@ -234,7 +235,13 @@ export default function FeedScreen() {
       const size = 60;
 
       return (
-        <Pressable style={styles.yourStoryContainer} onPress={handlePress}>
+        <Pressable
+          style={({ pressed }) => [styles.yourStoryContainer, pressed && { opacity: 0.6 }]}
+          onPress={() => {
+            haptics.onButtonPress();
+            handlePress();
+          }}
+        >
           <View style={styles.yourStoryAvatarOuter}>
             {userGroup ? (
               userGroup.isSeen ? (

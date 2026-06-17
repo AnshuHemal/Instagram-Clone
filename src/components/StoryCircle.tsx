@@ -3,6 +3,7 @@ import { StyleSheet, View, Image, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
+import { haptics } from '@/utils/haptics';
 
 interface StoryCircleProps {
   username: string;
@@ -25,8 +26,18 @@ export const StoryCircle: React.FC<StoryCircleProps> = ({
   const ringSize = size + 6;
   const innerSize = size + 2;
 
+  const handlePress = () => {
+    if (onPress) {
+      haptics.onButtonPress();
+      onPress();
+    }
+  };
+
   return (
-    <Pressable onPress={onPress} style={styles.container}>
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => [styles.container, pressed && { opacity: 0.6 }]}
+    >
       {isSeen ? (
         <View
           style={[

@@ -75,7 +75,13 @@ export const FeedHeader: React.FC = () => {
   return (
     <View style={[styles.container, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
       {/* Left side: Plus button to create post */}
-      <Pressable onPress={() => router.push('/create')} style={styles.iconButton}>
+      <Pressable
+        onPress={() => {
+          haptics.onButtonPress();
+          router.push('/create');
+        }}
+        style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }]}
+      >
         <Ionicons name="add" size={30} color={colors.text} />
       </Pressable>
 
@@ -92,8 +98,11 @@ export const FeedHeader: React.FC = () => {
 
       {/* Right side: Notification Bell with unread count */}
       <Pressable
-        onPress={() => router.push('/notifications')}
-        style={styles.iconButton}
+        onPress={() => {
+          haptics.onButtonPress();
+          router.push('/notifications');
+        }}
+        style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }]}
       >
         <View style={styles.badgeWrapper}>
           <Ionicons

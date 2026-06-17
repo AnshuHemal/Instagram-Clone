@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
   },
   headerTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   searchContainer: { paddingHorizontal: 15, paddingVertical: 10 },
   searchBar: { flexDirection: 'row', alignItems: 'center', height: 40, borderRadius: 12, paddingHorizontal: 14 },

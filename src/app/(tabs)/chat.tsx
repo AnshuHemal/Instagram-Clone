@@ -21,6 +21,7 @@ import { NewMessageBottomSheet } from '@/components/NewMessageBottomSheet';
 import { MOCK_STORIES } from '@/constants/mockData';
 import { useSharedValue } from 'react-native-reanimated';
 import { GradientPullRefresh } from '@/components/GradientPullRefresh';
+import { Fonts } from '@/constants/theme';
 
 interface Partner {
   id: string;
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   headerTitle: {
-    fontWeight: 'bold',
+    fontFamily: Fonts.semiBold,
   },
   searchContainer: {
     paddingHorizontal: 15,

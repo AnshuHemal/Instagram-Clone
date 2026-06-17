@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, FlatList, Pressable, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, useSharedValue } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { NotificationItem } from '@/components/NotificationItem';
@@ -13,12 +13,14 @@ import { followService } from '@/services/follow';
 import { useSocket } from '@/contexts/SocketContext';
 import { useBadge } from '@/contexts/BadgeContext';
 import { Fonts } from '@/constants/theme';
+import { GradientPullRefresh } from '@/components/GradientPullRefresh';
 
 export default function NotificationsScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const { socket } = useSocket();
   const { clearNotifications } = useBadge();
+  const scrollY = useSharedValue(0);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [followRequests, setFollowRequests] = useState<any[]>([]);
@@ -127,14 +129,10 @@ export default function NotificationsScreen() {
   };
 
   const renderHeader = () => (
-    <Animated.View entering={FadeInDown.duration(300)} style={styles.header}>
-      <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-        <Ionicons name="arrow-back" size={24} color={colors.text} />
-      </Pressable>
-      <ThemedText type="subtitle" style={[styles.title, { color: colors.text }]}>
+    <Animated.View entering={FadeInDown.duration(300)} style={[styles.header, { borderBottomColor: colors.border }]}>
+      <ThemedText type="subtitle" style={styles.headerTitle}>
         Notifications
       </ThemedText>
-      <View style={{ width: 40 }} />
     </Animated.View>
   );
 
@@ -238,44 +236,50 @@ export default function NotificationsScreen() {
     >
       {renderHeader()}
 
-      <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <NotificationItem
-            notification={item}
-            onPress={() => {
-              // Deep link based on notification type
-              try {
-                const type = item.type;
-                if (type === 'LIKE_POST' || type === 'COMMENT_POST') {
-                  if (item.postId) router.push(`/post/${item.postId}` as any);
-                } else if (type === 'LIKE_REEL' || type === 'COMMENT_REEL') {
-                  // Navigate to reels tab — reel detail route not yet implemented
-                  router.push('/(tabs)/reels' as any);
-                } else if (type === 'FOLLOW' || type === 'FOLLOW_REQUEST' || type === 'FOLLOW_REQUEST_ACCEPTED') {
-                  if (item.actorId) router.push(`/profile?userId=${item.actorId}` as any);
+      <GradientPullRefresh
+        scrollY={scrollY}
+        onRefresh={async () => {
+          await fetchNotifications(true);
+        }}
+      >
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <NotificationItem
+              notification={item}
+              onPress={() => {
+                // Deep link based on notification type
+                try {
+                  const type = item.type;
+                  if (type === 'LIKE_POST' || type === 'COMMENT_POST') {
+                    if (item.postId) router.push(`/post/${item.postId}` as any);
+                  } else if (type === 'LIKE_REEL' || type === 'COMMENT_REEL') {
+                    // Navigate to reels tab — reel detail route not yet implemented
+                    router.push('/(tabs)/reels' as any);
+                  } else if (type === 'FOLLOW' || type === 'FOLLOW_REQUEST' || type === 'FOLLOW_REQUEST_ACCEPTED') {
+                    if (item.actorId) router.push(`/profile?userId=${item.actorId}` as any);
+                  }
+                } catch (err) {
+                  console.warn('[NotificationItem] Navigation failed:', err);
                 }
-              } catch (err) {
-                console.warn('[NotificationItem] Navigation failed:', err);
-              }
-            }}
-          />
-        )}
-        ListHeaderComponent={renderFollowRequests}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-          />
-        }
-        contentContainerStyle={styles.listContent}
-      />
+              }}
+            />
+          )}
+          ListHeaderComponent={renderFollowRequests}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          onScroll={(e) => {
+            scrollY.value = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+          bounces={false}
+          overScrollMode="never"
+          contentContainerStyle={styles.listContent}
+        />
+      </GradientPullRefresh>
     </SafeAreaView>
   );
 }
@@ -287,21 +291,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 50,
+    paddingHorizontal: 15,
+    height: 56,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#262626',
   },
   backButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 4,
   },
-  title: {
-    fontFamily: Fonts.bold,
-    fontSize: 17,
+  headerTitle: {
+    fontFamily: Fonts.semiBold,
   },
   listContent: {
     flexGrow: 1,
