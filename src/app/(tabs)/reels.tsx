@@ -333,6 +333,16 @@ export default function ReelsScreen({ isTabActive = true }: { isTabActive?: bool
           />
         </View>
       </GestureDetector>
+
+      {/* ── Floating Reels Header (Instagram-style) ── */}
+      {reels.length > 0 && (
+        <View style={styles.reelsHeader} pointerEvents="box-none">
+          <Text style={styles.reelsTitle}>Reels</Text>
+          <Pressable style={styles.cameraButton} hitSlop={12}>
+            <Ionicons name="camera-outline" size={26} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -404,5 +414,36 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 20,
     padding: 2,
+  },
+  // ── Floating Reels header ──
+  reelsHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 56,   // Below status bar
+    paddingBottom: 14,
+    zIndex: 100,
+    // Subtle gradient fade so text is readable over the reel
+    backgroundColor: 'transparent',
+  },
+  reelsTitle: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 22,
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  cameraButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

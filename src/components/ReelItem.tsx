@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform, Modal, FlatList, TextInput, ActivityIndicator, Keyboard } from 'react-native';
+import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { ReelShimmer } from './ReelShimmer';
+import { CommentsSheet } from './CommentsSheet';
 import { Reel } from '@/constants/mockData';
 import { api } from '@/services/api';
-import { Comment } from '@/contexts/PostsContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
 
@@ -224,6 +225,7 @@ export const ReelItem = React.memo(({
   preloadedPlayer,
 }: ReelItemProps) => {
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const tabHeight = Platform.OS === 'ios' 
     ? 50 + insets.bottom 
@@ -233,9 +235,6 @@ export const ReelItem = React.memo(({
   const [localLiked, setLocalLiked] = useState(reel.isLiked);
   const [localLikesCount, setLocalLikesCount] = useState(reel.likesCount);
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [newComment, setNewComment] = useState('');
   const [localCommentsCount, setLocalCommentsCount] = useState(reel.commentsCount);
   const [lastTap, setLastTap] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -415,58 +414,6 @@ export const ReelItem = React.memo(({
     setLocalLikesCount(reel.likesCount);
     setLocalCommentsCount(reel.commentsCount);
   }, [reel.isLiked, reel.likesCount, reel.commentsCount]);
-
-  useEffect(() => {
-    if (showComments) {
-      loadComments();
-    }
-  }, [showComments]);
-
-  const loadComments = async () => {
-    setLoadingComments(true);
-    try {
-      const response = await api.get(`/reels/${reel.id}/comments`);
-      setComments(response.data.data || []);
-    } catch (err) {
-      console.error('Failed to load comments:', err);
-    } finally {
-      setLoadingComments(false);
-    }
-  };
-
-  const handleSendComment = async () => {
-    if (!newComment.trim()) return;
-    try {
-      const response = await api.post(`/reels/${reel.id}/comment`, { text: newComment.trim() });
-      const addedComment = response.data.data;
-      if (addedComment) {
-        setComments((prev) => [addedComment, ...prev]);
-        setLocalCommentsCount((prev) => prev + 1);
-      }
-      setNewComment('');
-      Keyboard.dismiss();
-    } catch (err) {
-      console.error('Failed to post comment:', err);
-    }
-  };
-
-  const formatTimeAgo = (dateString: string) => {
-    if (!dateString) return '';
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const diffSecs = Math.floor(diffMs / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffSecs < 60) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
 
   // Music Disc Spinning Animation
   useEffect(() => {
@@ -916,91 +863,14 @@ export const ReelItem = React.memo(({
         </Animated.View>
       )}
 
-      {/* Interactive Comments Modal */}
-      <Modal visible={showComments} animationType="slide" transparent onRequestClose={() => setShowComments(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
-            {/* Modal Header */}
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <View style={styles.modalBar} />
-              <View style={styles.modalHeaderTitle}>
-                <ThemedText type="subtitle">Comments</ThemedText>
-              </View>
-              <Pressable onPress={() => setShowComments(false)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-
-            {/* Comments Scrollable Area */}
-            {loadingComments ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : (
-              <FlatList
-                data={comments}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.commentsList}
-                renderItem={({ item }) => (
-                  <View style={styles.modalCommentItem}>
-                    <View style={styles.commentUserRow}>
-                      <Image
-                        source={{ uri: item.user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' }}
-                        style={styles.commentAvatar}
-                      />
-                      <View style={styles.commentTextColumn}>
-                        <View style={styles.commentMetaRow}>
-                          <ThemedText type="smallBold" style={{ color: colors.text }}>
-                            {item.user?.username || 'user'}
-                          </ThemedText>
-                          <ThemedText type="small" style={[styles.commentTime, { color: colors.textSecondary }]}>
-                            {formatTimeAgo(item.createdAt)}
-                          </ThemedText>
-                        </View>
-                        <ThemedText type="small" style={[styles.commentText, { color: colors.text }]}>
-                          {item.text}
-                        </ThemedText>
-                      </View>
-                    </View>
-                  </View>
-                )}
-                ListEmptyComponent={
-                  <View style={styles.emptyComments}>
-                    <ThemedText style={{ color: colors.textSecondary }}>No comments yet.</ThemedText>
-                  </View>
-                }
-              />
-            )}
-
-            {/* Comment Input Box */}
-            <View style={[styles.modalInputContainer, { borderTopColor: colors.border }]}>
-              <TextInput
-                placeholder="Add a comment..."
-                placeholderTextColor={isDark ? '#8E8E8F' : '#9E9E9E'}
-                value={newComment}
-                onChangeText={setNewComment}
-                style={[
-                  styles.commentInput,
-                  {
-                    color: colors.text,
-                    backgroundColor: isDark ? '#262626' : '#FAFAFA',
-                    borderColor: colors.border,
-                  },
-                ]}
-              />
-              <Pressable
-                onPress={handleSendComment}
-                disabled={!newComment.trim()}
-                style={styles.modalSendButton}
-              >
-                <ThemedText type="smallBold" style={{ color: newComment.trim() ? colors.primary : colors.textSecondary }}>
-                  Post
-                </ThemedText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Comments Sheet — rendered above the reel */}
+      <CommentsSheet
+        visible={showComments}
+        postId={reel.id}
+        commentsCount={localCommentsCount}
+        onClose={() => setShowComments(false)}
+        onCommentAdded={(newCount) => setLocalCommentsCount(newCount)}
+      />
     </View>
   );
 });
@@ -1160,7 +1030,7 @@ const styles = StyleSheet.create({
   },
   scrubHandle: {
     position: 'absolute',
-    bottom: -5, // Centered on the 2px track that rests at bottom: 0
+    bottom: -5,
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -1170,104 +1040,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 2,
     elevation: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    height: '75%',
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    paddingTop: 10,
-  },
-  modalBar: {
-    width: 40,
-    height: 5,
-    backgroundColor: '#8E8E8F',
-    borderRadius: 2.5,
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingBottom: 10,
-    borderBottomWidth: 0.5,
-  },
-  modalHeaderTitle: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: -1,
-  },
-  closeButton: {
-    padding: 5,
-    marginLeft: 'auto',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  commentsList: {
-    padding: 15,
-    gap: 15,
-  },
-  modalCommentItem: {
-    paddingVertical: 4,
-  },
-  commentUserRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  commentAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  commentTextColumn: {
-    flex: 1,
-    gap: 2,
-  },
-  commentMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  commentTime: {
-    fontSize: 11,
-  },
-  commentText: {
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  emptyComments: {
-    alignItems: 'center',
-    paddingVertical: 50,
-  },
-  modalInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: Platform.OS === 'ios' ? 20 : 10,
-    borderTopWidth: 0.5,
-  },
-  commentInput: {
-    flex: 1,
-    height: 40,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    fontSize: 14,
-  },
-  modalSendButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
   },
 });

@@ -38,6 +38,24 @@ try {
   // Silent fallback
 }
 
+const getRelativeTime = (isoString: string) => {
+  if (!isoString) return '';
+  try {
+    const past = new Date(isoString).getTime();
+    const now = Date.now();
+    const diffSecs = Math.floor((now - past) / 1000);
+    if (diffSecs < 60) return 'now';
+    const diffMins = Math.floor(diffSecs / 60);
+    if (diffMins < 60) return `${diffMins}m`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d`;
+  } catch (e) {
+    return '';
+  }
+};
+
 interface StoryPlayerModalProps {
   visible: boolean;
   userGroups: UserStoryGroup[];
@@ -419,6 +437,9 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
               <View style={styles.userRow}>
                 <Image source={{ uri: activeGroup.avatar }} style={styles.userAvatar} />
                 <ThemedText style={styles.username}>{activeGroup.username}</ThemedText>
+                <ThemedText style={styles.timestamp}>
+                  {` • ${getRelativeTime(activeStory.createdAt)}`}
+                </ThemedText>
                 <Pressable onPress={onClose} style={styles.closeButton} hitSlop={12}>
                   <Ionicons name="close" size={26} color="#FFFFFF" />
                 </Pressable>
@@ -505,6 +526,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 14,
     marginLeft: 10,
+  },
+  timestamp: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontFamily: Fonts.regular,
+    fontSize: 13,
+    marginLeft: 5,
   },
   closeButton: {
     marginLeft: 'auto',

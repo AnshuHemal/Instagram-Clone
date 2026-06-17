@@ -50,6 +50,8 @@ import { LibrarySelectModal } from '@/components/LibrarySelectModal';
 import { ShareProfileModal } from '@/components/ShareProfileModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useTabPager } from '@/contexts/TabPagerContext';
+import { useStories } from '@/contexts/StoriesContext';
+import * as ImagePicker from 'expo-image-picker';
 import { MOCK_STORIES } from '@/constants/mockData';
 import { FollowButton } from '@/components/FollowButton';
 import { followService, UserProfileResponse } from '@/services/follow';
@@ -331,6 +333,7 @@ export default function ProfileScreen() {
   const { user, logout, refreshProfile, updateProfile } = useAuth();
   const { showToast } = useToast();
   const { setPagerScrollEnabled } = useTabPager();
+  const { uploadStory } = useStories();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [suggestions, setSuggestions] = useState(FOLLOW_SUGGESTIONS);
@@ -354,6 +357,47 @@ export default function ProfileScreen() {
   const [selectedReel, setSelectedReel] = useState<any | null>(null);
 
   const isOwnProfile = !viewUserId || viewUserId === user?.id;
+
+  const handleAddStory = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'We need access to your gallery to upload stories.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const type = asset.type === 'video' ? 'video' : 'image';
+
+      showToast({
+        title: 'Uploading Story',
+        message: 'Your story is uploading to Cloudinary...',
+        type: 'info',
+      });
+
+      const success = await uploadStory(asset.uri, type);
+
+      if (success) {
+        showToast({
+          title: 'Story Shared',
+          message: 'Your story has been shared successfully.',
+          type: 'success',
+        });
+      } else {
+        showToast({
+          title: 'Upload Failed',
+          message: 'Failed to upload your story. Please try again.',
+          type: 'error',
+        });
+      }
+    }
+  };
 
   const scrollY = useSharedValue(0);
   const viewPagerRef = useRef<Animated.ScrollView>(null);
@@ -1457,6 +1501,8 @@ export default function ProfileScreen() {
           console.log('Selected option:', option);
           if (option === 'reel' || option === 'post') {
             router.push('/create');
+          } else if (option === 'story') {
+            handleAddStory();
           } else {
             Alert.alert(
               option.charAt(0).toUpperCase() + option.slice(1),
