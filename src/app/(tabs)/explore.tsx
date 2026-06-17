@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, View, TextInput, ScrollView, Pressable, Image, Dimensions, RefreshControl, ActivityIndicator, Modal, FlatList, Text, Platform } from 'react-native';
+import { StyleSheet, View, TextInput, ScrollView, Pressable, Image, Dimensions, ActivityIndicator, Modal, FlatList, Text, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInRight, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInRight, FadeInDown, useSharedValue } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Post, usePosts } from '@/contexts/PostsContext';
@@ -14,6 +14,7 @@ import { followService } from '@/services/follow';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 import * as SecureStore from 'expo-secure-store';
+import { GradientPullRefresh } from '@/components/GradientPullRefresh';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width / 3;
@@ -23,6 +24,8 @@ const SEARCH_HISTORY_KEY = 'explore_search_history';
 export default function ExploreScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollY = useSharedValue(0);
+
   const [search, setSearch] = useState('');
   const [trending, setTrending] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -294,156 +297,204 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBar, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
-          <Ionicons name="search-outline" size={18} color={isDark ? '#A8A8A8' : '#737373'} style={styles.searchIcon} />
-          <TextInput
-            ref={inputRef}
-            placeholder="Search Instagram"
-            placeholderTextColor={isDark ? '#A8A8A8' : '#737373'}
-            value={search}
-            onChangeText={(v) => { setSearch(v); setShowHistory(true); }}
-            onFocus={() => setShowHistory(true)}
-            onSubmitEditing={handleSubmitSearch}
-            returnKeyType="search"
-            style={[styles.searchInput, { color: colors.text }]}
-          />
-          {search.length > 0 && (
-            <Pressable onPress={() => { setSearch(''); setShowHistory(false); }} style={styles.clearSearchButton}>
-              <Ionicons name="close-circle" size={18} color={isDark ? '#A8A8A8' : '#737373'} />
-            </Pressable>
-          )}
-        </View>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <ThemedText style={styles.headerTitle} type="subtitle">
+          Explore
+        </ThemedText>
       </View>
 
-      {/* Search History (when focused but no query) */}
-      {showHistory && !isSearchActive && searchHistory.length > 0 && (
-        <View style={styles.historyContainer}>
-          <View style={styles.historyHeader}>
-            <ThemedText style={[styles.historyTitle, { color: colors.text }]}>Recent</ThemedText>
-            <Pressable onPress={clearSearchHistory}>
-              <ThemedText style={styles.clearHistoryText}>Clear All</ThemedText>
-            </Pressable>
-          </View>
-          {searchHistory.map((query) => (
-            <Pressable key={query} onPress={() => handleHistoryTap(query)} style={styles.historyItem}>
-              <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
-              <ThemedText style={[styles.historyText, { color: colors.text }]} numberOfLines={1}>{query}</ThemedText>
-              <Pressable onPress={() => setSearchHistory(prev => prev.filter(h => h !== query))} hitSlop={8}>
-                <Ionicons name="close" size={16} color={colors.textSecondary} />
-              </Pressable>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {/* Search Results */}
-      {isSearchActive ? (
+      <GradientPullRefresh
+        scrollY={scrollY}
+        onRefresh={async () => {
+          if (isSearchActive) {
+            await performSearch(search);
+          } else {
+            await loadTrending(true);
+          }
+        }}
+      >
         <View style={{ flex: 1 }}>
-          <View style={[styles.tabsContainer, { borderBottomColor: colors.border }]}>
-            <Pressable
-              style={[styles.tab, activeTab === 'accounts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-              onPress={() => setActiveTab('accounts')}
-            >
-              <ThemedText style={[styles.tabText, { color: activeTab === 'accounts' ? colors.text : colors.textSecondary }]}>
-                Accounts
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, activeTab === 'tags' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-              onPress={() => setActiveTab('tags')}
-            >
-              <ThemedText style={[styles.tabText, { color: activeTab === 'tags' ? colors.text : colors.textSecondary }]}>
-                Tags
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
-              onPress={() => setActiveTab('posts')}
-            >
-              <ThemedText style={[styles.tabText, { color: activeTab === 'posts' ? colors.text : colors.textSecondary }]}>
-                Posts
-              </ThemedText>
-            </Pressable>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+          <View style={[styles.searchBar, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
+            <Ionicons name="search-outline" size={18} color={isDark ? '#A8A8A8' : '#737373'} style={styles.searchIcon} />
+            <TextInput
+              ref={inputRef}
+              placeholder="Search Instagram"
+              placeholderTextColor={isDark ? '#A8A8A8' : '#737373'}
+              value={search}
+              onChangeText={(v) => { setSearch(v); setShowHistory(true); }}
+              onFocus={() => setShowHistory(true)}
+              onSubmitEditing={handleSubmitSearch}
+              returnKeyType="search"
+              style={[styles.searchInput, { color: colors.text }]}
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => { setSearch(''); setShowHistory(false); }} style={styles.clearSearchButton}>
+                <Ionicons name="close-circle" size={18} color={isDark ? '#A8A8A8' : '#737373'} />
+              </Pressable>
+            )}
           </View>
+        </View>
 
-          {searchLoading ? (
-            <View style={styles.loadingContainer}><ActivityIndicator size="small" color={colors.primary} /></View>
-          ) : activeTab === 'accounts' ? (
-            <FlatList
-              data={userResults}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              renderItem={renderUserItem}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="person-outline" size={40} color={colors.textSecondary} />
-                  <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No accounts found</ThemedText>
+        {/* Search History (when focused but no query) */}
+        {showHistory && !isSearchActive && searchHistory.length > 0 && (
+          <View style={styles.historyContainer}>
+            <View style={styles.historyHeader}>
+              <ThemedText style={[styles.historyTitle, { color: colors.text }]}>Recent</ThemedText>
+              <Pressable onPress={clearSearchHistory}>
+                <ThemedText style={styles.clearHistoryText}>Clear All</ThemedText>
+              </Pressable>
+            </View>
+            {searchHistory.map((query) => (
+              <Pressable key={query} onPress={() => handleHistoryTap(query)} style={styles.historyItem}>
+                <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
+                <ThemedText style={[styles.historyText, { color: colors.text }]} numberOfLines={1}>{query}</ThemedText>
+                <Pressable onPress={() => setSearchHistory(prev => prev.filter(h => h !== query))} hitSlop={8}>
+                  <Ionicons name="close" size={16} color={colors.textSecondary} />
+                </Pressable>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {/* Search Results / Content Area */}
+        {isSearchActive ? (
+          <View style={{ flex: 1 }}>
+            <View style={[styles.tabsContainer, { borderBottomColor: colors.border }]}>
+              <Pressable
+                style={[styles.tab, activeTab === 'accounts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                onPress={() => setActiveTab('accounts')}
+              >
+                <ThemedText style={[styles.tabText, { color: activeTab === 'accounts' ? colors.text : colors.textSecondary }]}>
+                  Accounts
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, activeTab === 'tags' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                onPress={() => setActiveTab('tags')}
+              >
+                <ThemedText style={[styles.tabText, { color: activeTab === 'tags' ? colors.text : colors.textSecondary }]}>
+                  Tags
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                onPress={() => setActiveTab('posts')}
+              >
+                <ThemedText style={[styles.tabText, { color: activeTab === 'posts' ? colors.text : colors.textSecondary }]}>
+                  Posts
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            {searchLoading ? (
+              <View style={styles.loadingContainer}><ActivityIndicator size="small" color={colors.primary} /></View>
+            ) : activeTab === 'accounts' ? (
+              <FlatList
+                data={userResults}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContent}
+                renderItem={renderUserItem}
+                onScroll={(e) => {
+                  scrollY.value = e.nativeEvent.contentOffset.y;
+                }}
+                scrollEventThrottle={16}
+                bounces={false}
+                overScrollMode="never"
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="person-outline" size={40} color={colors.textSecondary} />
+                    <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No accounts found</ThemedText>
+                  </View>
+                }
+              />
+            ) : activeTab === 'tags' ? (
+              <FlatList
+                data={tagResults}
+                keyExtractor={(item) => item.id || item.tag}
+                contentContainerStyle={styles.listContent}
+                renderItem={renderTagItem}
+                onScroll={(e) => {
+                  scrollY.value = e.nativeEvent.contentOffset.y;
+                }}
+                scrollEventThrottle={16}
+                bounces={false}
+                overScrollMode="never"
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="pricetag-outline" size={40} color={colors.textSecondary} />
+                    <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No tags found</ThemedText>
+                  </View>
+                }
+              />
+            ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.scrollContent}
+                onScroll={(e) => {
+                  scrollY.value = e.nativeEvent.contentOffset.y;
+                }}
+                scrollEventThrottle={16}
+                bounces={false}
+                overScrollMode="never"
+              >
+                <View style={styles.gridContainer}>
+                  {postResults.map((post, index) => renderGridItem(post, index))}
                 </View>
-              }
-            />
-          ) : activeTab === 'tags' ? (
-            <FlatList
-              data={tagResults}
-              keyExtractor={(item) => item.id || item.tag}
-              contentContainerStyle={styles.listContent}
-              renderItem={renderTagItem}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="pricetag-outline" size={40} color={colors.textSecondary} />
-                  <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No tags found</ThemedText>
-                </View>
-              }
-            />
+                {postResults.length === 0 && (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
+                    <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No posts found</ThemedText>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
+          /* Explore Grid with Trending Content */
+          loading && trending.length === 0 ? (
+            <ExploreSkeleton />
           ) : (
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.scrollContent}
+              onScroll={(e) => {
+                scrollY.value = e.nativeEvent.contentOffset.y;
+              }}
+              scrollEventThrottle={16}
+              bounces={false}
+              overScrollMode="never"
+            >
+              {/* Section Header */}
+              <Animated.View entering={FadeInDown.duration(250)} style={styles.sectionHeader}>
+                <View>
+                  <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>Trending</ThemedText>
+                  <ThemedText style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+                    Popular content from the Instagram community
+                  </ThemedText>
+                </View>
+              </Animated.View>
+
+              {/* Trending Grid */}
               <View style={styles.gridContainer}>
-                {postResults.map((post, index) => renderGridItem(post, index))}
+                {trending.map((item, index) => renderGridItem(item, index))}
               </View>
-              {postResults.length === 0 && (
+
+              {trending.length === 0 && !loading && (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
-                  <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No posts found</ThemedText>
+                  <Ionicons name="compass-outline" size={48} color={colors.textSecondary} />
+                  <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No trending content yet</ThemedText>
                 </View>
               )}
             </ScrollView>
-          )}
+          )
+        )}
         </View>
-      ) : (
-        /* Explore Grid with Trending Content */
-        loading && trending.length === 0 ? (
-          <ExploreSkeleton />
-        ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadTrending(true)} tintColor={colors.text} />}
-          >
-            {/* Section Header */}
-            <Animated.View entering={FadeInDown.duration(250)} style={styles.sectionHeader}>
-              <View>
-                <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>Trending</ThemedText>
-                <ThemedText style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-                  Popular content from the Instagram community
-                </ThemedText>
-              </View>
-            </Animated.View>
-
-            {/* Trending Grid */}
-            <View style={styles.gridContainer}>
-              {trending.map((item, index) => renderGridItem(item, index))}
-            </View>
-
-            {trending.length === 0 && !loading && (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="compass-outline" size={48} color={colors.textSecondary} />
-                <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No trending content yet</ThemedText>
-              </View>
-            )}
-          </ScrollView>
-        )
-      )}
+      </GradientPullRefresh>
 
       {/* Post Detail Modal */}
       {selectedPost && (
@@ -473,6 +524,17 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    height: 56,
+    borderBottomWidth: 0.5,
+  },
+  headerTitle: {
+    fontFamily: Fonts.bold,
+  },
   searchContainer: { paddingHorizontal: 15, paddingVertical: 10 },
   searchBar: { flexDirection: 'row', alignItems: 'center', height: 40, borderRadius: 12, paddingHorizontal: 14 },
   searchIcon: { marginRight: 8 },

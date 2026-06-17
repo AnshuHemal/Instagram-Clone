@@ -7,7 +7,6 @@ import {
   Pressable,
   Image,
   ScrollView,
-  RefreshControl,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +19,8 @@ import { api } from '@/services/api';
 import { useSocket } from '@/contexts/SocketContext';
 import { NewMessageBottomSheet } from '@/components/NewMessageBottomSheet';
 import { MOCK_STORIES } from '@/constants/mockData';
+import { useSharedValue } from 'react-native-reanimated';
+import { GradientPullRefresh } from '@/components/GradientPullRefresh';
 
 interface Partner {
   id: string;
@@ -44,6 +45,7 @@ export default function InboxScreen() {
   const { colors, isDark } = useTheme();
   const { setPagerScrollEnabled } = useTabPager();
   const { socket, onlineUsers } = useSocket();
+  const scrollY = useSharedValue(0);
 
   const [search, setSearch] = useState('');
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -175,44 +177,123 @@ export default function InboxScreen() {
         </Pressable>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBar, { backgroundColor: isDark ? '#121212' : '#F0F0F0' }]}>
-          <Ionicons
-            name="search-outline"
-            size={18}
-            color={isDark ? '#8E8E8F' : '#8E8E8F'}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            placeholder="Search"
-            placeholderTextColor={isDark ? '#8E8E8F' : '#8E8E8F'}
-            value={search}
-            onChangeText={setSearch}
-            style={[styles.searchInput, { color: colors.text }]}
-          />
-        </View>
-      </View>
+      <GradientPullRefresh
+        scrollY={scrollY}
+        onRefresh={async () => {
+          await fetchConversations(false);
+        }}
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0064E0" />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredChats}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={
+              <View>
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                  <View style={[styles.searchBar, { backgroundColor: isDark ? '#121212' : '#F0F0F0' }]}>
+                    <Ionicons
+                      name="search-outline"
+                      size={18}
+                      color={isDark ? '#8E8E8F' : '#8E8E8F'}
+                      style={styles.searchIcon}
+                    />
+                    <TextInput
+                      placeholder="Search"
+                      placeholderTextColor={isDark ? '#8E8E8F' : '#8E8E8F'}
+                      value={search}
+                      onChangeText={setSearch}
+                      style={[styles.searchInput, { color: colors.text }]}
+                    />
+                  </View>
+                </View>
 
-      {/* Active Users Horizontal Scroll */}
-      <View style={[styles.activeUsersSection, { borderBottomColor: colors.border }]}>
-        <View
-          onStartShouldSetResponderCapture={() => {
-            setPagerScrollEnabled(false);
-            return false;
-          }}
-          onTouchEnd={() => setPagerScrollEnabled(true)}
-          onTouchCancel={() => setPagerScrollEnabled(true)}
-        >
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activeUsersList}
-            nestedScrollEnabled={true}
-          >
-            {onlinePartnersList.length > 0 ? (
-              onlinePartnersList.map((partner) => (
-                <View key={partner.id} style={styles.activeUserContainer}>
+                {/* Active Users Horizontal Scroll */}
+                <View style={[styles.activeUsersSection, { borderBottomColor: colors.border }]}>
+                  <View
+                    onStartShouldSetResponderCapture={() => {
+                      setPagerScrollEnabled(false);
+                      return false;
+                    }}
+                    onTouchEnd={() => setPagerScrollEnabled(true)}
+                    onTouchCancel={() => setPagerScrollEnabled(true)}
+                  >
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.activeUsersList}
+                      nestedScrollEnabled={true}
+                    >
+                      {onlinePartnersList.length > 0 ? (
+                        onlinePartnersList.map((partner) => (
+                          <View key={partner.id} style={styles.activeUserContainer}>
+                            <View style={styles.avatarWrapper}>
+                              <Image
+                                source={{
+                                  uri:
+                                    partner.avatarUrl ||
+                                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                                }}
+                                style={styles.activeAvatar}
+                              />
+                              <View style={[styles.onlineDot, { borderColor: colors.background }]} />
+                            </View>
+                            <ThemedText
+                              type="small"
+                              numberOfLines={1}
+                              style={[styles.activeUsername, { color: colors.textSecondary }]}
+                            >
+                              {partner.username}
+                            </ThemedText>
+                          </View>
+                        ))
+                      ) : (
+                        // Fallback to MOCK_STORIES if no active conversations are online
+                        MOCK_STORIES.map((story) => (
+                          <View key={story.id} style={styles.activeUserContainer}>
+                            <View style={styles.avatarWrapper}>
+                              <Image source={{ uri: story.avatar }} style={styles.activeAvatar} />
+                              <View style={[styles.onlineDot, { borderColor: colors.background }]} />
+                            </View>
+                            <ThemedText
+                              type="small"
+                              numberOfLines={1}
+                              style={[styles.activeUsername, { color: colors.textSecondary }]}
+                            >
+                              {story.username}
+                            </ThemedText>
+                          </View>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+            }
+            onScroll={(e) => {
+              scrollY.value = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+            bounces={false}
+            overScrollMode="never"
+            renderItem={({ item }) => {
+              const partner = item.partner;
+              if (!partner) return null;
+
+              const isOnline = getPartnerPresence(item);
+
+              return (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/(chat)/[id]', params: { id: item.id } })}
+                  style={({ pressed }) => [
+                    styles.chatItem,
+                    pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' },
+                  ]}
+                >
                   <View style={styles.avatarWrapper}>
                     <Image
                       source={{
@@ -220,116 +301,49 @@ export default function InboxScreen() {
                           partner.avatarUrl ||
                           'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
                       }}
-                      style={styles.activeAvatar}
+                      style={styles.chatAvatar}
                     />
-                    <View style={[styles.onlineDot, { borderColor: colors.background }]} />
+                    {isOnline && <View style={[styles.onlineDot, { borderColor: colors.background }]} />}
                   </View>
-                  <ThemedText
-                    type="small"
-                    numberOfLines={1}
-                    style={[styles.activeUsername, { color: colors.textSecondary }]}
-                  >
-                    {partner.username}
-                  </ThemedText>
-                </View>
-              ))
-            ) : (
-              // Fallback to MOCK_STORIES if no active conversations are online
-              MOCK_STORIES.map((story) => (
-                <View key={story.id} style={styles.activeUserContainer}>
-                  <View style={styles.avatarWrapper}>
-                    <Image source={{ uri: story.avatar }} style={styles.activeAvatar} />
-                    <View style={[styles.onlineDot, { borderColor: colors.background }]} />
+                  <View style={styles.chatDetails}>
+                    <ThemedText type="smallBold" style={{ color: colors.text }}>
+                      {partner.displayName || partner.username}
+                    </ThemedText>
+                    <ThemedText
+                      type="small"
+                      numberOfLines={1}
+                      style={[
+                        styles.lastMessageText,
+                        { color: item.unreadCount > 0 ? colors.text : colors.textSecondary },
+                        item.unreadCount > 0 && { fontWeight: 'bold' },
+                      ]}
+                    >
+                      {item.lastMessage || 'No messages yet'}
+                    </ThemedText>
                   </View>
-                  <ThemedText
-                    type="small"
-                    numberOfLines={1}
-                    style={[styles.activeUsername, { color: colors.textSecondary }]}
-                  >
-                    {story.username}
-                  </ThemedText>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
-      </View>
-
-      {/* Chat List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0064E0" />
-        </View>
-      ) : (
-        <FlatList
-          data={filteredChats}
-          keyExtractor={(item) => item.id}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0064E0" />
-          }
-          renderItem={({ item }) => {
-            const partner = item.partner;
-            if (!partner) return null;
-
-            const isOnline = getPartnerPresence(item);
-
-            return (
-              <Pressable
-                onPress={() => router.push({ pathname: '/(chat)/[id]', params: { id: item.id } })}
-                style={({ pressed }) => [
-                  styles.chatItem,
-                  pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F2F2F7' },
-                ]}
-              >
-                <View style={styles.avatarWrapper}>
-                  <Image
-                    source={{
-                      uri:
-                        partner.avatarUrl ||
-                        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                    }}
-                    style={styles.chatAvatar}
-                  />
-                  {isOnline && <View style={[styles.onlineDot, { borderColor: colors.background }]} />}
-                </View>
-                <View style={styles.chatDetails}>
-                  <ThemedText type="smallBold" style={{ color: colors.text }}>
-                    {partner.displayName || partner.username}
-                  </ThemedText>
-                  <ThemedText
-                    type="small"
-                    numberOfLines={1}
-                    style={[
-                      styles.lastMessageText,
-                      { color: item.unreadCount > 0 ? colors.text : colors.textSecondary },
-                      item.unreadCount > 0 && { fontWeight: 'bold' },
-                    ]}
-                  >
-                    {item.lastMessage || 'No messages yet'}
-                  </ThemedText>
-                </View>
-                <View style={styles.chatMeta}>
-                  <ThemedText type="small" style={[styles.metaTime, { color: colors.textSecondary }]}>
-                    {formatLastMessageTime(item.lastMessageTime)}
-                  </ThemedText>
-                  {item.unreadCount > 0 && (
-                    <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-                      <ThemedText type="smallBold" style={styles.unreadText}>
-                        {item.unreadCount}
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-              </Pressable>
-            );
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <ThemedText style={{ color: colors.textSecondary }}>No messages found.</ThemedText>
-            </View>
-          }
-        />
-      )}
+                  <View style={styles.chatMeta}>
+                    <ThemedText type="small" style={[styles.metaTime, { color: colors.textSecondary }]}>
+                      {formatLastMessageTime(item.lastMessageTime)}
+                    </ThemedText>
+                    {item.unreadCount > 0 && (
+                      <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+                        <ThemedText type="smallBold" style={styles.unreadText}>
+                          {item.unreadCount}
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <ThemedText style={{ color: colors.textSecondary }}>No messages found.</ThemedText>
+              </View>
+            }
+          />
+        )}
+      </GradientPullRefresh>
 
       {/* Compose Message Bottom Sheet */}
       <NewMessageBottomSheet

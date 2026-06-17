@@ -37,8 +37,9 @@ import Animated, {
   SharedValue as ReanimatedSharedValue,
 } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTheme } from '@/contexts/ThemeContext';
+import { GradientPullRefresh } from '@/components/GradientPullRefresh';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ProfileSkeleton } from '@/components/Skeleton';
@@ -62,64 +63,7 @@ import { useSaved } from '@/contexts/SavedContext';
 import { StoryPlayerModal } from '@/components/StoryPlayerModal';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const PullToRefreshSpinner = ({
-  progress,
-  size = 38,
-  isDark,
-}: {
-  progress: SharedValue<number>;
-  size?: number;
-  isDark: boolean;
-}) => {
-  const strokeWidth = 3;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  const animatedProps = useAnimatedProps(() => {
-    const strokeDashoffset = circumference * (1 - Math.min(1, progress.value));
-    return {
-      strokeDashoffset,
-    };
-  });
-
-  return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <Defs>
-        <LinearGradient id="instaRefreshGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#4F5BD5" />
-          <Stop offset="35%" stopColor="#962FBF" />
-          <Stop offset="65%" stopColor="#D62976" />
-          <Stop offset="100%" stopColor="#FA7E1E" />
-        </LinearGradient>
-      </Defs>
-      {/* Background circle outline */}
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={isDark ? '#3A3A3C' : '#E5E5E5'}
-        strokeWidth={strokeWidth}
-        opacity={isDark ? 0.3 : 0.6}
-        fill="none"
-      />
-      {/* Animated drawing circle */}
-      <AnimatedCircle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke="url(#instaRefreshGrad)"
-        strokeWidth={strokeWidth}
-        strokeDasharray={circumference}
-        animatedProps={animatedProps}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        fill="none"
-      />
-    </Svg>
-  );
-};
 import { Fonts } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -425,12 +369,7 @@ export default function ProfileScreen() {
   const viewPagerRef = useRef<Animated.ScrollView>(null);
   const viewPagerScrollX = useSharedValue(0);
 
-  // ── Pull-to-refresh state ──
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const isRefreshingShared = useSharedValue(false);
-  const refreshProgress = useSharedValue(0);
-  const spinValue = useSharedValue(0);
-  const refreshBarHeight = useSharedValue(0);
+
 
   // Fetch other user's profile
   useEffect(() => {
@@ -695,86 +634,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // Gesture detection values
-  const PULL_THRESHOLD = 80;
-  const startX = useSharedValue(0);
-  const startY = useSharedValue(0);
-  const dragY = useSharedValue(0);
-  const gestureActive = useSharedValue(false);
 
-  const handleRefresh = useCallback(async () => {
-    if (isRefreshingShared.value) return;
-    isRefreshingShared.value = true;
-    setIsRefreshing(true);
-
-    // Open animated bar and start spinner
-    refreshBarHeight.value = withSpring(64, { damping: 14, stiffness: 180 });
-    refreshProgress.value  = withTiming(1, { duration: 250 });
-    spinValue.value = 0;
-    spinValue.value = withRepeat(
-      withTiming(360, { duration: 600, easing: Easing.linear }),
-      -1,
-      false
-    );
-
-    // Fetch fresh profile data & user media from API
-    try {
-      await Promise.all([
-        refreshProfile(),
-        fetchUserMedia(),
-      ]);
-    } catch (_) {
-      // silently swallow
-    }
-
-    // Collapse bar
-    refreshBarHeight.value = withTiming(0, { duration: 250, easing: Easing.out(Easing.quad) });
-    refreshProgress.value  = withTiming(0, { duration: 200 });
-    spinValue.value        = 0;
-    isRefreshingShared.value = false;
-    runOnJS(setIsRefreshing)(false);
-  }, [refreshProfile, fetchUserMedia]);
-
-  // Pan gesture — purely for pull detection, does NOT translate ScrollView
-  const panGesture = Gesture.Pan()
-    .manualActivation(true)
-    .onTouchesDown((e) => {
-      startX.value = e.changedTouches[0].x;
-      startY.value = e.changedTouches[0].y;
-      dragY.value = 0;
-      gestureActive.value = false;
-    })
-    .onTouchesMove((e, state) => {
-      if (gestureActive.value) return; // already active, let onUpdate handle it
-      const dx = Math.abs(e.changedTouches[0].x - startX.value);
-      const dy = e.changedTouches[0].y - startY.value;
-
-      // Fail immediately on horizontal gestures to allow child horizontal scrolling
-      if (dx > 10 && dx > Math.abs(dy)) {
-        state.fail();
-        return;
-      }
-
-      if (scrollY.value <= 0 && dy > 8 && !isRefreshingShared.value) {
-        gestureActive.value = true;
-        state.activate();
-      } else if (scrollY.value > 0 || dy < -5) {
-        state.fail();
-      }
-    })
-    .onUpdate((e) => {
-      if (!isRefreshingShared.value) {
-        dragY.value = Math.max(0, e.translationY);
-      }
-    })
-    .onEnd(() => {
-      const pulled = dragY.value;
-      dragY.value = 0;
-      gestureActive.value = false;
-      if (pulled > PULL_THRESHOLD && !isRefreshingShared.value) {
-        runOnJS(handleRefresh)();
-      }
-    });
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -881,29 +741,7 @@ export default function ProfileScreen() {
     );
   }
 
-  // ── Animated styles ──
-  const pullProgress = useDerivedValue(() => refreshProgress.value);
 
-  const refreshBarAnimStyle = useAnimatedStyle(() => ({
-    height: isRefreshingShared.value
-      ? refreshBarHeight.value
-      : Math.min(refreshBarHeight.value, dragY.value * 0.55),
-    overflow: 'hidden' as const,
-  }));
-
-  const spinnerAnimStyle = useAnimatedStyle(() => {
-    const h = isRefreshingShared.value ? refreshBarHeight.value : dragY.value * 0.55;
-    const opacity = interpolate(h, [0, 40], [0, 1], Extrapolation.CLAMP);
-    const scale  = interpolate(h, [0, 44], [0.5, 1], Extrapolation.CLAMP);
-    const dragRot = !isRefreshingShared.value ? interpolate(dragY.value, [0, PULL_THRESHOLD], [0, 360], Extrapolation.CLAMP) : 0;
-    return {
-      opacity,
-      transform: [
-        { scale },
-        { rotate: `${isRefreshingShared.value ? spinValue.value : dragRot}deg` },
-      ],
-    };
-  });
 
 
 
@@ -1000,15 +838,17 @@ export default function ProfileScreen() {
         )}
       </Animated.View>
 
-      {/* ── Refresh bar (between header and content) ── */}
-      <Animated.View style={[styles.refreshBackgroundBar, refreshBarAnimStyle]}>
-        <Animated.View style={[styles.pullSpinnerContainer, spinnerAnimStyle]}>
-          <PullToRefreshSpinner progress={pullProgress} isDark={isDark} />
-        </Animated.View>
-      </Animated.View>
-
-      {/* ── Scrollable body (GestureDetector for pull-down detection only) ── */}
-      <GestureDetector gesture={panGesture}>
+      <GradientPullRefresh
+        scrollY={scrollY}
+        onRefresh={async () => {
+          try {
+            await Promise.all([
+              refreshProfile(),
+              fetchUserMedia(),
+            ]);
+          } catch (_) {}
+        }}
+      >
         <Animated.ScrollView
           onScroll={scrollHandler}
           scrollEventThrottle={16}
@@ -1626,7 +1466,7 @@ export default function ProfileScreen() {
           </Animated.ScrollView>
         </View>
       </Animated.ScrollView>
-      </GestureDetector>
+      </GradientPullRefresh>
 
       {/* ── Avatar Action Sheet ── */}
       <AvatarBottomSheet
