@@ -1,359 +1,162 @@
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, Easing, ViewStyle, DimensionValue } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { View, StyleSheet, Animated, Dimensions } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+type SkeletonVariant = 'text' | 'avatar' | 'rect' | 'post' | 'reel' | 'notification' | 'user' | 'grid';
+
 interface SkeletonProps {
-  width: DimensionValue;
-  height: number;
+  variant?: SkeletonVariant;
+  width?: number | string;
+  height?: number | string;
   borderRadius?: number;
-  style?: ViewStyle;
+  style?: any;
+  count?: number;
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
+  variant = 'rect',
   width,
   height,
-  borderRadius = 4,
+  borderRadius,
   style,
+  count = 1,
 }) => {
   const { isDark } = useTheme();
-  const translateX = useRef(new Animated.Value(-200)).current;
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(translateX, {
-        toValue: 200,
-        duration: 1200,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-        useNativeDriver: true,
-      })
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        Animated.timing(shimmerAnim, { toValue: 0, duration: 1200, useNativeDriver: true }),
+      ])
     );
-    animation.start();
-    return () => animation.stop();
+    loop.start();
+    return () => loop.stop();
   }, []);
 
   const baseColor = isDark ? '#1C1C1E' : '#F0F0F0';
-  const shineColor = isDark ? '#2C2C2E' : '#E5E5E5';
+  const highlightColor = isDark ? '#2C2C2E' : '#E0E0E0';
 
-  return (
-    <View
-      style={[
-        styles.container,
-        {
-          width,
-          height,
-          borderRadius,
-          backgroundColor: baseColor,
-          overflow: 'hidden',
-        },
-        style,
-      ]}
-    >
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { transform: [{ translateX }] },
-        ]}
-        pointerEvents="none"
-      >
-        <LinearGradient
-          colors={[
-            'transparent',
-            'transparent',
-            shineColor,
-            'transparent',
-            'transparent',
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-    </View>
+  const animatedBg = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [baseColor, highlightColor],
+  });
+
+  const ShimmerView: React.FC<{ style: any; children?: React.ReactNode }> = ({ style, children }) => (
+    <Animated.View style={[style, { backgroundColor: animatedBg }]}>
+      {children}
+    </Animated.View>
   );
-};
 
-const styles = StyleSheet.create({
-  container: {
-    overflow: 'hidden',
-  },
-});
-
-// ─── Feed Skeleton ────────────────────────────────────────────────────────────
-
-export const FeedSkeleton = ({ showStories = true }: { showStories?: boolean }) => {
-  const { isDark } = useTheme();
-
-  return (
-    <View style={[stylesFeed.container, { backgroundColor: isDark ? '#000' : '#FFF' }]}>
-      {/* Stories row skeleton */}
-      {showStories && (
-        <View style={stylesFeed.storiesRow}>
-          {[...Array(7)].map((_, i) => (
-            <View key={i} style={stylesFeed.storyItem}>
-              <Skeleton width={66} height={66} borderRadius={33} />
-              <Skeleton width={40} height={10} borderRadius={5} style={{ marginTop: 6 }} />
+  const renderVariant = () => {
+    switch (variant) {
+      case 'avatar':
+        return <ShimmerView style={[styles.avatar, { width, height, borderRadius: borderRadius ?? 999 }]} />;
+      case 'text':
+        return <ShimmerView style={[styles.text, { width, height, borderRadius: borderRadius ?? 4 }]} />;
+      case 'post':
+        return (
+          <View style={[styles.postCard, style]}>
+            <View style={styles.postHeader}>
+              <ShimmerView style={styles.avatar} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <ShimmerView style={{ width: '60%', height: 12, marginBottom: 6, borderRadius: 4 }} />
+                <ShimmerView style={{ width: '40%', height: 10, borderRadius: 4 }} />
+              </View>
             </View>
-          ))}
-        </View>
-      )}
-
-      {/* Post skeleton 1 */}
-      <PostSkeleton />
-
-      {/* Post skeleton 2 */}
-      <PostSkeleton />
-    </View>
-  );
-};
-
-const PostSkeleton = () => {
-  const { isDark } = useTheme();
-
-  return (
-    <View style={[stylesFeed.postCard, { borderBottomColor: isDark ? '#262626' : '#EFEFEF' }]}>
-      {/* Header */}
-      <View style={stylesFeed.postHeader}>
-        <View style={stylesFeed.postHeaderLeft}>
-          <Skeleton width={34} height={34} borderRadius={17} />
-          <View style={stylesFeed.postHeaderText}>
-            <Skeleton width={90} height={12} borderRadius={6} />
-            <Skeleton width={60} height={10} borderRadius={5} style={{ marginTop: 4 }} />
+            <ShimmerView style={{ width: '100%', aspectRatio: 1, borderRadius: 0 }} />
+            <View style={styles.postActions}>
+              {[0, 1, 2].map((i) => <ShimmerView key={i} style={{ width: 24, height: 24, borderRadius: 12 }} />)}
+            </View>
           </View>
-        </View>
-        <Skeleton width={20} height={20} borderRadius={10} />
-      </View>
-
-      {/* Image */}
-      <Skeleton width="100%" height={400} borderRadius={0} />
-
-      {/* Actions */}
-      <View style={stylesFeed.postActions}>
-        <View style={stylesFeed.postActionsLeft}>
-          <Skeleton width={26} height={26} borderRadius={13} />
-          <Skeleton width={26} height={26} borderRadius={13} />
-          <Skeleton width={26} height={26} borderRadius={13} />
-        </View>
-        <Skeleton width={26} height={26} borderRadius={13} />
-      </View>
-
-      {/* Likes */}
-      <Skeleton width={80} height={12} borderRadius={6} style={{ marginHorizontal: 14, marginBottom: 6 }} />
-
-      {/* Caption */}
-      <View style={stylesFeed.postCaption}>
-        <Skeleton width={70} height={12} borderRadius={6} />
-        <Skeleton width="85%" height={12} borderRadius={6} style={{ marginTop: 4 }} />
-        <Skeleton width="60%" height={12} borderRadius={6} style={{ marginTop: 4 }} />
-      </View>
-
-      {/* Comments */}
-      <Skeleton width={100} height={11} borderRadius={5} style={{ marginHorizontal: 14, marginTop: 6 }} />
-      <Skeleton width={60} height={10} borderRadius={5} style={{ marginHorizontal: 14, marginTop: 4, marginBottom: 12 }} />
-    </View>
-  );
-};
-
-const stylesFeed = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  storiesRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    gap: 15,
-  },
-  storyItem: {
-    alignItems: 'center',
-    width: 70,
-  },
-  postCard: {
-    borderBottomWidth: 0.5,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  postHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  postHeaderText: {
-    gap: 2,
-  },
-  postActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 10,
-  },
-  postActionsLeft: {
-    flexDirection: 'row',
-    gap: 14,
-  },
-  postCaption: {
-    paddingHorizontal: 14,
-    marginTop: 8,
-  },
-});
-
-// ─── Profile Skeleton ─────────────────────────────────────────────────────────
-
-export const ProfileSkeleton = () => {
-  const { isDark } = useTheme();
-
-  return (
-    <View style={[stylesProfile.container, { backgroundColor: isDark ? '#000' : '#FFF' }]}>
-      {/* Header */}
-      <View style={stylesProfile.header}>
-        <Skeleton width={40} height={40} borderRadius={20} />
-        <Skeleton width={120} height={18} borderRadius={9} />
-        <View style={stylesProfile.headerRight}>
-          <Skeleton width={40} height={40} borderRadius={20} />
-          <Skeleton width={40} height={40} borderRadius={20} />
-        </View>
-      </View>
-
-      {/* Profile Info */}
-      <View style={stylesProfile.profileInfo}>
-        <Skeleton width={86} height={86} borderRadius={43} />
-        <View style={stylesProfile.statsRow}>
-          <View style={stylesProfile.statBox}>
-            <Skeleton width={36} height={18} borderRadius={9} />
-            <Skeleton width={40} height={12} borderRadius={6} style={{ marginTop: 4 }} />
+        );
+      case 'reel':
+        return (
+          <View style={[styles.reelCard, style]}>
+            <ShimmerView style={{ width: '100%', aspectRatio: 9/16, borderRadius: 0 }} />
+            <View style={{ padding: 8 }}>
+              <ShimmerView style={{ width: '80%', height: 12, marginBottom: 6, borderRadius: 4 }} />
+              <ShimmerView style={{ width: '50%', height: 10, borderRadius: 4 }} />
+            </View>
           </View>
-          <View style={stylesProfile.statBox}>
-            <Skeleton width={36} height={18} borderRadius={9} />
-            <Skeleton width={50} height={12} borderRadius={6} style={{ marginTop: 4 }} />
+        );
+      case 'notification':
+        return (
+          <View style={[styles.notificationCard, style]}>
+            <View style={styles.notifLeft}>
+              <ShimmerView style={styles.avatar} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <ShimmerView style={{ width: '90%', height: 12, marginBottom: 6, borderRadius: 4 }} />
+                <ShimmerView style={{ width: '60%', height: 10, borderRadius: 4 }} />
+              </View>
+            </View>
+            <ShimmerView style={{ width: 44, height: 44, borderRadius: 4 }} />
           </View>
-          <View style={stylesProfile.statBox}>
-            <Skeleton width={36} height={18} borderRadius={9} />
-            <Skeleton width={50} height={12} borderRadius={6} style={{ marginTop: 4 }} />
+        );
+      case 'user':
+        return (
+          <View style={[styles.userCard, style]}>
+            <ShimmerView style={styles.avatar} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <ShimmerView style={{ width: '70%', height: 13, marginBottom: 5, borderRadius: 4 }} />
+              <ShimmerView style={{ width: '50%', height: 11, borderRadius: 4 }} />
+            </View>
+            <ShimmerView style={{ width: 70, height: 30, borderRadius: 8 }} />
           </View>
-        </View>
-      </View>
+        );
+      case 'grid':
+        return <ShimmerView style={{ width, height, borderRadius: borderRadius ?? 2 }} />;
+      case 'rect':
+      default:
+        return <ShimmerView style={{ width, height, borderRadius: borderRadius ?? 4 }} />;
+    }
+  };
 
-      {/* Bio */}
-      <View style={stylesProfile.bioBlock}>
-        <Skeleton width={100} height={14} borderRadius={7} />
-        <Skeleton width="90%" height={12} borderRadius={6} style={{ marginTop: 6 }} />
-        <Skeleton width="70%" height={12} borderRadius={6} style={{ marginTop: 4 }} />
-      </View>
-
-      {/* Action Buttons */}
-      <View style={stylesProfile.actionRow}>
-        <Skeleton width="45%" height={34} borderRadius={10} />
-        <Skeleton width="45%" height={34} borderRadius={10} />
-        <Skeleton width={36} height={34} borderRadius={10} />
-      </View>
-
-      {/* Tabs */}
-      <View style={stylesProfile.tabsRow}>
-        <Skeleton width={30} height={22} borderRadius={4} />
-        <Skeleton width={30} height={22} borderRadius={4} />
-        <Skeleton width={30} height={22} borderRadius={4} />
-      </View>
-
-      {/* Grid */}
-      <View style={stylesProfile.grid}>
-        {[...Array(9)].map((_, i) => (
-          <Skeleton key={i} width={GRID_SIZE} height={GRID_SIZE} borderRadius={0} />
+  if (count > 1 && ['post', 'reel', 'notification', 'user'].includes(variant)) {
+    return (
+      <View style={style}>
+        {Array.from({ length: count }).map((_, i) => (
+          <View key={i} style={{ marginBottom: i < count - 1 ? 12 : 0 }}>{renderVariant()}</View>
         ))}
       </View>
-    </View>
-  );
+    );
+  }
+
+  return renderVariant();
 };
 
-const GRID_SIZE = (require('react-native').Dimensions.get('window').width) / 3;
-
-const stylesProfile = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 50,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  profileInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 16,
-    gap: 20,
-  },
-  statsRow: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-evenly',
-  },
-  statBox: {
-    alignItems: 'center',
-  },
-  bioBlock: {
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 14,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 0.5,
-    borderBottomWidth: 0.5,
-    height: 44,
-    alignItems: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-});
-
-// ─── Explore Skeleton ─────────────────────────────────────────────────────────
-
-const { width: SCREEN_WIDTH } = require('react-native').Dimensions;
-const GRID_ITEM_SIZE = SCREEN_WIDTH / 3;
-
-export const ExploreSkeleton = () => {
-  const { isDark } = useTheme();
-
-  return (
-    <View style={[stylesExplore.container, { backgroundColor: isDark ? '#000' : '#FFF' }]}>
-      {/* Search bar skeleton */}
-      <View style={stylesExplore.searchRow}>
-        <Skeleton width="100%" height={36} borderRadius={10} />
+export const FeedSkeleton: React.FC<{ count?: number }> = ({ count = 3 }) => (
+  <View style={{ paddingVertical: 8 }}>
+    {Array.from({ length: count }).map((_, i) => (
+      <View key={i} style={{ marginBottom: 12 }}>
+        <Skeleton variant="post" />
       </View>
+    ))}
+  </View>
+);
 
-      {/* Grid skeleton */}
-      <View style={stylesExplore.grid}>
-        {[...Array(12)].map((_, i) => {
+export const ExploreSkeleton: React.FC = () => {
+  const items = Array.from({ length: 12 });
+  return (
+    <View style={{ paddingHorizontal: 0.5, paddingTop: 8 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', width: SCREEN_WIDTH }}>
+        {items.map((_, i) => {
           const modulo = i % 10;
           const isLarge = modulo === 2 || modulo === 7;
           return (
-            <Skeleton
+            <View
               key={i}
-              width={isLarge ? GRID_ITEM_SIZE * 2 : GRID_ITEM_SIZE}
-              height={isLarge ? GRID_ITEM_SIZE * 2 : GRID_ITEM_SIZE}
-              borderRadius={0}
-            />
+              style={{
+                width: isLarge ? SCREEN_WIDTH / 3 * 2 : SCREEN_WIDTH / 3,
+                height: isLarge ? SCREEN_WIDTH / 3 * 2 : SCREEN_WIDTH / 3,
+                padding: 0.5,
+              }}
+            >
+              <Skeleton variant="grid" width="100%" height="100%" />
+            </View>
           );
         })}
       </View>
@@ -361,16 +164,41 @@ export const ExploreSkeleton = () => {
   );
 };
 
-const stylesExplore = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  searchRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+export const NotificationsSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) => (
+  <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+    {Array.from({ length: count }).map((_, i) => (
+      <View key={i} style={{ marginBottom: 8 }}>
+        <Skeleton variant="notification" />
+      </View>
+    ))}
+  </View>
+);
+
+export const ProfileSkeleton: React.FC = () => (
+  <View style={{ padding: 16 }}>
+    <View style={{ alignItems: 'center', marginBottom: 20 }}>
+      <Skeleton variant="avatar" width={80} height={80} />
+      <View style={{ marginTop: 10, alignItems: 'center' }}>
+        <Skeleton variant="text" width={120} height={16} style={{ marginBottom: 6 }} />
+        <Skeleton variant="text" width={80} height={12} />
+      </View>
+    </View>
+    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+      {[0, 1, 2].map((i) => <Skeleton key={i} variant="rect" width={SCREEN_WIDTH / 3 - 8} height={36} borderRadius={8} />)}
+    </View>
+    <FeedSkeleton count={2} />
+  </View>
+);
+
+const styles = StyleSheet.create({
+  avatar: { width: 40, height: 40, borderRadius: 20 },
+  text: { height: 12, borderRadius: 4 },
+  rect: { borderRadius: 4 },
+  postCard: { width: '100%', paddingBottom: 12 },
+  postHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+  postActions: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, gap: 14 },
+  reelCard: { width: SCREEN_WIDTH / 2 - 4, margin: 2 },
+  notificationCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
+  notifLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  userCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
 });

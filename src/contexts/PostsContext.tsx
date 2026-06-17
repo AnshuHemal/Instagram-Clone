@@ -21,6 +21,14 @@ export interface PostMedia {
   orderIndex: number;
 }
 
+export interface UserInfo {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  isVerified: boolean;
+}
+
 export interface Post {
   id: string;
   userId: string;
@@ -31,14 +39,16 @@ export interface Post {
   createdAt: string;
   isLiked: boolean;
   media: PostMedia[];
-  user: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatarUrl: string;
-    isVerified: boolean;
-  };
+  user: UserInfo;
+  type?: 'post' | 'reel'; // Unified feed includes both
+  // Reel-specific fields (optional)
+  hlsUrl?: string;
+  thumbnailUrl?: string;
+  viewsCount?: string;
+  audioName?: string;
 }
+
+export type FeedType = 'for_you' | 'following';
 
 interface PostsContextType {
   posts: Post[];
@@ -46,8 +56,8 @@ interface PostsContextType {
   isRefreshing: boolean;
   hasMore: boolean;
   cursor: string | null;
-  feedType: 'for_you' | 'following';
-  setFeedType: (type: 'for_you' | 'following') => void;
+  feedType: FeedType;
+  setFeedType: (type: FeedType) => void;
   fetchPosts: (nextCursor?: string | null, refresh?: boolean) => Promise<void>;
   handleLikeToggle: (postId: string) => Promise<void>;
   handleAddComment: (postId: string, text: string) => Promise<any>;
@@ -62,7 +72,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [feedType, setFeedType] = useState<'for_you' | 'following'>('following');
+  const [feedType, setFeedType] = useState<FeedType>('following');
   const fetchingRef = useRef(false);
 
   const fetchPosts = useCallback(async (nextCursor: string | null = null, refresh: boolean = false) => {
@@ -78,7 +88,8 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const activeCursor = refresh ? null : nextCursor;
-      const response = await api.get('/posts/feed', {
+      // Use the new unified feed endpoint
+      const response = await api.get('/feed/unified', {
         params: {
           limit: 10,
           cursor: activeCursor,
@@ -88,17 +99,19 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const { data, meta } = response.data;
       
-      const newPosts: Post[] = data.map((post: any) => ({
-        ...post,
+      const newPosts: Post[] = data.map((item: any) => ({
+        ...item,
         // Ensure standard boolean format for isLiked
-        isLiked: !!post.isLiked,
+        isLiked: !!item.isLiked,
+        likesCount: item.likesCount ?? 0,
+        commentsCount: item.commentsCount ?? 0,
       }));
 
       setPosts((prev) => (refresh ? newPosts : [...prev, ...newPosts]));
       setCursor(meta.nextCursor);
       setHasMore(meta.hasMore);
     } catch (err) {
-      console.error('Failed to fetch posts feed:', err);
+      console.error('Failed to fetch unified feed:', err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -134,16 +147,20 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     try {
-      const response = await api.post(`/posts/${postId}/like`);
+      // Determine if it's a post or reel and use the correct endpoint
+      const isReel = post.type === 'reel';
+      const endpoint = isReel ? `/reels/${postId}/like` : `/posts/${postId}/like`;
+      
+      const response = await api.post(endpoint);
       const { liked, likesCount } = response.data.data;
       
       setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, isLiked: liked, likesCount } : p))
+        prev.map((p) => (p.id === postId ? { ...p, isLiked: liked, likesCount: likesCount ?? p.likesCount } : p))
       );
     } catch (err) {
       // Rollback on fail
       setPosts(originalPosts);
-      console.error(`Failed to toggle like on post ${postId}:`, err);
+      console.error(`Failed to toggle like on ${postId}:`, err);
     }
   }, [posts]);
 
@@ -151,7 +168,12 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!text.trim()) return null;
 
     try {
-      const response = await api.post(`/posts/${postId}/comment`, { text });
+      // Check if it's a post or reel in our current state
+      const post = posts.find(p => p.id === postId);
+      const isReel = post?.type === 'reel';
+      const endpoint = isReel ? `/reels/${postId}/comment` : `/posts/${postId}/comment`;
+
+      const response = await api.post(endpoint, { text });
       const newComment = response.data.data;
 
       // Update comment count on post
@@ -163,20 +185,24 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       return newComment;
     } catch (err) {
-      console.error(`Failed to add comment on post ${postId}:`, err);
+      console.error(`Failed to add comment on ${postId}:`, err);
       throw err;
     }
-  }, []);
+  }, [posts]);
 
   const handleDeletePost = useCallback(async (postId: string) => {
     try {
-      await api.delete(`/posts/${postId}`);
+      const post = posts.find(p => p.id === postId);
+      const isReel = post?.type === 'reel';
+      const endpoint = isReel ? `/reels/${postId}` : `/posts/${postId}`;
+      
+      await api.delete(endpoint);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (err) {
-      console.error(`Failed to delete post ${postId}:`, err);
+      console.error(`Failed to delete ${postId}:`, err);
       throw err;
     }
-  }, []);
+  }, [posts]);
 
   return (
     <PostsContext.Provider

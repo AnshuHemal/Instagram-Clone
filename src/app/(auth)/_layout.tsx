@@ -41,6 +41,8 @@ export default function AuthLayout() {
         options={{ gestureEnabled: false }}
       />
       <Stack.Screen name="forgot" />
+      <Stack.Screen name="notification-preferences" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="hashtag" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }

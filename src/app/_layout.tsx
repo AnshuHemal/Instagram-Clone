@@ -9,7 +9,10 @@ import { LoadingProvider } from '@/contexts/LoadingContext';
 import { ReelsProvider } from '@/contexts/ReelsContext';
 import { PostsProvider } from '@/contexts/PostsContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { NotificationBannerProvider } from '@/contexts/NotificationBannerContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
+import { NotificationBannerBridge } from '@/components/NotificationBannerBridge';
+import { NetworkProvider } from '@/contexts/NetworkContext';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -84,7 +87,11 @@ export default function RootLayout() {
                   <ReelsProvider>
                     <PostsProvider>
                       <ToastProvider>
-                        <RootLayoutContent />
+                        <NetworkProvider>
+                          <NotificationBannerProvider>
+                            <RootLayoutContent />
+                          </NotificationBannerProvider>
+                        </NetworkProvider>
                       </ToastProvider>
                     </PostsProvider>
                   </ReelsProvider>
@@ -118,6 +125,7 @@ function RootLayoutContent() {
 
   return (
     <>
+      <NotificationBannerBridge />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />

@@ -38,6 +38,7 @@ import ExploreScreen from './explore';
 import ProfileScreen from './profile';
 import { TabPagerProvider, useTabPager } from '@/contexts/TabPagerContext';
 import { AccountSwitcherSheet } from '@/components/AccountSwitcherSheet';
+import { haptics } from '@/utils/haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -213,6 +214,7 @@ function TabLayout() {
   }
 
   const handleTabPress = (index: number) => {
+    haptics.onTabSwitch();
     setActiveIndex(index);
     viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
     const routes = ['index', 'reels', 'chat', 'explore', 'profile'];

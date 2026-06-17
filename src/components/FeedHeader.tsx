@@ -10,6 +10,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-na
 import { ThemedText } from '@/components/themed-text';
 import { usePosts } from '@/contexts/PostsContext';
 import { Fonts } from '@/constants/theme';
+import { haptics } from '@/utils/haptics';
 
 export const FeedHeader: React.FC = () => {
   const router = useRouter();
@@ -134,6 +135,7 @@ export const FeedHeader: React.FC = () => {
               <Pressable
                 style={styles.dropdownOption}
                 onPress={() => {
+                  haptics.onButtonPress();
                   setFeedType('for_you');
                   setShowDropdown(false);
                 }}
@@ -151,6 +153,7 @@ export const FeedHeader: React.FC = () => {
               <Pressable
                 style={styles.dropdownOption}
                 onPress={() => {
+                  haptics.onButtonPress();
                   setFeedType('following');
                   setShowDropdown(false);
                 }}

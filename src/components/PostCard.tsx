@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,25 +13,16 @@ import { ThemedText } from '@/components/themed-text';
 import { Post } from '@/contexts/PostsContext';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { useAuth } from '@/contexts/AuthContext';
+import { haptics } from '@/utils/haptics';
 
 const WINDOW_WIDTH = Dimensions.get('window').width;
 
-// Dynamic check for expo-video
+// ─── Inline Video Player ──────────────────────────────────────────────────────
+
 let ExpoVideo: any = null;
 try {
   ExpoVideo = require('expo-video');
 } catch (e) {}
-
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-interface PostCardProps {
-  post: Post;
-  onLikeToggle: (id: string) => void;
-  onBookmarkToggle: (id: string) => void;
-  onAddComment: (postId: string, text: string) => Promise<any>;
-}
-
-// ─── Inline Video Player ──────────────────────────────────────────────────────
 
 const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({
   mediaUrl,
@@ -100,6 +91,15 @@ const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({
   );
 };
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface PostCardProps {
+  post: Post;
+  onLikeToggle: (id: string) => void;
+  onBookmarkToggle: (id: string) => void;
+  onAddComment: (postId: string, text: string) => Promise<any>;
+}
+
 // ─── PostCard ─────────────────────────────────────────────────────────────────
 
 export const PostCard: React.FC<PostCardProps> = ({
@@ -152,6 +152,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   const handleImagePress = () => {
     const now = Date.now();
     if (lastTap && now - lastTap < 300) {
+      haptics.onDoubleTap();
       if (!post.isLiked) {
         onLikeToggle(post.id);
         triggerLikeAnim();
@@ -163,6 +164,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   };
 
   const handleLikePress = () => {
+    haptics.onLike();
     onLikeToggle(post.id);
     triggerLikeAnim();
   };
@@ -188,6 +190,8 @@ export const PostCard: React.FC<PostCardProps> = ({
     post.user?.avatarUrl ??
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
 
+  const isReelCard = post.type === 'reel';
+
   return (
     <View style={[styles.container, { borderBottomColor: colors.border }]}>
 
@@ -208,6 +212,12 @@ export const PostCard: React.FC<PostCardProps> = ({
                   style={{ marginLeft: 3 }}
                 />
               )}
+              {isReelCard && (
+                <View style={styles.reelBadge}>
+                  <Ionicons name="film" size={10} color="#FFFFFF" />
+                  <ThemedText style={styles.reelBadgeText}>Reel</ThemedText>
+                </View>
+              )}
             </View>
             {post.location ? (
               <ThemedText
@@ -224,54 +234,79 @@ export const PostCard: React.FC<PostCardProps> = ({
         </Pressable>
       </View>
 
-      {/* ── Media carousel ── */}
+      {/* ── Media (Reel thumbnail or Post carousel) ── */}
       <View style={styles.carouselWrapper}>
-        <Animated.FlatList
-          data={post.media}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            {
-              useNativeDriver: false,
-              listener: (e: any) => {
-                const idx = Math.round(
-                  e.nativeEvent.contentOffset.x /
-                    e.nativeEvent.layoutMeasurement.width,
-                );
-                if (idx !== activeIndex) setActiveIndex(idx);
-              },
-            },
-          )}
-          renderItem={({ item, index }) => (
-            <Pressable onPress={handleImagePress} style={styles.mediaContainer}>
-              {item.mediaType === 'VIDEO' ? (
-                <VideoItem
-                  mediaUrl={item.mediaUrl}
-                  isActive={index === activeIndex}
-                />
-              ) : (
-                <Image source={{ uri: item.mediaUrl }} style={styles.postImage} />
+        {isReelCard ? (
+          <Pressable onPress={handleImagePress} style={styles.mediaContainer}>
+            <Image
+              source={{ uri: post.thumbnailUrl || post.media?.[0]?.mediaUrl || '' }}
+              style={styles.postImage}
+            />
+            <View style={styles.reelOverlay}>
+              <View style={styles.reelPlayButton}>
+                <Ionicons name="play-circle" size={52} color="#FFFFFF" />
+              </View>
+              {post.viewsCount && (
+                <ThemedText style={styles.reelViewsText}>
+                  {parseInt(post.viewsCount).toLocaleString()} views
+                </ThemedText>
               )}
-            </Pressable>
-          )}
-        />
+            </View>
+          </Pressable>
+        ) : post.media && post.media.length > 0 ? (
+          <Animated.FlatList
+            data={post.media}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              {
+                useNativeDriver: false,
+                listener: (e: any) => {
+                  const idx = Math.round(
+                    e.nativeEvent.contentOffset.x /
+                      e.nativeEvent.layoutMeasurement.width,
+                  );
+                  if (idx !== activeIndex) setActiveIndex(idx);
+                },
+              },
+            )}
+            renderItem={({ item, index }) => (
+              <Pressable onPress={handleImagePress} style={styles.mediaContainer}>
+                {item.mediaType === 'VIDEO' ? (
+                  <VideoItem
+                    mediaUrl={item.mediaUrl}
+                    isActive={index === activeIndex}
+                  />
+                ) : (
+                  <Image source={{ uri: item.mediaUrl }} style={styles.postImage} />
+                )}
+              </Pressable>
+            )}
+          />
+        ) : (
+          <View style={[styles.mediaContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+            <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
+          </View>
+        )}
 
-        {/* Double-tap heart */}
-        <Animated.View
-          style={[
-            styles.doubleTapHeart,
-            { transform: [{ scale: heartScale }], opacity: heartOpacity },
-          ]}
-          pointerEvents="none"
-        >
-          <Ionicons name="heart" size={90} color="#FFFFFF" />
-        </Animated.View>
+        {/* Double-tap heart (only for posts) */}
+        {!isReelCard && (
+          <Animated.View
+            style={[
+              styles.doubleTapHeart,
+              { transform: [{ scale: heartScale }], opacity: heartOpacity },
+            ]}
+            pointerEvents="none"
+          >
+            <Ionicons name="heart" size={90} color="#FFFFFF" />
+          </Animated.View>
+        )}
 
-        {/* Carousel dots */}
-        {post.media.length > 1 && (
+        {/* Carousel dots (only for multi-media posts) */}
+        {!isReelCard && post.media && post.media.length > 1 && (
           <View style={styles.dotsContainer}>
             {post.media.map((_, i) => {
               const range = [
@@ -340,10 +375,11 @@ export const PostCard: React.FC<PostCardProps> = ({
         </Pressable>
       </View>
 
-      {/* ── Likes ── */}
+      {/* ── Likes / Views ── */}
       <View style={styles.likesContainer}>
         <ThemedText type="smallBold" style={{ color: colors.text }}>
           {post.likesCount.toLocaleString()} likes
+          {isReelCard && post.viewsCount ? ` · ${parseInt(post.viewsCount).toLocaleString()} views` : ''}
         </ThemedText>
       </View>
 
@@ -434,6 +470,21 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   moreBtn: { padding: 5 },
+  reelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0095F6',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+    gap: 3,
+  },
+  reelBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   // Media
   carouselWrapper: {
     position: 'relative',
@@ -449,6 +500,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  reelOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  reelPlayButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  reelViewsText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: '600',
   },
   videoPlaceholder: {
     flex: 1,

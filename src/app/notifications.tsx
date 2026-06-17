@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { NotificationItem } from '@/components/NotificationItem';
+import { NotificationsSkeleton } from '@/components/Skeleton';
 import { notificationService, Notification } from '@/services/notifications';
 import { useSocket } from '@/contexts/SocketContext';
 import { Fonts } from '@/constants/theme';
@@ -103,7 +104,7 @@ export default function NotificationsScreen() {
   );
 
   const renderEmpty = () => {
-    if (isLoading) return null;
+    if (isLoading) return <NotificationsSkeleton count={5} />;
     return (
       <Animated.View entering={FadeIn.duration(400)} style={styles.emptyContainer}>
         <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
