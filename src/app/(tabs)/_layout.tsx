@@ -132,7 +132,7 @@ function TabLayout() {
 
     if (targetIndex !== -1 && targetIndex !== activeIndex) {
       setActiveIndex(targetIndex);
-      viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: true });
+      viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: false });
     }
   }, [lastSegment, tabParam]);
 
@@ -218,7 +218,7 @@ function TabLayout() {
   const handleTabPress = (index: number) => {
     haptics.onTabSwitch();
     setActiveIndex(index);
-    viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+    viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: false });
     const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
     router.setParams({ tab: routes[index] });
     // Clear badge when user navigates to the relevant tab
