@@ -9,10 +9,9 @@ import { LoadingProvider } from '@/contexts/LoadingContext';
 import { ReelsProvider } from '@/contexts/ReelsContext';
 import { PostsProvider } from '@/contexts/PostsContext';
 import { ToastProvider } from '@/contexts/ToastContext';
-import { NotificationBannerProvider } from '@/contexts/NotificationBannerContext';
+import { BadgeProvider } from '@/contexts/BadgeContext';
+import { SavedProvider } from '@/contexts/SavedContext';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
-import { NotificationBannerBridge } from '@/components/NotificationBannerBridge';
-import { NetworkProvider } from '@/contexts/NetworkContext';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -24,6 +23,7 @@ import {
   Outfit_600SemiBold,
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
+import { NotificationBannerBridge } from '@/components/NotificationBannerBridge';
 
 // Configure how notifications are displayed while the app is in the foreground
 Notifications.setNotificationHandler({
@@ -86,13 +86,13 @@ export default function RootLayout() {
                 <ThemeProvider>
                   <ReelsProvider>
                     <PostsProvider>
-                      <ToastProvider>
-                        <NetworkProvider>
-                          <NotificationBannerProvider>
+                      <SavedProvider>
+                        <BadgeProvider>
+                          <ToastProvider>
                             <RootLayoutContent />
-                          </NotificationBannerProvider>
-                        </NetworkProvider>
-                      </ToastProvider>
+                          </ToastProvider>
+                        </BadgeProvider>
+                      </SavedProvider>
                     </PostsProvider>
                   </ReelsProvider>
                 </ThemeProvider>
@@ -125,7 +125,6 @@ function RootLayoutContent() {
 
   return (
     <>
-      <NotificationBannerBridge />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
@@ -143,6 +142,22 @@ function RootLayoutContent() {
         <Stack.Screen
           name="edit-profile"
           options={{ animation: 'fade', animationDuration: 200 }}
+        />
+        <Stack.Screen
+          name="post/[id]"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="edit-post/[id]"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="hashtag/[tag]"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
       </Stack>
       <LoadingOverlay />

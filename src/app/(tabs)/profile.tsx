@@ -58,6 +58,7 @@ import { followService, UserProfileResponse } from '@/services/follow';
 import { api } from '@/services/api';
 import { PostCard } from '@/components/PostCard';
 import { ReelItem } from '@/components/ReelItem';
+import { useSaved } from '@/contexts/SavedContext';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -124,7 +125,7 @@ const GRID_ITEM_SIZE = SCREEN_WIDTH / 3;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ProfileTab = 'posts' | 'reels' | 'tagged';
+type ProfileTab = 'posts' | 'reels' | 'tagged' | 'saved';
 
 interface FollowSuggestion {
   id: string;
@@ -328,7 +329,8 @@ const ContentTab = ({
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { userId: viewUserId } = useLocalSearchParams<{ userId?: string }>();
+  const { userId: rawUserId } = useLocalSearchParams<{ userId?: string }>();
+  const viewUserId = (rawUserId && rawUserId !== 'undefined' && rawUserId !== 'null') ? rawUserId : undefined;
   const { colors, isDark, toggleTheme } = useTheme();
   const { user, logout, refreshProfile, updateProfile } = useAuth();
   const { showToast } = useToast();
@@ -357,6 +359,22 @@ export default function ProfileScreen() {
   const [selectedReel, setSelectedReel] = useState<any | null>(null);
 
   const isOwnProfile = !viewUserId || viewUserId === user?.id;
+
+  const { savedPostIds, toggleSave } = useSaved();
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+
+  const tabsList = useMemo<ProfileTab[]>(() => {
+    return isOwnProfile
+      ? ['posts', 'reels', 'tagged', 'saved']
+      : ['posts', 'reels', 'tagged'];
+  }, [isOwnProfile]);
+
+  const totalTabs = tabsList.length;
+
+  const visibleSavedPosts = useMemo(() => {
+    return savedPosts.filter(p => savedPostIds.has(p.id));
+  }, [savedPosts, savedPostIds]);
 
   const handleAddStory = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -465,12 +483,20 @@ export default function ProfileScreen() {
 
     setLoadingPosts(true);
     setLoadingReels(true);
+    if (isOwnProfile) {
+      setLoadingSaved(true);
+    }
 
     try {
-      const [postsRes, reelsRes] = await Promise.all([
+      const promises: Promise<any>[] = [
         api.get(`/posts/user/${targetUserId}`),
         api.get(`/reels/user/${targetUserId}`),
-      ]);
+      ];
+      if (isOwnProfile) {
+        promises.push(api.get('/posts/saved', { params: { limit: 50 } }));
+      }
+
+      const [postsRes, reelsRes, savedRes] = await Promise.all(promises);
 
       if (postsRes.data?.success && postsRes.data?.data?.posts) {
         const mapped = postsRes.data.data.posts.map((post: any) => ({
@@ -496,13 +522,19 @@ export default function ProfileScreen() {
         }));
         setUserReels(mapped);
       }
+      if (isOwnProfile && savedRes?.data?.success && savedRes?.data?.data) {
+        setSavedPosts(savedRes.data.data);
+      }
     } catch (err) {
       console.warn('[ProfileScreen] Failed to fetch user media:', err);
     } finally {
       setLoadingPosts(false);
       setLoadingReels(false);
+      if (isOwnProfile) {
+        setLoadingSaved(false);
+      }
     }
-  }, [viewUserId, user?.id, profileUser?.username, profileUser?.avatar]);
+  }, [viewUserId, user?.id, profileUser?.username, profileUser?.avatar, isOwnProfile]);
 
   useEffect(() => {
     fetchUserMedia();
@@ -511,6 +543,17 @@ export default function ProfileScreen() {
   const onPostLikeToggle = async (postId: string) => {
     try {
       setUserPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          const isLiked = !p.isLiked;
+          return {
+            ...p,
+            isLiked,
+            likesCount: isLiked ? p.likesCount + 1 : p.likesCount - 1
+          };
+        }
+        return p;
+      }));
+      setSavedPosts(prev => prev.map(p => {
         if (p.id === postId) {
           const isLiked = !p.isLiked;
           return {
@@ -543,6 +586,15 @@ export default function ProfileScreen() {
       const res = await api.post(`/posts/${postId}/comment`, { text });
       if (res.data?.success && res.data?.data) {
         setUserPosts(prev => prev.map(p => {
+          if (p.id === postId) {
+            return {
+              ...p,
+              commentsCount: (p.commentsCount || 0) + 1,
+            };
+          }
+          return p;
+        }));
+        setSavedPosts(prev => prev.map(p => {
           if (p.id === postId) {
             return {
               ...p,
@@ -717,28 +769,31 @@ export default function ProfileScreen() {
   const handleTabPress = (tab: ProfileTab) => {
     setActiveTab(tab);
     setShowReelsDropdown(false);
-    const tabIndex = tab === 'posts' ? 0 : tab === 'reels' ? 1 : 2;
-    viewPagerRef.current?.scrollTo({ x: tabIndex * SCREEN_WIDTH, animated: true });
+    const tabIndex = tabsList.indexOf(tab);
+    if (tabIndex !== -1) {
+      viewPagerRef.current?.scrollTo({ x: tabIndex * SCREEN_WIDTH, animated: true });
+    }
   };
 
   const onViewPagerScrollEnd = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const pageIndex = Math.round(offsetX / SCREEN_WIDTH);
-    const tabs: ProfileTab[] = ['posts', 'reels', 'tagged'];
-    const newTab = tabs[pageIndex];
+    const newTab = tabsList[pageIndex];
     if (newTab && activeTab !== newTab) {
       setActiveTab(newTab);
     }
   };
 
   const underlineStyle = useAnimatedStyle(() => {
+    const tabWidth = SCREEN_WIDTH / totalTabs;
     const translation = interpolate(
       viewPagerScrollX.value,
-      [0, SCREEN_WIDTH, SCREEN_WIDTH * 2],
-      [0, SCREEN_WIDTH / 3, (SCREEN_WIDTH / 3) * 2],
+      Array.from({ length: totalTabs }, (_, i) => i * SCREEN_WIDTH),
+      Array.from({ length: totalTabs }, (_, i) => i * tabWidth),
       Extrapolation.CLAMP
     );
     return {
+      width: tabWidth,
       transform: [{ translateX: translation }],
     };
   });
@@ -1072,10 +1127,11 @@ export default function ProfileScreen() {
                 size="large"
                 variant="filled"
                 showIcon
-                onFollowChange={(following, count) => {
+                onFollowChange={(status, count) => {
                   setViewProfile(prev => prev ? {
                     ...prev,
-                    isFollowing: following,
+                    isFollowing: status === 'following',
+                    isRequested: status === 'requested',
                     followersCount: count ?? prev.followersCount,
                   } : prev);
                 }}
@@ -1149,57 +1205,61 @@ export default function ProfileScreen() {
             entering={FadeInDown.duration(350).delay(300)}
             style={[styles.contentTabsBar, { borderTopColor: isDark ? '#2C2C2E' : '#DBDBDB', borderBottomColor: isDark ? '#2C2C2E' : '#DBDBDB' }]}
           >
-            <ContentTab
-              icon={tabIcon('grid-outline', 'grid', 'posts')}
-              isActive={activeTab === 'posts'}
-              onPress={() => handleTabPress('posts')}
-              colors={colors}
-            />
-            <ContentTab
-              icon={
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {tabsList.map((tab) => {
+              let icon;
+              if (tab === 'posts') {
+                icon = tabIcon('grid-outline', 'grid', 'posts');
+              } else if (tab === 'reels') {
+                icon = (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Image
+                      source={require('@/assets/images/video.png')}
+                      style={[
+                        styles.tabImageIcon,
+                        { tintColor: activeTab === 'reels' ? colors.text : colors.textSecondary }
+                      ]}
+                      resizeMode="contain"
+                    />
+                    {activeTab === 'reels' && (
+                      <Ionicons
+                        name={showReelsDropdown ? "chevron-up" : "chevron-down"}
+                        size={12}
+                        color={colors.text}
+                      />
+                    )}
+                  </View>
+                );
+              } else if (tab === 'tagged') {
+                icon = (
                   <Image
-                    source={require('@/assets/images/video.png')}
+                    source={require('@/assets/images/profile.png')}
                     style={[
                       styles.tabImageIcon,
-                      { tintColor: activeTab === 'reels' ? colors.text : colors.textSecondary }
+                      { tintColor: activeTab === 'tagged' ? colors.text : colors.textSecondary }
                     ]}
                     resizeMode="contain"
                   />
-                  {activeTab === 'reels' && (
-                    <Ionicons
-                      name={showReelsDropdown ? "chevron-up" : "chevron-down"}
-                      size={12}
-                      color={colors.text}
-                    />
-                  )}
-                </View>
+                );
+              } else if (tab === 'saved') {
+                icon = tabIcon('bookmark-outline', 'bookmark', 'saved');
               }
-              isActive={activeTab === 'reels'}
-              onPress={() => {
-                if (activeTab === 'reels') {
-                  setShowReelsDropdown(!showReelsDropdown);
-                } else {
-                  handleTabPress('reels');
-                }
-              }}
-              colors={colors}
-            />
-            <ContentTab
-              icon={
-                <Image
-                  source={require('@/assets/images/profile.png')}
-                  style={[
-                    styles.tabImageIcon,
-                    { tintColor: activeTab === 'tagged' ? colors.text : colors.textSecondary }
-                  ]}
-                  resizeMode="contain"
+
+              return (
+                <ContentTab
+                  key={tab}
+                  icon={icon}
+                  isActive={activeTab === tab}
+                  onPress={() => {
+                    if (tab === 'reels' && activeTab === 'reels') {
+                      setShowReelsDropdown(!showReelsDropdown);
+                    } else {
+                      handleTabPress(tab);
+                    }
+                  }}
+                  colors={colors}
                 />
-              }
-              isActive={activeTab === 'tagged'}
-              onPress={() => handleTabPress('tagged')}
-              colors={colors}
-            />
+              );
+            })}
           </Animated.View>
 
           {/* ── Tab Underline Indicator ── */}
@@ -1222,6 +1282,7 @@ export default function ProfileScreen() {
                 {
                   backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
                   borderColor: isDark ? '#2C2C2E' : '#E5E5E5',
+                  left: totalTabs === 4 ? '37.5%' : '50%',
                 }
               ]}
             >
@@ -1280,7 +1341,7 @@ export default function ProfileScreen() {
             onScroll={scrollHandlerViewPager}
             scrollEventThrottle={16}
             onMomentumScrollEnd={onViewPagerScrollEnd}
-            contentContainerStyle={{ width: SCREEN_WIDTH * 3 }}
+            contentContainerStyle={{ width: SCREEN_WIDTH * totalTabs }}
             nestedScrollEnabled={true}
           >
             {/* Page 1: Posts */}
@@ -1402,6 +1463,58 @@ export default function ProfileScreen() {
                 </ThemedText>
               </Animated.View>
             </View>
+
+            {/* Page 4: Saved (only if own profile) */}
+            {isOwnProfile && (
+              <View style={{ width: SCREEN_WIDTH }}>
+                {visibleSavedPosts.length > 0 ? (
+                  <FlatList
+                    data={visibleSavedPosts}
+                    keyExtractor={(item) => item.id}
+                    numColumns={3}
+                    scrollEnabled={false}
+                    renderItem={({ item }) => {
+                      const hasMultipleMedia = item.media && item.media.length > 1;
+                      const isVideo = item.media && item.media[0]?.mediaType === 'VIDEO';
+                      return (
+                        <Pressable
+                          onPress={() => setSelectedPost(item)}
+                          style={styles.gridItem}
+                        >
+                          <Image source={{ uri: item.media[0]?.mediaUrl }} style={styles.gridImage} />
+                          {hasMultipleMedia && (
+                            <View style={styles.gridBadge}>
+                              <Feather name="layers" size={12} color="#FFFFFF" />
+                            </View>
+                          )}
+                          {!hasMultipleMedia && isVideo && (
+                            <View style={styles.gridBadge}>
+                              <Ionicons name="play" size={12} color="#FFFFFF" />
+                            </View>
+                          )}
+                        </Pressable>
+                      );
+                    }}
+                  />
+                ) : (
+                  <Animated.View
+                    entering={FadeInDown.duration(400).delay(80)}
+                    layout={LinearTransition}
+                    style={styles.emptyStateContainer}
+                  >
+                    <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
+                      <Ionicons name="bookmark-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
+                    </View>
+                    <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
+                      Save posts
+                    </ThemedText>
+                    <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                      Save photos and videos that you want to see again. No one will be notified, and only you can see what you've saved.
+                    </ThemedText>
+                  </Animated.View>
+                )}
+              </View>
+            )}
           </Animated.ScrollView>
         </View>
       </Animated.ScrollView>
@@ -1864,7 +1977,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     left: 0,
-    width: SCREEN_WIDTH / 3,
     height: 1.5,
   },
   tabUnderlineLine: {

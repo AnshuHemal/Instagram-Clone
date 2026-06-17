@@ -77,7 +77,6 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const fetchPosts = useCallback(async (nextCursor: string | null = null, refresh: boolean = false) => {
     if (fetchingRef.current) return;
-    if (isLoading || (isRefreshing && !refresh)) return;
 
     if (refresh) {
       setIsRefreshing(true);
@@ -117,7 +116,7 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsRefreshing(false);
       fetchingRef.current = false;
     }
-  }, [isLoading, isRefreshing, feedType]);
+  }, [feedType]);
 
   useEffect(() => {
     // Reset and fetch whenever feedType changes

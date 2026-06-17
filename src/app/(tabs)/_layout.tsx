@@ -16,9 +16,10 @@
 import { useSegments, useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBadge } from '@/contexts/BadgeContext';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform, Pressable, View, Animated as RNAnimated, Dimensions, StyleSheet, BackHandler } from 'react-native';
+import { Platform, Pressable, View, Text, Animated as RNAnimated, Dimensions, StyleSheet, BackHandler } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -102,6 +103,7 @@ function TabLayout() {
   const { pagerScrollEnabled } = useTabPager();
   const { colors } = useTheme();
   const { user, isLoading } = useAuth();
+  const { notificationCount, chatCount, clearNotifications, clearChat } = useBadge();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const segments = useSegments() as string[];
@@ -219,6 +221,8 @@ function TabLayout() {
     viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
     const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
     router.setParams({ tab: routes[index] });
+    // Clear badge when user navigates to the relevant tab
+    if (index === 2) clearChat();          // Chat tab
   };
 
   return (
@@ -301,7 +305,13 @@ function TabLayout() {
               style={[styles.tabIcon, { tintColor: activeIndex === 2 ? activeColor : inactiveColor }]}
               contentFit="contain"
             />
-            <View style={[styles.unreadBadge, { borderColor: tabBgColor }]} />
+            {chatCount > 0 && (
+              <View style={[styles.badgeDot, { borderColor: tabBgColor }]}>
+                {chatCount > 9 && (
+                  <Text style={styles.badgeText}>{chatCount > 99 ? '99' : chatCount}</Text>
+                )}
+              </View>
+            )}
           </View>
         </TabBarButton>
 
@@ -340,7 +350,13 @@ function TabLayout() {
                 color={activeIndex === 4 ? activeColor : inactiveColor}
               />
             )}
-            <View style={[styles.unreadBadge, { borderColor: tabBgColor }]} />
+            {notificationCount > 0 && (
+              <View style={[styles.badgeDot, { borderColor: tabBgColor }]}>
+                {notificationCount > 9 && (
+                  <Text style={styles.badgeText}>{notificationCount > 99 ? '99' : notificationCount}</Text>
+                )}
+              </View>
+            )}
           </View>
         </TabBarButton>
       </Animated.View>
@@ -407,5 +423,25 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#FF3040',
     borderWidth: 1.5,
+  },
+  // Live badge dot — grows to show count when > 9
+  badgeDot: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    minWidth: 8,
+    height: 8,
+    borderRadius: 5,
+    backgroundColor: '#FF3040',
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 7,
+    fontWeight: '800',
+    lineHeight: 8,
   },
 });

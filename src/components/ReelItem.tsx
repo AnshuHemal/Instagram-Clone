@@ -6,9 +6,36 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { ReelShimmer } from './ReelShimmer';
 import { CommentsSheet } from './CommentsSheet';
-import { Reel } from '@/constants/mockData';
+import { ShareSheetModal } from './ShareSheetModal';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { FollowButton } from './FollowButton';
+
+export interface Reel {
+  id: string;
+  userId?: string;
+  username: string;
+  avatar: string;
+  imageUrl: string;
+  description: string;
+  likesCount: number;
+  commentsCount: number;
+  isLiked: boolean;
+  musicName: string;
+  views: string;
+  hlsUrl?: string;
+  durationSeconds?: number;
+  isFollowing?: boolean;
+  isRequested?: boolean;
+  author?: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    isVerified: boolean;
+    isPrivate: boolean;
+  };
+}
 
 const { width: WINDOW_WIDTH } = Dimensions.get('window');
 
@@ -235,6 +262,7 @@ export const ReelItem = React.memo(({
   const [localLiked, setLocalLiked] = useState(reel.isLiked);
   const [localLikesCount, setLocalLikesCount] = useState(reel.likesCount);
   const [showComments, setShowComments] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(reel.commentsCount);
   const [lastTap, setLastTap] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -772,7 +800,7 @@ export const ReelItem = React.memo(({
         </Pressable>
 
         {/* Share Button */}
-        <Pressable style={styles.sidebarButton}>
+        <Pressable onPress={() => setShowShareModal(true)} style={styles.sidebarButton}>
           <Feather name="send" size={28} color="#FFFFFF" />
         </Pressable>
 
@@ -794,17 +822,15 @@ export const ReelItem = React.memo(({
           <ThemedText style={styles.usernameText}>
             {reel.username}
           </ThemedText>
-          <Pressable
-            onPress={() => setIsFollowed(!isFollowed)}
-            style={[
-              styles.followButton,
-              isFollowed && { borderColor: 'rgba(255, 255, 255, 0.4)', backgroundColor: 'transparent' },
-            ]}
-          >
-            <ThemedText style={styles.followButtonText}>
-              {isFollowed ? 'Following' : 'Follow'}
-            </ThemedText>
-          </Pressable>
+          {user && (reel.userId || reel.author?.id) !== user.id && (
+            <FollowButton
+              targetUserId={reel.userId || reel.author?.id || ''}
+              initialIsFollowing={reel.isFollowing ?? false}
+              initialIsRequested={reel.isRequested ?? false}
+              isPrivate={reel.author?.isPrivate ?? false}
+              size="small"
+            />
+          )}
         </View>
 
         <ThemedText style={styles.descriptionText} numberOfLines={3}>
@@ -867,9 +893,19 @@ export const ReelItem = React.memo(({
       <CommentsSheet
         visible={showComments}
         postId={reel.id}
+        entityType="reel"
         commentsCount={localCommentsCount}
         onClose={() => setShowComments(false)}
         onCommentAdded={(newCount) => setLocalCommentsCount(newCount)}
+      />
+
+      <ShareSheetModal
+        visible={showShareModal}
+        referenceType="reel"
+        referenceId={reel.id}
+        previewImageUrl={reel.imageUrl}
+        previewCaption={reel.description}
+        onClose={() => setShowShareModal(false)}
       />
     </View>
   );

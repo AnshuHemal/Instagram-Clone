@@ -73,6 +73,8 @@ interface CommentsSheetProps {
   visible: boolean;
   postId: string;
   commentsCount: number;
+  /** 'post' or 'reel' — determines which backend endpoint is called */
+  entityType?: 'post' | 'reel';
   /** Called when the sheet is closed */
   onClose: () => void;
   /** Fired when a new comment is successfully submitted (for parent count update) */
@@ -222,6 +224,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
   visible,
   postId,
   commentsCount,
+  entityType = 'post',
   onClose,
   onCommentAdded,
 }) => {
@@ -304,6 +307,9 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
 
   // ── Data loading ────────────────────────────────────────────────────────
 
+  /** Base URL prefix depending on entity type */
+  const basePath = entityType === 'reel' ? `/reels/${postId}` : `/posts/${postId}`;
+
   const loadComments = useCallback(
     async (nextCursor: string | null, append = false) => {
       if (isLoading) return;
@@ -311,7 +317,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
       try {
         const params: Record<string, any> = { limit: 20 };
         if (nextCursor) params.cursor = nextCursor;
-        const res = await api.get(`/posts/${postId}/comments`, { params });
+        const res = await api.get(`${basePath}/comments`, { params });
         const data: CommentItem[] = res.data?.data ?? [];
         const meta = res.data?.meta ?? {};
 
@@ -324,7 +330,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
         setIsLoading(false);
       }
     },
-    [postId, isLoading],
+    [basePath, isLoading],
   );
 
   const handleLoadMore = () => {
@@ -345,7 +351,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
     Keyboard.dismiss();
 
     try {
-      const res = await api.post(`/posts/${postId}/comment`, { text });
+      const res = await api.post(`${basePath}/comment`, { text });
       const newComment: CommentItem = res.data?.data;
       if (newComment) {
         setComments((prev) => [newComment, ...prev]);
@@ -377,7 +383,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
       }),
     );
     // Fire and forget — no dedicated endpoint yet, graceful no-op
-    api.post(`/posts/${postId}/comments/${id}/like`).catch(() => {});
+    api.post(`${basePath}/comments/${id}/like`).catch(() => {});
   }, [postId]);
 
   // ── Delete comment ──────────────────────────────────────────────────────
@@ -394,7 +400,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
             setLocalCount((c) => Math.max(0, c - 1));
             onCommentAdded?.(Math.max(0, localCount - 1));
             try {
-              await api.delete(`/posts/${postId}/comments/${id}`);
+              await api.delete(`${basePath}/comments/${id}`);
             } catch {
               // Rollback is complex — just silently ignore
             }
@@ -604,7 +610,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   sheet: {

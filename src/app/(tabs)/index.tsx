@@ -548,7 +548,7 @@ export default function FeedScreen() {
 
   const renderEmptyFeed = () => {
     if (isLoading) {
-      return <FeedSkeleton showStories={false} />;
+      return <FeedSkeleton />;
     }
 
     return (

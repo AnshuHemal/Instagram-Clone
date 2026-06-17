@@ -63,6 +63,7 @@ export function getOnboardingRoute(step: string): string {
 interface AuthContextProps {
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: (identifier: string, password: string) => Promise<User | null>;
   registerComplete: (
     signupToken: string,
@@ -387,6 +388,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         user,
         isLoading,
+        isAuthenticated: !!user,
         login,
         registerComplete,
         logout,

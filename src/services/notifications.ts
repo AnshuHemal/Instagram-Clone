@@ -12,7 +12,7 @@ export interface Notification {
   id: string;
   recipientId: string;
   actorId: string;
-  type: 'FOLLOW' | 'LIKE_POST' | 'LIKE_REEL' | 'COMMENT_POST' | 'COMMENT_REEL';
+  type: 'FOLLOW' | 'FOLLOW_REQUEST' | 'FOLLOW_REQUEST_ACCEPTED' | 'LIKE_POST' | 'LIKE_REEL' | 'COMMENT_POST' | 'COMMENT_REEL';
   postId: string | null;
   reelId: string | null;
   commentText: string | null;

@@ -12,8 +12,10 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Post } from '@/contexts/PostsContext';
 import { CommentsSheet } from '@/components/CommentsSheet';
+import { ShareSheetModal } from './ShareSheetModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { haptics } from '@/utils/haptics';
+import { useSaved } from '@/contexts/SavedContext';
 
 const WINDOW_WIDTH = Dimensions.get('window').width;
 
@@ -113,9 +115,11 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   const [showComments, setShowComments] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(post.commentsCount);
-  const [lastTap, setLastTap] = useState(0);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  // useRef instead of useState — avoids stale closure in handleImagePress
+  const lastTapRef = useRef(0);
+  const { isSaved, toggleSave } = useSaved();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Sync count from prop when feed refreshes
   useEffect(() => {
@@ -151,15 +155,16 @@ export const PostCard: React.FC<PostCardProps> = ({
   // ── Handlers ──
   const handleImagePress = () => {
     const now = Date.now();
-    if (lastTap && now - lastTap < 300) {
-      haptics.onDoubleTap();
+    if (lastTapRef.current && now - lastTapRef.current < 300) {
+      // Double tap — reset so a third tap doesn't re-trigger
+      lastTapRef.current = 0;
       if (!post.isLiked) {
         onLikeToggle(post.id);
         triggerLikeAnim();
       }
       triggerDoubleTapHeart();
     } else {
-      setLastTap(now);
+      lastTapRef.current = now;
     }
   };
 
@@ -359,18 +364,22 @@ export const PostCard: React.FC<PostCardProps> = ({
           <Pressable onPress={() => setShowComments(true)} style={styles.actionBtn}>
             <Feather name="message-circle" size={24} color={colors.text} />
           </Pressable>
-          <Pressable style={styles.actionBtn}>
+          <Pressable onPress={() => setShowShareModal(true)} style={styles.actionBtn}>
             <Feather name="send" size={23} color={colors.text} />
           </Pressable>
         </View>
         <Pressable
-          onPress={() => setIsBookmarked((b) => !b)}
+          onPress={() => {
+            haptics.light();
+            toggleSave(post.id);
+            onBookmarkToggle?.(post.id);
+          }}
           style={styles.actionBtn}
         >
           <Ionicons
-            name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+            name={isSaved(post.id) ? 'bookmark' : 'bookmark-outline'}
             size={24}
-            color={colors.text}
+            color={isSaved(post.id) ? '#0095F6' : colors.text}
           />
         </Pressable>
       </View>
@@ -430,6 +439,15 @@ export const PostCard: React.FC<PostCardProps> = ({
         commentsCount={localCommentsCount}
         onClose={() => setShowComments(false)}
         onCommentAdded={(newCount) => setLocalCommentsCount(newCount)}
+      />
+
+      <ShareSheetModal
+        visible={showShareModal}
+        referenceType="post"
+        referenceId={post.id}
+        previewImageUrl={post.media?.[0]?.mediaUrl}
+        previewCaption={post.caption}
+        onClose={() => setShowShareModal(false)}
       />
     </View>
   );

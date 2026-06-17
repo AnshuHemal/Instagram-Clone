@@ -39,13 +39,25 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   };
 
   const handlePress = () => {
-    onPress?.();
+    if (onPress) {
+      onPress();
+      return;
+    }
 
-    // Navigate based on notification type
-    if (notification.type === 'FOLLOW') {
-      router.push({ pathname: '/(tabs)/profile', params: { userId: notification.actor.id } });
-    } else if (notification.postId) {
-      // Navigate to post detail (could be implemented later)
+    try {
+      if (notification.type === 'LIKE_POST' || notification.type === 'COMMENT_POST') {
+        if (notification.postId) router.push(`/post/${notification.postId}` as any);
+      } else if (notification.type === 'LIKE_REEL' || notification.type === 'COMMENT_REEL') {
+        router.push('/(tabs)/reels' as any);
+      } else if (
+        notification.type === 'FOLLOW' ||
+        notification.type === 'FOLLOW_REQUEST' ||
+        notification.type === 'FOLLOW_REQUEST_ACCEPTED'
+      ) {
+        router.push(`/profile?userId=${notification.actor.id}` as any);
+      }
+    } catch (err) {
+      console.warn('[NotificationItem] Local navigation failed:', err);
     }
   };
 
@@ -53,6 +65,10 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
     switch (notification.type) {
       case 'FOLLOW':
         return <Ionicons name="person-add" size={16} color="#0095F6" />;
+      case 'FOLLOW_REQUEST':
+        return <Ionicons name="person-add-outline" size={16} color="#FF9500" />;
+      case 'FOLLOW_REQUEST_ACCEPTED':
+        return <Ionicons name="checkmark-circle" size={16} color="#34C759" />;
       case 'LIKE_POST':
       case 'LIKE_REEL':
         return <Ionicons name="heart" size={16} color="#FF3040" />;
@@ -67,6 +83,12 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   const getAvatarBorder = () => {
     if (notification.type === 'FOLLOW') {
       return { borderColor: '#0095F6', borderWidth: 2 };
+    }
+    if (notification.type === 'FOLLOW_REQUEST') {
+      return { borderColor: '#FF9500', borderWidth: 2 };
+    }
+    if (notification.type === 'FOLLOW_REQUEST_ACCEPTED') {
+      return { borderColor: '#34C759', borderWidth: 2 };
     }
     return {};
   };
