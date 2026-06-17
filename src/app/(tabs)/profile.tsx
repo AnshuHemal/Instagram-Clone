@@ -59,6 +59,8 @@ import { api } from '@/services/api';
 import { PostCard } from '@/components/PostCard';
 import { ReelItem } from '@/components/ReelItem';
 import { useSaved } from '@/contexts/SavedContext';
+import { StoryPlayerModal } from '@/components/StoryPlayerModal';
+import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -335,7 +337,9 @@ export default function ProfileScreen() {
   const { user, logout, refreshProfile, updateProfile } = useAuth();
   const { showToast } = useToast();
   const { setPagerScrollEnabled } = useTabPager();
-  const { uploadStory } = useStories();
+  const { stories, uploadStory, viewStory } = useStories();
+  const [playerVisible, setPlayerVisible] = useState(false);
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [suggestions, setSuggestions] = useState(FOLLOW_SUGGESTIONS);
@@ -465,6 +469,10 @@ export default function ProfileScreen() {
           postsCount: viewProfile.postsCount,
         }
       : user;
+
+  const userStoryGroup = useMemo(() => {
+    return stories.find((g) => g.userId === profileUser?.id);
+  }, [stories, profileUser?.id]);
 
   const sortedReels = useMemo(() => {
     if (reelsSort === 'most_viewed') {
@@ -672,6 +680,20 @@ export default function ProfileScreen() {
   const openAvatarSheet = useCallback(() => {
     setShowAvatarSheet(true);
   }, []);
+
+  const handleAvatarPress = () => {
+    if (userStoryGroup) {
+      const groupIdx = stories.findIndex((g) => g.userId === profileUser?.id);
+      if (groupIdx !== -1) {
+        setSelectedGroupIndex(groupIdx);
+        setPlayerVisible(true);
+      }
+    } else if (isOwnProfile) {
+      openAvatarSheet();
+    } else {
+      triggerShareModal();
+    }
+  };
 
   // Gesture detection values
   const PULL_THRESHOLD = 80;
@@ -1000,33 +1022,119 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInDown.duration(350).delay(50)} style={styles.profileInfoRow}>
           <Pressable
             ref={avatarRef}
-            style={styles.avatarWrapper}
-            onPress={openAvatarSheet}
+            style={({ pressed }) => [
+              styles.avatarWrapper,
+              { transform: [{ scale: pressed ? 0.96 : 1 }] }
+            ]}
+            onPress={handleAvatarPress}
             onLongPress={triggerShareModal}
             delayLongPress={180}
             hitSlop={4}
           >
-            {hasAvatar ? (
-              <Image source={{ uri: profileUser.avatar }} style={styles.avatar} />
+            {userStoryGroup ? (
+              userStoryGroup.isSeen ? (
+                <View
+                  style={[
+                    styles.seenRingProfile,
+                    {
+                      width: 86,
+                      height: 86,
+                      borderRadius: 43,
+                      borderColor: isDark ? '#38383a' : '#e1e1e1',
+                    },
+                  ]}
+                >
+                  {hasAvatar ? (
+                    <Image source={{ uri: profileUser.avatar }} style={[styles.avatar, { width: 76, height: 76, borderRadius: 38 }]} />
+                  ) : (
+                    <View
+                      style={[
+                        styles.avatar,
+                        styles.avatarPlaceholder,
+                        { width: 76, height: 76, borderRadius: 38, backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' },
+                      ]}
+                    >
+                      <Ionicons
+                        name="person"
+                        size={46}
+                        color={isDark ? '#636366' : '#A8A8A8'}
+                        style={styles.avatarPersonIcon}
+                      />
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <ExpoLinearGradient
+                  colors={colors.storyRing as any}
+                  start={{ x: 0, y: 1 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    styles.gradientRingProfile,
+                    {
+                      width: 86,
+                      height: 86,
+                      borderRadius: 43,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.innerRingProfile,
+                      {
+                        width: 80,
+                        height: 80,
+                        borderRadius: 40,
+                        backgroundColor: colors.background,
+                      },
+                    ]}
+                  >
+                    {hasAvatar ? (
+                      <Image source={{ uri: profileUser.avatar }} style={[styles.avatar, { width: 76, height: 76, borderRadius: 38 }]} />
+                    ) : (
+                      <View
+                        style={[
+                          styles.avatar,
+                          styles.avatarPlaceholder,
+                          { width: 76, height: 76, borderRadius: 38, backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' },
+                        ]}
+                      >
+                        <Ionicons
+                          name="person"
+                          size={46}
+                          color={isDark ? '#636366' : '#A8A8A8'}
+                          style={styles.avatarPersonIcon}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </ExpoLinearGradient>
+              )
             ) : (
-              <View
-                style={[
-                  styles.avatar,
-                  styles.avatarPlaceholder,
-                  { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' },
-                ]}
-              >
-                <Ionicons
-                  name="person"
-                  size={52}
-                  color={isDark ? '#636366' : '#A8A8A8'}
-                  style={styles.avatarPersonIcon}
-                />
+              // Regular avatar without stories
+              hasAvatar ? (
+                <Image source={{ uri: profileUser.avatar }} style={styles.avatar} />
+              ) : (
+                <View
+                  style={[
+                    styles.avatar,
+                    styles.avatarPlaceholder,
+                    { backgroundColor: isDark ? '#3A3A3C' : '#E8E8E8' },
+                  ]}
+                >
+                  <Ionicons
+                    name="person"
+                    size={52}
+                    color={isDark ? '#636366' : '#A8A8A8'}
+                    style={styles.avatarPersonIcon}
+                  />
+                </View>
+              )
+            )}
+            {isOwnProfile && !userStoryGroup && (
+              <View style={[styles.storyPlusBadge, { backgroundColor: '#0095F6', borderColor: colors.background }]}>
+                <Ionicons name="add" size={16} color="#FFFFFF" />
               </View>
             )}
-            <View style={[styles.storyPlusBadge, { backgroundColor: '#000000', borderColor: colors.background }]}>
-              <Ionicons name="add" size={16} color="#FFFFFF" />
-            </View>
           </Pressable>
 
           {/* Stats */}
@@ -1702,6 +1810,15 @@ export default function ProfileScreen() {
           </SafeAreaView>
         </Modal>
       )}
+
+      {/* ── Fullscreen Story Viewer ── */}
+      <StoryPlayerModal
+        visible={playerVisible}
+        userGroups={stories}
+        initialGroupIndex={selectedGroupIndex}
+        onClose={() => setPlayerVisible(false)}
+        onStoryViewed={viewStory}
+      />
     </SafeAreaView>
   );
 }
@@ -1760,6 +1877,19 @@ const styles = StyleSheet.create({
     width: 86,
     height: 86,
     position: 'relative',
+  },
+  gradientRingProfile: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  innerRingProfile: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  seenRingProfile: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
   },
   storyPlusBadge: {
     position: 'absolute',

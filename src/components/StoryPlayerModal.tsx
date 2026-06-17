@@ -261,45 +261,37 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
     }
   };
 
-  // Animate progress bar filling and trigger viewing logger on load
+  const lastStoryIdRef = useRef<string | null>(null);
+
+  // Unified effect for story progress timer and logger
   useEffect(() => {
-    if (visible && activeStory) {
-      setIsPaused(false);
-      
-      if (activeStory.mediaType === 'VIDEO') {
-        progress.value = 0;
-      } else {
-        // Image progress animation (5 seconds)
-        progress.value = 0;
-        progress.value = withTiming(
-          1,
-          { duration: 5000, easing: Easing.linear },
-          (finished) => {
-            if (finished) {
-              runOnJS(handleNextStory)();
-            }
-          }
-        );
-      }
-      onStoryViewed(activeStory.id);
-    } else {
+    if (!visible || !activeStory) {
       progress.value = 0;
       cancelAnimation(progress);
+      lastStoryIdRef.current = null;
+      setIsPaused(false);
+      return;
     }
-  }, [groupIndex, storyIndex, visible, activeStory, resetCounter]);
 
-  // Handle Pause/Resume for image stories
-  useEffect(() => {
-    if (!visible || !activeStory) return;
+    let isNewStory = false;
+    if (lastStoryIdRef.current !== activeStory.id) {
+      onStoryViewed(activeStory.id);
+      lastStoryIdRef.current = activeStory.id;
+      progress.value = 0;
+      isNewStory = true;
+      setIsPaused(false);
+    }
 
     if (activeStory.mediaType === 'IMAGE') {
       if (isPaused) {
         cancelAnimation(progress);
       } else {
-        // Resume image progress timing from current progress
-        const remainingPercent = 1 - progress.value;
+        const startProgress = isNewStory ? 0 : (progress.value >= 1 ? 0 : progress.value);
+        progress.value = startProgress;
+
+        const remainingPercent = 1 - startProgress;
         const remainingDuration = remainingPercent * 5000;
-        
+
         progress.value = withTiming(
           1,
           { duration: remainingDuration, easing: Easing.linear },
@@ -310,8 +302,14 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
           }
         );
       }
+    } else {
+      cancelAnimation(progress);
     }
-  }, [isPaused, visible, activeStory]);
+
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [groupIndex, storyIndex, visible, activeStory, isPaused]);
 
   // Touch and Hold Gesture variables
   const pressStartTime = useRef<number>(0);
@@ -408,8 +406,8 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
                 <Image
                   key={`${activeStory.id}-${resetCounter}`}
                   source={{ uri: activeStory.mediaUrl }}
-                  style={StyleSheet.absoluteFill}
-                  resizeMode="cover"
+                  style={styles.storyImage}
+                  resizeMode="contain"
                 />
               )}
             </Pressable>
@@ -463,6 +461,10 @@ const styles = StyleSheet.create({
   mediaContainer: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#000000',
+  },
+  storyImage: {
+    width: '100%',
+    height: '100%',
   },
   videoPlaceholder: {
     alignItems: 'center',
