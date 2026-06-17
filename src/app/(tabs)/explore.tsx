@@ -33,9 +33,10 @@ export default function ExploreScreen() {
 
   const router = useRouter();
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'accounts' | 'posts'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'posts' | 'tags'>('accounts');
   const [userResults, setUserResults] = useState<any[]>([]);
   const [postResults, setPostResults] = useState<any[]>([]);
+  const [tagResults, setTagResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
   const { handleLikeToggle, handleAddComment } = usePosts();
@@ -96,16 +97,19 @@ export default function ExploreScreen() {
     if (!term) {
       setUserResults([]);
       setPostResults([]);
+      setTagResults([]);
       return;
     }
     setSearchLoading(true);
     try {
-      const [usersRes, postsRes] = await Promise.all([
+      const [usersRes, postsRes, tagsRes] = await Promise.all([
         api.get('/auth/users/search', { params: { q: term } }),
         api.get('/posts/search', { params: { q: term } }),
+        api.get('/hashtags/search', { params: { q: term } }),
       ]);
       setUserResults(usersRes.data.data || []);
       setPostResults(postsRes.data.data || []);
+      setTagResults(tagsRes.data.data || []);
     } catch (err) {
       console.error('Failed to perform search:', err);
     } finally {
@@ -120,6 +124,7 @@ export default function ExploreScreen() {
     } else {
       setUserResults([]);
       setPostResults([]);
+      setTagResults([]);
     }
   }, [debouncedSearch]);
 
@@ -231,6 +236,35 @@ export default function ExploreScreen() {
     </Animated.View>
   );
 
+  const formattedCount = (n: number): string => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+    return n.toLocaleString();
+  };
+
+  const renderTagItem = ({ item }: { item: any }) => (
+    <Animated.View entering={FadeInRight.duration(200)}>
+      <Pressable
+        style={styles.tagItem}
+        onPress={() => {
+          haptics.light();
+          router.push(`/hashtag/${encodeURIComponent(item.tag)}` as any);
+        }}
+      >
+        <View style={[styles.tagIconCircle, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
+          <Text style={[styles.tagIconText, { color: colors.text }]}>#</Text>
+        </View>
+        <View style={styles.tagTextColumn}>
+          <ThemedText type="smallBold" style={{ color: colors.text }}>#{item.tag}</ThemedText>
+          <ThemedText type="small" style={{ color: colors.textSecondary }}>
+            {formattedCount(item.postCount ?? 0)} posts
+          </ThemedText>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={isDark ? '#48484A' : '#C7C7CC'} />
+      </Pressable>
+    </Animated.View>
+  );
+
   const renderGridItem = (item: any, index: number) => {
     const size = getGridItemSize(index);
     const mediaUrl = item.thumbnailUrl || item.media?.[0]?.mediaUrl || 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400';
@@ -317,6 +351,14 @@ export default function ExploreScreen() {
               </ThemedText>
             </Pressable>
             <Pressable
+              style={[styles.tab, activeTab === 'tags' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setActiveTab('tags')}
+            >
+              <ThemedText style={[styles.tabText, { color: activeTab === 'tags' ? colors.text : colors.textSecondary }]}>
+                Tags
+              </ThemedText>
+            </Pressable>
+            <Pressable
               style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
               onPress={() => setActiveTab('posts')}
             >
@@ -338,6 +380,19 @@ export default function ExploreScreen() {
                 <View style={styles.emptyContainer}>
                   <Ionicons name="person-outline" size={40} color={colors.textSecondary} />
                   <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No accounts found</ThemedText>
+                </View>
+              }
+            />
+          ) : activeTab === 'tags' ? (
+            <FlatList
+              data={tagResults}
+              keyExtractor={(item) => item.id || item.tag}
+              contentContainerStyle={styles.listContent}
+              renderItem={renderTagItem}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="pricetag-outline" size={40} color={colors.textSecondary} />
+                  <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No tags found</ThemedText>
                 </View>
               }
             />
@@ -465,6 +520,12 @@ const styles = StyleSheet.create({
   usernameRow: { flexDirection: 'row', alignItems: 'center' },
   followBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   followBtnText: { fontSize: 12, fontFamily: Fonts.bold },
+
+  // Tag search results
+  tagItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+  tagIconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  tagIconText: { fontSize: 22, fontFamily: Fonts.bold },
+  tagTextColumn: { flex: 1, justifyContent: 'center' },
 
   // Modal
   modalContainer: { flex: 1 },
