@@ -169,11 +169,12 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
   const isFollowText = status === 'not_following';
 
   return (
-    <Animated.View entering={FadeIn.duration(100)} style={animatedStyle}>
+    <Animated.View entering={FadeIn.duration(100)} style={[animatedStyle, styles.fillParent]}>
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => [
           ...getContainerStyle(),
+          styles.fillParent,
           { opacity: pressed ? 0.7 : 1 },
         ]}
       >
@@ -244,5 +245,10 @@ const styles = StyleSheet.create({
   },
   iconButtonFollowing: {
     backgroundColor: 'rgba(255,48,64,0.1)',
+  },
+  fillParent: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
 });

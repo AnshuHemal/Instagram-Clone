@@ -1070,24 +1070,31 @@ export default function ProfileScreen() {
             </>
           ) : (
             <>
-              <FollowButton
-                targetUserId={viewUserId!}
-                initialIsFollowing={viewProfile?.isFollowing ?? false}
-                size="large"
-                variant="filled"
-                showIcon
-                onFollowChange={(status, count) => {
-                  setViewProfile(prev => prev ? {
-                    ...prev,
-                    isFollowing: status === 'following',
-                    isRequested: status === 'requested',
-                    followersCount: count ?? prev.followersCount,
-                  } : prev);
-                }}
-              />
+              <View style={styles.followBtnWrapper}>
+                <FollowButton
+                  targetUserId={viewUserId!}
+                  initialIsFollowing={viewProfile?.isFollowing ?? false}
+                  initialIsRequested={viewProfile?.isRequested ?? false}
+                  isPrivate={viewProfile?.isPrivate ?? false}
+                  size="medium"
+                  variant="filled"
+                  onFollowChange={(status, count) => {
+                    setViewProfile(prev => prev ? {
+                      ...prev,
+                      isFollowing: status === 'following',
+                      isRequested: status === 'requested',
+                      followersCount: count ?? prev.followersCount,
+                    } : prev);
+                  }}
+                />
+              </View>
               <Pressable
                 onPress={() => router.push({ pathname: '/(chat)/[id]', params: { id: viewUserId! } })}
-                style={[styles.actionBtn, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  { backgroundColor: isDark ? '#262626' : '#EFEFEF' },
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
               >
                 <ThemedText style={[styles.actionBtnText, { color: colors.text }]}>Message</ThemedText>
               </Pressable>
@@ -1827,9 +1834,16 @@ const styles = StyleSheet.create({
   // ── Action buttons
   actionRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    paddingHorizontal: 16,
     gap: 8,
     marginBottom: 14,
+  },
+  followBtnWrapper: {
+    flex: 1,
+    height: 34,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   actionBtn: {
     flex: 1,
