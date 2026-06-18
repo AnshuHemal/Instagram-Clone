@@ -9,7 +9,6 @@ import {
   Text,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useReels } from '@/contexts/ReelsContext';
@@ -104,8 +103,6 @@ export default function ReelsScreen({ isTabActive = true }: { isTabActive?: bool
 
   return (
     <View style={[styles.container, { backgroundColor: '#000000' }]}>
-      {isFocused && <StatusBar style="light" />}
-
       <GradientPullRefresh
         scrollY={scrollY}
         onRefresh={async () => {

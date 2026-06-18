@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, Pressable, View, Text, Animated as RNAnimated, Dimensions, StyleSheet, BackHandler } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -190,10 +191,8 @@ function TabLayout() {
   };
 
   // Calculate dynamic heights for safe area bottom spacing
-  const paddingBottom = insets.bottom > 0 ? insets.bottom : 8;
-  const tabHeight = Platform.OS === 'ios' 
-    ? 50 + insets.bottom 
-    : 60 + (insets.bottom > 0 ? insets.bottom - 5 : 8);
+  const paddingBottom = insets.bottom > 0 ? insets.bottom : 0;
+  const tabHeight = 50 + insets.bottom;
 
   const activeColor = activeIndex === 1 ? '#FFFFFF' : colors.tabBarActive;
   const inactiveColor = activeIndex === 1 ? 'rgba(255, 255, 255, 0.4)' : colors.tabBarInactive;
@@ -207,7 +206,7 @@ function TabLayout() {
       borderTopWidth: 0.5,
       height: tabHeight,
       paddingBottom: paddingBottom,
-      paddingTop: 8,
+      paddingTop: insets.bottom > 0 ? 8 : 0,
     };
   });
 
@@ -227,6 +226,7 @@ function TabLayout() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={activeIndex === 1 ? 'light' : 'dark'} />
       {/* Horizontal Page Pager */}
       <Animated.ScrollView
         ref={viewPagerRef}

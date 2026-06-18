@@ -4,7 +4,6 @@ import {
   View,
   Pressable,
   Dimensions,
-  Modal,
   Share,
   BackHandler,
 } from 'react-native';
@@ -17,7 +16,13 @@ import Animated, {
   interpolate,
   Easing,
   runOnJS,
+  clamp,
 } from 'react-native-reanimated';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import Svg, { Rect, Path } from 'react-native-svg';
 import { Image } from 'expo-image';
@@ -27,7 +32,10 @@ import { Fonts } from '@/constants/theme';
 import { useToast } from '@/contexts/ToastContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_SIZE = SCREEN_WIDTH * 0.68; // Giant circular avatar
+const CARD_SIZE = SCREEN_WIDTH * 0.68;
+
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
 
 interface ShareProfileModalProps {
   visible: boolean;
@@ -54,12 +62,172 @@ const MockQRCode = ({ color }: { color: string }) => (
       <FinderPattern x={72} y={0} color={color} />
       <FinderPattern x={0} y={72} color={color} />
       <Path
-        d="M 36,0 h 8 v 4 h -8 z M 52,0 h 12 v 4 h -12 z M 36,12 h 4 v 8 h -4 z M 48,12 h 16 v 4 h -16 z M 36,24 h 12 v 4 h -12 z M 56,24 h 8 v 4 h -8 z M 0,36 h 8 v 8 h -8 z M 16,36 h 12 v 4 h -12 z M 36,36 h 4 v 4 h -4 z M 48,36 h 16 v 4 h -16 z M 72,36 h 12 v 4 h -12 z M 12,48 h 16 v 4 h -16 z M 36,48 h 12 v 8 h -12 z M 56,48 h 4 v 4 h -4 z M 68,48 h 8 v 4 h -8 z M 0,60 h 12 v 4 h -12 z M 20,60 h 8 v 4 h -8 z M 36,60 h 16 v 4 h -16 z M 60,60 h 8 v 8 h -8 z M 80,60 h 8 v 4 h -8 z M 44,72 h 12 v 4 h -12 z M 64,72 h 4 v 12 h -4 z M 76,72 h 8 v 4 h -8 z M 48,84 h 12 v 4 h -12 z M 68,84 h 8 v 4 h -8 z"
+        d="M 36,0 h 8 v 4 h -8 z M 52,0 h 12 v 4 h -12 z M 36,12 h 4 v 8 h -4 z M 48,12 h 16 v 4 h -16 z M 36,24 h 12 v 4 h -12 z M 56,24 h 8 v 4 h -8 z M 0,36 h 8 v 8 h -8 z M 16,36 h 12 v 4 h -12 z M 36,36 h 4 v 4 h -4 z M 48,36 h 16 v 4 h -16 z M 72,36 h 12 v 4 h -12 z M 12,48 h 16 v 4 h -16 z M 36,48 h 12 v 8 h -12 z M 56,48 h 4 v 4 h -4 z M 68,48 h 8 v 4 h -8 z M 0,60 h 12 v 4 h -12 z M 20,60 h 8 v 4 h -8 z M 36,60 h 16 v 4 h -16 z M 60,60 h 8 v 8 h -8 z M 80,60 h 4 v 4 h -8 z M 44,72 h 12 v 4 h -12 z M 64,72 h 4 v 12 h -4 z M 76,72 h 8 v 4 h -8 z M 48,84 h 12 v 4 h -12 z M 68,84 h 8 v 4 h -8 z"
         fill={color}
       />
     </Svg>
   </View>
 );
+
+// ── Pinchable Avatar ─────────────────────────────────────────────────────────
+
+interface PinchableAvatarProps {
+  user: any;
+  onEditPhoto: () => void;
+  animatedBadgeStyle: any;
+  onZoomed: (isZoomed: boolean) => void;
+}
+
+const PinchableAvatar: React.FC<PinchableAvatarProps> = ({
+  user,
+  onEditPhoto,
+  animatedBadgeStyle,
+  onZoomed,
+}) => {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+  const hintOpacity = useSharedValue(1);
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  // Notify parent whether we're zoomed in
+  const notifyZoom = (s: number) => {
+    onZoomed(s > 1.05);
+  };
+
+  // ── Pinch gesture ───────────────────────────────────────────────────────────
+  const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      savedScale.value = scale.value;
+      // Hide hint on first use
+      hintOpacity.value = withTiming(0, { duration: 300 });
+      runOnJS(setHasInteracted)(true);
+    })
+    .onUpdate((e) => {
+      const next = clamp(savedScale.value * e.scale, MIN_SCALE, MAX_SCALE);
+      scale.value = next;
+      runOnJS(notifyZoom)(next);
+    })
+    .onEnd(() => {
+      // Always snap back to initial position and scale on gesture release (fast, no-bounce)
+      scale.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) });
+      translateX.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
+      translateY.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
+      savedScale.value = 1;
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+      runOnJS(notifyZoom)(1);
+    });
+
+  // ── Pan gesture (only active when zoomed) ──────────────────────────────────
+  const panGesture = Gesture.Pan()
+    .minPointers(2) // two fingers = same as pinch, moves image while zooming
+    .onStart(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      if (scale.value <= 1) return;
+      // Bound pan to a reasonable range proportional to zoom level
+      const maxPan = (CARD_SIZE * (scale.value - 1)) / 2;
+      translateX.value = clamp(
+        savedTranslateX.value + e.translationX,
+        -maxPan,
+        maxPan
+      );
+      translateY.value = clamp(
+        savedTranslateY.value + e.translationY,
+        -maxPan,
+        maxPan
+      );
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  // ── Double-tap to reset ─────────────────────────────────────────────────────
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      scale.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) });
+      translateX.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
+      translateY.value = withTiming(0, { duration: 180, easing: Easing.out(Easing.quad) });
+      savedScale.value = 1;
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+      runOnJS(notifyZoom)(1);
+    });
+
+  // Compose: simultaneous pinch + pan, double-tap to reset
+  const composedGesture = Gesture.Simultaneous(
+    Gesture.Race(doubleTapGesture, pinchGesture),
+    panGesture
+  );
+
+  const imageAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
+  const hintAnimStyle = useAnimatedStyle(() => ({
+    opacity: hintOpacity.value,
+  }));
+
+  const localBadgeStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(scale.value, [1, 1.2], [1, 0], 'clamp');
+    return {
+      opacity,
+      transform: [{ scale: interpolate(scale.value, [1, 1.2], [1, 0.8], 'clamp') }],
+    };
+  });
+
+  return (
+    <View style={styles.frontCardContainer}>
+      {/* Circular clip container */}
+      <Animated.View style={[styles.cardCircle, imageAnimStyle]}>
+        <GestureDetector gesture={composedGesture}>
+          <View style={StyleSheet.absoluteFill}>
+            {user?.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="person" size={100} color="#A8A8A8" />
+              </View>
+            )}
+          </View>
+        </GestureDetector>
+
+        {/* Pinch-to-zoom hint — fades out after first interaction */}
+        {!hasInteracted && (
+          <Animated.View style={[styles.zoomHint, hintAnimStyle]} pointerEvents="none">
+            <View style={styles.zoomHintPill}>
+              <Ionicons name="expand-outline" size={12} color="#FFFFFF" />
+              <ThemedText style={styles.zoomHintText}>Pinch to zoom</ThemedText>
+            </View>
+          </Animated.View>
+        )}
+      </Animated.View>
+
+      {/* Pencil edit badge */}
+      <Animated.View style={[styles.editBadge, animatedBadgeStyle, localBadgeStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onEditPhoto} hitSlop={8}>
+          <View style={styles.editBadgeInner}>
+            <Feather name="edit-2" size={18} color="#000000" />
+          </View>
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+};
+
+// ── Main Modal ────────────────────────────────────────────────────────────────
 
 export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
   visible,
@@ -72,6 +240,7 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
 }) => {
   const { showToast } = useToast();
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   // Transition animation from source to center
   const transitionProgress = useSharedValue(0);
@@ -80,6 +249,7 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
   useEffect(() => {
     if (visible) {
       setIsFlipped(false);
+      setIsZoomed(false);
       flipValue.value = 0;
       transitionProgress.value = 0;
       transitionProgress.value = withTiming(1, {
@@ -94,9 +264,7 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
       0,
       { duration: 180, easing: Easing.out(Easing.ease) },
       (finished) => {
-        if (finished) {
-          runOnJS(onClose)();
-        }
+        if (finished) runOnJS(onClose)();
       }
     );
   };
@@ -107,17 +275,14 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
         handleClose();
         return true;
       };
-
-      const backHandler = BackHandler.addEventListener(
-        'hardwareBackPress',
-        backAction
-      );
-
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
       return () => backHandler.remove();
     }
   }, [visible]);
 
   const toggleFlip = () => {
+    // Don't flip while the user is zoomed in
+    if (isZoomed) return;
     const nextFlippedState = !isFlipped;
     setIsFlipped(nextFlippedState);
     flipValue.value = withTiming(nextFlippedState ? 180 : 0, {
@@ -129,11 +294,7 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
   const handleCopyLink = async () => {
     const profileUrl = `https://instagram.com/${user?.username}`;
     await Clipboard.setStringAsync(profileUrl);
-    showToast({
-      title: 'Link Copied',
-      message: 'Profile link copied to clipboard.',
-      type: 'success',
-    });
+    showToast({ title: 'Link Copied', message: 'Profile link copied to clipboard.', type: 'success' });
   };
 
   const handleShare = async () => {
@@ -146,11 +307,7 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
   };
 
   const handleAddAvatar = () => {
-    showToast({
-      title: 'Coming soon',
-      message: 'Avatar generation is under development.',
-      type: 'info',
-    });
+    showToast({ title: 'Coming soon', message: 'Avatar generation is under development.', type: 'info' });
   };
 
   // Interpolated animation targets
@@ -170,34 +327,16 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
     opacity: transitionProgress.value,
   }));
 
-  const headerAnimatedStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(transitionProgress.value, [0, 1], [-50, 0]);
-    return {
-      opacity: transitionProgress.value,
-      transform: [{ translateY }],
-    };
-  });
-
   const footerAnimatedStyle = useAnimatedStyle(() => {
     const translateY = interpolate(transitionProgress.value, [0, 1], [60, 0]);
-    return {
-      opacity: transitionProgress.value,
-      transform: [{ translateY }],
-    };
+    return { opacity: transitionProgress.value, transform: [{ translateY }] };
   });
 
   const animatedCardStyle = useAnimatedStyle(() => {
     const x = interpolate(transitionProgress.value, [0, 1], [source.x, targetX]);
     const y = interpolate(transitionProgress.value, [0, 1], [source.y, targetY]);
     const size = interpolate(transitionProgress.value, [0, 1], [source.width, targetSize]);
-
-    return {
-      position: 'absolute',
-      left: x,
-      top: y,
-      width: size,
-      height: size,
-    };
+    return { position: 'absolute', left: x, top: y, width: size, height: size };
   });
 
   const frontAnimatedStyle = useAnimatedStyle(() => {
@@ -215,10 +354,7 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
       transform: [{ rotateY: `${rotateY}deg` }],
       backfaceVisibility: 'hidden',
       position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
+      top: 0, left: 0, right: 0, bottom: 0,
       zIndex: flipValue.value > 90 ? 1 : 0,
     };
   });
@@ -226,145 +362,94 @@ export const ShareProfileModal: React.FC<ShareProfileModalProps> = ({
   const animatedBadgeStyle = useAnimatedStyle(() => {
     const opacity = interpolate(transitionProgress.value, [0.6, 1], [0, 1], 'clamp');
     const scale = interpolate(transitionProgress.value, [0.6, 1], [0.4, 1], 'clamp');
-    return {
-      opacity,
-      transform: [{ scale }],
-    };
+    return { opacity, transform: [{ scale }] };
   });
 
   if (!visible) return null;
 
   return (
-    <Animated.View style={[styles.overlay, backdropAnimatedStyle]}>
-      {/* Fullscreen soft linear gradient backdrop */}
-      <LinearGradient
-        colors={['#FFFFFF', '#F6F7FC', '#E5E8FC']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+      <Animated.View style={[styles.overlay, backdropAnimatedStyle]}>
+        {/* Fullscreen soft linear gradient backdrop */}
+        <LinearGradient
+          colors={['#FFFFFF', '#F6F7FC', '#E5E8FC']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
 
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
 
-      {/* Giant Circle Flipping Card */}
-      <Animated.View style={[styles.cardContainer, animatedCardStyle]}>
-        <Pressable onPress={toggleFlip} style={styles.cardTouchWrapper}>
-          {/* FRONT side: Circular Avatar */}
-          <Animated.View style={[styles.frontCardContainer, frontAnimatedStyle]}>
-            <View style={styles.cardCircle}>
-              {user?.avatar ? (
-                <Image source={{ uri: user.avatar }} style={styles.avatarImage} />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" size={100} color="#A8A8A8" />
-                </View>
-              )}
-            </View>
-            {/* Pencil edit badge bottom-right of circle, outside overflow: 'hidden' */}
-            <Animated.View style={[styles.editBadge, animatedBadgeStyle]}>
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={onEditPhoto}
-                hitSlop={8}
-              >
-                <View style={styles.editBadgeInner}>
-                  <Feather name="edit-2" size={18} color="#000000" />
-                </View>
-              </Pressable>
+        {/* Giant Circle Flipping Card */}
+        <Animated.View style={[styles.cardContainer, animatedCardStyle]}>
+          <Pressable
+            onPress={toggleFlip}
+            style={styles.cardTouchWrapper}
+            disabled={isZoomed} // disable flip when user is mid-zoom
+          >
+            {/* FRONT: Pinchable Avatar */}
+            <Animated.View style={[{ width: '100%', height: '100%' }, frontAnimatedStyle]}>
+              <PinchableAvatar
+                user={user}
+                onEditPhoto={onEditPhoto}
+                animatedBadgeStyle={animatedBadgeStyle}
+                onZoomed={setIsZoomed}
+              />
             </Animated.View>
-          </Animated.View>
 
-          {/* BACK side: Circular QR Code */}
-          <Animated.View style={[styles.cardCircle, styles.cardCircleBack, backAnimatedStyle]}>
-            <View style={styles.backContent}>
-              <ThemedText style={styles.backTitleText}>
-                SCAN TO VISIT PROFILE
-              </ThemedText>
-              
-              <MockQRCode color="#000000" />
+            {/* BACK: Circular QR Code */}
+            <Animated.View style={[styles.cardCircle, styles.cardCircleBack, backAnimatedStyle]}>
+              <View style={styles.backContent}>
+                <ThemedText style={styles.backTitleText}>SCAN TO VISIT PROFILE</ThemedText>
+                <MockQRCode color="#000000" />
+                <ThemedText style={styles.backUsernameText}>@{user?.username}</ThemedText>
+              </View>
+            </Animated.View>
+          </Pressable>
+        </Animated.View>
 
-              <ThemedText style={styles.backUsernameText}>
-                @{user?.username}
-              </ThemedText>
+        {/* Bottom Toolbar */}
+        <Animated.View style={[styles.bottomBar, footerAnimatedStyle]}>
+          <Pressable style={styles.bottomBtn} onPress={handleShare}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="person-circle-outline" size={26} color="#000000" />
             </View>
-          </Animated.View>
-        </Pressable>
+            <ThemedText style={styles.btnText}>Share profile</ThemedText>
+          </Pressable>
+
+          <Pressable style={styles.bottomBtn} onPress={handleCopyLink}>
+            <View style={styles.iconCircle}>
+              <Feather name="link" size={24} color="#000000" />
+            </View>
+            <ThemedText style={styles.btnText}>Copy link</ThemedText>
+          </Pressable>
+
+          <Pressable style={styles.bottomBtn} onPress={toggleFlip}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="qr-code-outline" size={24} color="#000000" />
+            </View>
+            <ThemedText style={styles.btnText}>QR code</ThemedText>
+          </Pressable>
+
+          <Pressable style={styles.bottomBtn} onPress={handleAddAvatar}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="happy-outline" size={24} color="#000000" />
+            </View>
+            <ThemedText style={styles.btnText}>Add avatar</ThemedText>
+          </Pressable>
+        </Animated.View>
       </Animated.View>
-
-      {/* Bottom Toolbar: 4 circular buttons */}
-      <Animated.View style={[styles.bottomBar, footerAnimatedStyle]}>
-        {/* Action 1: Share profile */}
-        <Pressable style={styles.bottomBtn} onPress={handleShare}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="person-circle-outline" size={26} color="#000000" />
-          </View>
-          <ThemedText style={styles.btnText}>Share profile</ThemedText>
-        </Pressable>
-
-        {/* Action 2: Copy link */}
-        <Pressable style={styles.bottomBtn} onPress={handleCopyLink}>
-          <View style={styles.iconCircle}>
-            <Feather name="link" size={24} color="#000000" />
-          </View>
-          <ThemedText style={styles.btnText}>Copy link</ThemedText>
-        </Pressable>
-
-        {/* Action 3: QR Code (Flipped) */}
-        <Pressable style={styles.bottomBtn} onPress={toggleFlip}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="qr-code-outline" size={24} color="#000000" />
-          </View>
-          <ThemedText style={styles.btnText}>QR code</ThemedText>
-        </Pressable>
-
-        {/* Action 4: Add avatar */}
-        <Pressable style={styles.bottomBtn} onPress={handleAddAvatar}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="happy-outline" size={24} color="#000000" />
-          </View>
-          <ThemedText style={styles.btnText}>Add avatar</ThemedText>
-        </Pressable>
-      </Animated.View>
-    </Animated.View>
+    </GestureHandlerRootView>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: 0, left: 0, right: 0, bottom: 0,
     zIndex: 99999,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  topBar: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 50,
-    zIndex: 10,
-  },
-  topBarBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  topBarTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  topBarTitle: {
-    fontFamily: Fonts.bold,
-    fontSize: 18,
-    color: '#000000',
   },
   cardContainer: {
     shadowColor: '#000000',
@@ -392,15 +477,7 @@ const styles = StyleSheet.create({
   },
   cardCircleBack: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  avatarContainer: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
+    top: 0, left: 0, right: 0, bottom: 0,
   },
   avatarImage: {
     width: '100%',
@@ -435,6 +512,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // ── Zoom hint pill ──────────────────────────────────────────────────────────
+  zoomHint: {
+    position: 'absolute',
+    bottom: 18,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    pointerEvents: 'none',
+  },
+  zoomHintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  zoomHintText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.semiBold,
+    fontSize: 11,
+  },
+  // ── QR back side ───────────────────────────────────────────────────────────
   backContent: {
     flex: 1,
     justifyContent: 'center',
@@ -465,6 +566,7 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
   },
+  // ── Bottom bar ─────────────────────────────────────────────────────────────
   bottomBar: {
     position: 'absolute',
     bottom: 40,
@@ -499,4 +601,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     textAlign: 'center',
   },
+  // ── Legacy (unused, kept for safety) ──────────────────────────────────────
+  topBar: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, height: 50, zIndex: 10 },
+  topBarBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  topBarTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  topBarTitle: { fontFamily: Fonts.bold, fontSize: 18, color: '#000000' },
+  avatarContainer: { width: '100%', height: '100%', position: 'relative' },
 });

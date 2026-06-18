@@ -241,6 +241,7 @@ interface ReelItemProps {
   onLikeToggle: (id: string) => void;
   height: number;
   preloadedPlayer?: any;
+  bottomOffset?: number;
 }
 
 export const ReelItem = React.memo(({
@@ -250,13 +251,13 @@ export const ReelItem = React.memo(({
   onLikeToggle,
   height,
   preloadedPlayer,
+  bottomOffset,
 }: ReelItemProps) => {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const tabHeight = Platform.OS === 'ios' 
-    ? 50 + insets.bottom 
-    : 60 + (insets.bottom > 0 ? insets.bottom - 5 : 8);
+  const tabHeight = 0;
+  const finalBottomOffset = bottomOffset !== undefined ? bottomOffset : tabHeight;
   
   const [isFollowed, setIsFollowed] = useState(false);
   const [localLiked, setLocalLiked] = useState(reel.isLiked);
@@ -776,7 +777,7 @@ export const ReelItem = React.memo(({
       </Pressable>
 
       {/* Right Action Buttons */}
-      <View style={[styles.rightSidebar, { bottom: tabHeight + 15 }]}>
+      <View style={[styles.rightSidebar, { bottom: finalBottomOffset + 15 }]}>
         {/* Like Button */}
         <Pressable onPress={handleLike} style={styles.sidebarButton}>
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
@@ -816,7 +817,7 @@ export const ReelItem = React.memo(({
       </View>
 
       {/* Bottom Text Details Overlay */}
-      <View style={[styles.bottomOverlay, { bottom: tabHeight + 15 }]}>
+      <View style={[styles.bottomOverlay, { bottom: finalBottomOffset + 15 }]}>
         <View style={styles.userRow}>
           <Image source={{ uri: reel.avatar }} style={styles.avatar} />
           <ThemedText style={styles.usernameText}>
@@ -848,7 +849,7 @@ export const ReelItem = React.memo(({
 
       {/* Playback Seekbar Line (Scrubbable with Micro-Animations) */}
       <View 
-        style={[styles.seekbarContainer, { bottom: tabHeight }]}
+        style={[styles.seekbarContainer, { bottom: finalBottomOffset }]}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={handleSeekTouch}

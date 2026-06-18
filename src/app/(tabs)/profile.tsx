@@ -796,7 +796,7 @@ export default function ProfileScreen() {
 
         {/* Center: username + chevron */}
         <Pressable
-          style={styles.headerUsernameRow}
+          style={[styles.headerUsernameRow, { top: insets.top }]}
           hitSlop={8}
           onPress={() => isOwnProfile && setShowAccountSwitcher(true)}
         >
