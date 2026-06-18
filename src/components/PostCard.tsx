@@ -7,6 +7,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
@@ -16,6 +17,7 @@ import { ShareSheetModal } from './ShareSheetModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { haptics } from '@/utils/haptics';
 import { useSaved } from '@/contexts/SavedContext';
+import { useRouter } from 'expo-router';
 
 const WINDOW_WIDTH = Dimensions.get('window').width;
 
@@ -112,6 +114,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const router = useRouter();
 
   const [showComments, setShowComments] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(post.commentsCount);
@@ -204,7 +207,13 @@ export const PostCard: React.FC<PostCardProps> = ({
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          <ExpoImage
+            source={{ uri: avatarUrl }}
+            style={styles.avatar}
+            contentFit="cover"
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            transition={200}
+          />
           <View>
             <View style={styles.usernameRow}>
               <ThemedText type="smallBold" style={{ color: colors.text }}>
@@ -244,9 +253,12 @@ export const PostCard: React.FC<PostCardProps> = ({
       <View style={styles.carouselWrapper}>
         {isReelCard ? (
           <Pressable onPress={handleImagePress} style={styles.mediaContainer}>
-            <Image
+            <ExpoImage
               source={{ uri: post.thumbnailUrl || post.media?.[0]?.mediaUrl || '' }}
               style={styles.postImage}
+              contentFit="cover"
+              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+              transition={300}
             />
             <View style={styles.reelOverlay}>
               <View style={styles.reelPlayButton}>
@@ -287,7 +299,13 @@ export const PostCard: React.FC<PostCardProps> = ({
                     isActive={index === activeIndex}
                   />
                 ) : (
-                  <Image source={{ uri: item.mediaUrl }} style={styles.postImage} />
+                  <ExpoImage
+                    source={{ uri: item.mediaUrl }}
+                    style={styles.postImage}
+                    contentFit="cover"
+                    placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+                    transition={300}
+                  />
                 )}
               </Pressable>
             )}
@@ -421,7 +439,10 @@ export const PostCard: React.FC<PostCardProps> = ({
       {/* ── Comments preview ── */}
       {localCommentsCount > 0 ? (
         <Pressable
-          onPress={() => setShowComments(true)}
+          onPress={() => {
+            haptics.light();
+            router.push(`/post/${post.id}` as any);
+          }}
           style={styles.commentsPreview}
         >
           <ThemedText type="small" style={{ color: colors.textSecondary }}>

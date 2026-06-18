@@ -1460,7 +1460,10 @@ export default function ProfileScreen() {
                     const isVideo = item.media && item.media[0]?.mediaType === 'VIDEO';
                     return (
                       <Pressable
-                        onPress={() => setSelectedPost(item)}
+                        onPress={() => {
+                          haptics.light();
+                          router.push(`/post/${item.id}` as any);
+                        }}
                         style={styles.gridItem}
                       >
                         <Image source={{ uri: item.media[0]?.mediaUrl }} style={styles.gridImage} />
@@ -1610,7 +1613,10 @@ export default function ProfileScreen() {
                       const isVideo = item.media && item.media[0]?.mediaType === 'VIDEO';
                       return (
                         <Pressable
-                          onPress={() => setSelectedPost(item)}
+                          onPress={() => {
+                            haptics.light();
+                            router.push(`/post/${item.id}` as any);
+                          }}
                           style={styles.gridItem}
                         >
                           <Image source={{ uri: item.media[0]?.mediaUrl }} style={styles.gridImage} />

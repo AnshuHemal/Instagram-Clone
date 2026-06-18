@@ -18,6 +18,8 @@ import {
   Platform,
   TextInput,
   RefreshControl,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Animated, {
@@ -229,6 +231,9 @@ export default function PostDetailScreen() {
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showLikedBy, setShowLikedBy] = useState(false);
+  const [likedByUsers, setLikedByUsers] = useState<{ id: string; username: string; displayName: string; avatarUrl: string | null }[]>([]);
+  const [likedByLoading, setLikedByLoading] = useState(false);
 
   const commentInputRef = useRef<TextInput>(null);
   const heartScale = useSharedValue(1);
@@ -371,6 +376,18 @@ export default function PostDetailScreen() {
       await api.delete(`/posts/${id}`);
       router.back();
     } catch {}
+  };
+
+  const fetchLikedBy = async () => {
+    setLikedByLoading(true);
+    setShowLikedBy(true);
+    try {
+      const res = await api.get(`/posts/${id}/likes`, { params: { limit: 50 } });
+      setLikedByUsers(res.data?.data || []);
+    } catch (_) {
+    } finally {
+      setLikedByLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -545,11 +562,13 @@ export default function PostDetailScreen() {
             </Pressable>
           </Animated.View>
 
-          {/* Stats */}
+          {/* Stats — tap to see who liked */}
           <View style={styles.statsRow}>
-            <Text style={[styles.statsText, { color: colors.text }]}>
-              {likesCount.toLocaleString()} {likesCount === 1 ? 'like' : 'likes'}
-            </Text>
+            <Pressable onPress={fetchLikedBy} hitSlop={8}>
+              <Text style={[styles.statsText, { color: colors.text }]}>
+                {likesCount.toLocaleString()} {likesCount === 1 ? 'like' : 'likes'}
+              </Text>
+            </Pressable>
           </View>
 
           {/* Caption */}
@@ -723,6 +742,68 @@ export default function PostDetailScreen() {
         previewCaption={post.caption}
         onClose={() => setShowShare(false)}
       />
+
+      {/* ── Who Liked Modal ── */}
+      <Modal
+        visible={showLikedBy}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowLikedBy(false)}
+      >
+        <View style={[styles.likedByContainer, { backgroundColor: colors.background }]}>
+          {/* Handle + header */}
+          <View style={[styles.likedByHeader, { borderBottomColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+            <View style={styles.likedByHandle} />
+            <Text style={[styles.likedByTitle, { color: colors.text }]}>Likes</Text>
+            <Pressable onPress={() => setShowLikedBy(false)} style={styles.likedByClose}>
+              <Ionicons name="close" size={22} color={colors.text} />
+            </Pressable>
+          </View>
+
+          {likedByLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color="#0095F6" />
+            </View>
+          ) : likedByUsers.length === 0 ? (
+            <View style={styles.noComments}>
+              <Ionicons name="heart-outline" size={40} color={colors.textSecondary} />
+              <Text style={[styles.noCommentsText, { color: colors.textSecondary }]}>
+                No likes yet
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={likedByUsers}
+              keyExtractor={item => item.id}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    setShowLikedBy(false);
+                    router.push(`/profile?userId=${item.id}` as any);
+                  }}
+                  style={styles.likedByRow}
+                >
+                  <Image
+                    source={{ uri: item.avatarUrl || 'https://ui-avatars.com/api/?name=U&size=80' }}
+                    style={styles.likedByAvatar}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontFamily: Fonts.semiBold, fontSize: 14 }}>
+                      {item.username}
+                    </Text>
+                    {item.displayName ? (
+                      <Text style={{ color: colors.textSecondary, fontFamily: Fonts.regular, fontSize: 12, marginTop: 1 }}>
+                        {item.displayName}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1003,5 +1084,48 @@ const styles = StyleSheet.create({
   sendBtn: {
     padding: 8,
     marginBottom: 2,
+  },
+
+  // Liked By modal
+  likedByContainer: {
+    flex: 1,
+  },
+  likedByHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderBottomWidth: 0.5,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  likedByHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(128,128,128,0.35)',
+    marginBottom: 12,
+    alignSelf: 'center',
+  },
+  likedByTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  likedByClose: {
+    position: 'absolute',
+    right: 16,
+    top: 12,
+    padding: 4,
+  },
+  likedByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  likedByAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
 });

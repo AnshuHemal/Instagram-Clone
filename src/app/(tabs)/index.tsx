@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   Text,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -53,6 +54,8 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { Fonts } from '@/constants/theme';
 import { GradientPullRefresh } from '@/components/GradientPullRefresh';
 import { haptics } from '@/utils/haptics';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 
 
@@ -544,6 +547,16 @@ export default function FeedScreen() {
           ListFooterComponent={renderFooter}
           contentContainerStyle={styles.feedScroll}
           ListEmptyComponent={renderEmptyFeed}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={4}
+          updateCellsBatchingPeriod={50}
+          windowSize={7}
+          initialNumToRender={3}
+          getItemLayout={(_data, index) => ({
+            length: SCREEN_WIDTH + 380,
+            offset: (SCREEN_WIDTH + 380) * index,
+            index,
+          })}
         />
       </GradientPullRefresh>
 
