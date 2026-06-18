@@ -86,6 +86,21 @@ interface PostDetail {
   user: { id: string; username: string; displayName: string; avatarUrl?: string; isVerified: boolean };
 }
 
+// ─── Hashtag / mention highlighter ────────────────────────────────────────────
+
+function renderHighlightedText(text: string, baseStyle: object): React.ReactNode {
+  const parts = text.split(/(#\w+|@\w+)/g);
+  return (
+    <Text style={baseStyle}>
+      {parts.map((part, i) =>
+        /^[#@]\w+$/.test(part)
+          ? <Text key={i} style={{ color: '#0095F6' }}>{part}</Text>
+          : <Text key={i}>{part}</Text>
+      )}
+    </Text>
+  );
+}
+
 // ─── Comment Row ───────────────────────────────────────────────────────────────
 
 const CommentRow: React.FC<{
@@ -136,8 +151,7 @@ const CommentRow: React.FC<{
               <Text style={{ color: '#0095F6' }}> ✓</Text>
             )}
           </Text>
-          <Text style={[styles.commentText, { color: colors.text }]}>{comment.text}</Text>
-        </View>
+          {renderHighlightedText(comment.text, [styles.commentText, { color: colors.text }])}        </View>
 
         {/* Actions row */}
         <View style={styles.commentMeta}>
@@ -212,6 +226,7 @@ export default function PostDetailScreen() {
   const [isPosting, setIsPosting] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -539,10 +554,25 @@ export default function PostDetailScreen() {
 
           {/* Caption */}
           {post.caption ? (
-            <View style={styles.captionRow}>
-              <Text style={[styles.captionUsername, { color: colors.text }]}>{post.user.username} </Text>
-              <Text style={[styles.captionText, { color: colors.text }]}>{post.caption}</Text>
-            </View>
+            <Pressable
+              style={styles.captionRow}
+              onPress={() => post.caption && post.caption.length > 100 && setCaptionExpanded(e => !e)}
+              hitSlop={4}
+            >
+              <Text style={[styles.captionText, { color: colors.text }]} numberOfLines={captionExpanded ? undefined : 3}>
+                <Text style={[styles.captionUsername, { color: colors.text }]}>{post.user.username} </Text>
+                {post.caption.split(/(#\w+|@\w+)/g).map((part, i) =>
+                  /^[#@]\w+$/.test(part)
+                    ? <Text key={i} style={{ color: '#0095F6' }}>{part}</Text>
+                    : <Text key={i}>{part}</Text>
+                )}
+              </Text>
+              {!captionExpanded && post.caption.length > 100 && (
+                <Text style={[styles.captionText, { color: colors.textSecondary, marginTop: 2 }]}>
+                  more
+                </Text>
+              )}
+            </Pressable>
           ) : null}
 
           {/* Timestamp */}
@@ -801,8 +831,6 @@ const styles = StyleSheet.create({
 
   // Caption
   captionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: 16,
     paddingBottom: 6,
   },

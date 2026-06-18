@@ -115,6 +115,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   const [showComments, setShowComments] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(post.commentsCount);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
   // useRef instead of useState — avoids stale closure in handleImagePress
   const lastTapRef = useRef(0);
   const { isSaved, toggleSave } = useSaved();
@@ -394,14 +395,27 @@ export const PostCard: React.FC<PostCardProps> = ({
 
       {/* ── Caption ── */}
       {post.caption ? (
-        <View style={styles.captionContainer}>
-          <ThemedText type="small" style={{ color: colors.text, lineHeight: 18 }}>
+        <Pressable
+          onPress={() => setCaptionExpanded(e => !e)}
+          style={styles.captionContainer}
+          disabled={post.caption.length <= 100}
+        >
+          <ThemedText
+            type="small"
+            style={{ color: colors.text, lineHeight: 18 }}
+            numberOfLines={captionExpanded ? undefined : 3}
+          >
             <ThemedText type="smallBold" style={{ color: colors.text }}>
               {username}{' '}
             </ThemedText>
             {post.caption}
           </ThemedText>
-        </View>
+          {!captionExpanded && post.caption.length > 100 && (
+            <ThemedText type="small" style={{ color: colors.textSecondary, marginTop: 2 }}>
+              more
+            </ThemedText>
+          )}
+        </Pressable>
       ) : null}
 
       {/* ── Comments preview ── */}

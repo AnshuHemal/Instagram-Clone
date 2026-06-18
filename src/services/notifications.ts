@@ -20,6 +20,8 @@ export interface Notification {
   createdAt: string;
   message: string;
   actor: NotificationActor;
+  postThumbnailUrl: string | null;
+  reelThumbnailUrl: string | null;
 }
 
 export interface NotificationsResponse {

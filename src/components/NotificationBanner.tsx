@@ -20,7 +20,14 @@ import { Fonts } from '@/constants/theme';
 
 export interface BannerNotification {
   id: string;
-  type: 'FOLLOW' | 'LIKE_POST' | 'LIKE_REEL' | 'COMMENT_POST' | 'COMMENT_REEL';
+  type:
+    | 'FOLLOW'
+    | 'FOLLOW_REQUEST'
+    | 'FOLLOW_REQUEST_ACCEPTED'
+    | 'LIKE_POST'
+    | 'LIKE_REEL'
+    | 'COMMENT_POST'
+    | 'COMMENT_REEL';
   actor: {
     id: string;
     username: string;
@@ -85,19 +92,21 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
     dismissBanner();
 
     // Navigate based on notification type
-    if (notification.type === 'FOLLOW') {
-      router.push({
-        pathname: '/(tabs)/profile',
-        params: { userId: notification.actor.id },
-      });
-    } else if (notification.type === 'LIKE_POST' || notification.type === 'COMMENT_POST') {
+    if (notification.type === 'LIKE_POST' || notification.type === 'COMMENT_POST') {
       if (notification.postId) {
-        // Could navigate to a post detail modal
+        router.push(`/post/${notification.postId}` as any);
+      } else {
         router.push('/notifications');
       }
     } else if (notification.type === 'LIKE_REEL' || notification.type === 'COMMENT_REEL') {
       // Navigate to reels tab
       router.push({ pathname: '/(tabs)', params: { tab: 'reels' } });
+    } else if (
+      notification.type === 'FOLLOW' ||
+      notification.type === 'FOLLOW_REQUEST' ||
+      notification.type === 'FOLLOW_REQUEST_ACCEPTED'
+    ) {
+      router.push(`/profile?userId=${notification.actor.id}` as any);
     } else {
       router.push('/notifications');
     }
@@ -109,6 +118,10 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
     switch (notification.type) {
       case 'FOLLOW':
         return { name: 'person-add', color: '#0095F6' };
+      case 'FOLLOW_REQUEST':
+        return { name: 'person-add-outline', color: '#FF9500' };
+      case 'FOLLOW_REQUEST_ACCEPTED':
+        return { name: 'checkmark-circle', color: '#34C759' };
       case 'LIKE_POST':
       case 'LIKE_REEL':
         return { name: 'heart', color: '#FF3040' };

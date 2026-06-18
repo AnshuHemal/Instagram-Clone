@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
-import { StyleSheet, View, Image, Pressable, Animated } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { StyleSheet, View, Pressable, Animated } from 'react-native';
+import { Image } from 'expo-image';
+import { Swipeable } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { Notification } from '@/services/notifications';
@@ -10,15 +12,18 @@ import { useRouter } from 'expo-router';
 interface NotificationItemProps {
   notification: Notification;
   onPress?: () => void;
+  onDelete?: (id: string) => void;
 }
 
 export const NotificationItem: React.FC<NotificationItemProps> = ({
   notification,
   onPress,
+  onDelete,
 }) => {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
+  const swipeableRef = useRef<Swipeable>(null);
 
   const handlePressIn = () => {
     Animated.spring(scale, {
@@ -61,6 +66,18 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
     }
   };
 
+  const renderRightActions = () => (
+    <Pressable
+      onPress={() => {
+        swipeableRef.current?.close();
+        onDelete?.(notification.id);
+      }}
+      style={styles.deleteAction}
+    >
+      <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+    </Pressable>
+  );
+
   const getNotificationIcon = () => {
     switch (notification.type) {
       case 'FOLLOW':
@@ -93,57 +110,79 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
     return {};
   };
 
+  const thumbnailUrl = notification.postThumbnailUrl || notification.reelThumbnailUrl;
+
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        style={[
-          styles.container,
-          {
-            backgroundColor: !notification.read
-              ? (isDark ? '#1A1A1A' : '#F0F8FF')
-              : 'transparent',
-          },
-        ]}
-      >
-        {/* Avatar */}
-        <View style={[styles.avatarContainer, getAvatarBorder()]}>
-          <Image
-            source={{
-              uri: notification.actor.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-            }}
-            style={styles.avatar}
-          />
-          <View style={[styles.iconBadge, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
-            {getNotificationIcon()}
-          </View>
-        </View>
-
-        {/* Content */}
-        <View style={styles.content}>
-          <ThemedText style={[styles.message, { color: colors.text }]} numberOfLines={2}>
-            <ThemedText type="smallBold" style={{ color: colors.text }}>
-              {notification.actor.username}
-            </ThemedText>
-            {' '}{notification.message}
-          </ThemedText>
-          <ThemedText style={[styles.time, { color: colors.textSecondary }]}>
-            {timeAgo(notification.createdAt)}
-          </ThemedText>
-        </View>
-
-        {/* Post thumbnail (if applicable) */}
-        {notification.postId && (
-          <View style={styles.thumbnailContainer}>
-            <View style={[styles.thumbnail, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
-              <Ionicons name="image-outline" size={16} color={colors.textSecondary} />
+    <Swipeable
+      ref={swipeableRef}
+      renderRightActions={renderRightActions}
+      onSwipeableOpen={(direction) => {
+        if (direction === 'right') {
+          onDelete?.(notification.id);
+        }
+      }}
+      overshootRight={false}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Pressable
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={[
+            styles.container,
+            {
+              backgroundColor: !notification.read
+                ? (isDark ? '#1A1A1A' : '#F0F8FF')
+                : 'transparent',
+            },
+          ]}
+        >
+          {/* Avatar */}
+          <View style={[styles.avatarContainer, getAvatarBorder()]}>
+            <Image
+              source={{
+                uri: notification.actor.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+              }}
+              style={styles.avatar}
+              contentFit="cover"
+            />
+            <View style={[styles.iconBadge, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+              {getNotificationIcon()}
             </View>
           </View>
-        )}
-      </Pressable>
-    </Animated.View>
+
+          {/* Content */}
+          <View style={styles.content}>
+            <ThemedText style={[styles.message, { color: colors.text }]} numberOfLines={2}>
+              <ThemedText type="smallBold" style={{ color: colors.text }}>
+                {notification.actor.username}
+              </ThemedText>
+              {' '}{notification.message}
+            </ThemedText>
+            <ThemedText style={[styles.time, { color: colors.textSecondary }]}>
+              {timeAgo(notification.createdAt)}
+            </ThemedText>
+          </View>
+
+          {/* Post/Reel thumbnail */}
+          {(notification.postId || notification.reelId) && (
+            <View style={styles.thumbnailContainer}>
+              {thumbnailUrl ? (
+                <Image
+                  source={{ uri: thumbnailUrl }}
+                  style={styles.thumbnail}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.thumbnailPlaceholder, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
+                  <Ionicons name="image-outline" size={16} color={colors.textSecondary} />
+                </View>
+              )}
+            </View>
+          )}
+        </Pressable>
+      </Animated.View>
+    </Swipeable>
   );
 };
 
@@ -182,8 +221,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  message: {
-  },
+  message: {},
   time: {
     fontSize: 12,
   },
@@ -194,8 +232,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   thumbnail: {
-    width: '100%',
-    height: '100%',
+    width: 44,
+    height: 44,
+    borderRadius: 4,
+  },
+  thumbnailPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteAction: {
+    minWidth: 80,
+    backgroundColor: '#FF3040',
     justifyContent: 'center',
     alignItems: 'center',
   },

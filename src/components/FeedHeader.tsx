@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Pressable, Modal, TouchableWithoutFeedback, Text } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState } from 'react';
+import { StyleSheet, View, Pressable, Modal, TouchableWithoutFeedback } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { InstagramLogo } from '@/components/InstagramLogo';
-import { notificationService } from '@/services/notifications';
-import { useSocket } from '@/contexts/SocketContext';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { ThemedText } from '@/components/themed-text';
 import { usePosts } from '@/contexts/PostsContext';
+import { useBadge } from '@/contexts/BadgeContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,56 +18,8 @@ export const FeedHeader: React.FC = () => {
   const { colors, isDark } = useTheme();
   const { feedType, setFeedType } = usePosts();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { notificationCount } = useBadge();
   const badgeScale = useSharedValue(1);
-  const { socket } = useSocket();
-
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await notificationService.getUnreadCount();
-      if (response.success) {
-        setUnreadCount(response.count);
-      }
-    } catch (error) {
-      console.error('Failed to fetch unread count:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchUnreadCount();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchUnreadCount();
-    }, [])
-  );
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleNotificationReceived = (notification: any) => {
-      console.log('[FeedHeader] Real-time notification received:', notification);
-      setUnreadCount((prev) => prev + 1);
-    };
-
-    socket.on('notificationReceived', handleNotificationReceived);
-
-    return () => {
-      socket.off('notificationReceived', handleNotificationReceived);
-    };
-  }, [socket]);
-
-  useEffect(() => {
-    if (unreadCount > 0) {
-      badgeScale.value = withSpring(1.2, { damping: 10, stiffness: 200 }, () => {
-        badgeScale.value = withSpring(1, { damping: 10, stiffness: 200 });
-      });
-    }
-  }, [unreadCount]);
 
   const badgeAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: badgeScale.value }],
@@ -108,14 +59,14 @@ export const FeedHeader: React.FC = () => {
       >
         <View style={styles.badgeWrapper}>
           <Ionicons
-            name={unreadCount > 0 ? "notifications" : "notifications-outline"}
+            name={notificationCount > 0 ? "notifications" : "notifications-outline"}
             size={26}
             color={colors.text}
           />
-          {unreadCount > 0 && (
+          {notificationCount > 0 && (
             <Animated.View style={[styles.badge, badgeAnimatedStyle]}>
               <View style={[styles.badgeDot, { backgroundColor: '#FF3040', borderColor: colors.background }]}>
-                {unreadCount > 9 ? (
+                {notificationCount > 9 ? (
                   <View style={styles.badgeTextContainer}>
                     <View style={[styles.badgeText, { backgroundColor: '#FF3040' }]}>
                       <View style={styles.badgeTextInner}>

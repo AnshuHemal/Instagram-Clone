@@ -81,6 +81,17 @@ interface CommentsSheetProps {
   onCommentAdded?: (newCount: number) => void;
 }
 
+// ─── Hashtag highlighter ──────────────────────────────────────────────────────
+
+function renderCommentText(text: string, baseColor: string): React.ReactNode {
+  const parts = text.split(/(#\w+|@\w+)/g);
+  return parts.map((part, i) =>
+    /^[#@]\w+$/.test(part)
+      ? <Text key={i} style={{ color: '#0095F6', fontFamily: Fonts.semiBold }}>{part}</Text>
+      : <Text key={i}>{part}</Text>
+  );
+}
+
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 
 const SkeletonRow: React.FC<{ isDark: boolean }> = ({ isDark }) => {
@@ -156,8 +167,38 @@ const CommentRow: React.FC<CommentRowProps> = React.memo(
 
     return (
       <Pressable
-        onLongPress={isOwn ? () => onDelete(item.id) : undefined}
-        delayLongPress={400}
+        onLongPress={() => {
+          const options: { text: string; style?: 'destructive' | 'cancel' | 'default'; onPress?: () => void }[] = [
+            {
+              text: 'Copy',
+              onPress: () => {
+                // Copy to clipboard using a try/catch to handle unavailability
+                try {
+                  const Clipboard = require('@react-native-clipboard/clipboard');
+                  Clipboard.default?.setString(item.text);
+                } catch {
+                  // Clipboard not available — no-op
+                }
+              },
+            },
+          ];
+          if (isOwn) {
+            options.push({
+              text: 'Delete',
+              style: 'destructive',
+              onPress: () => onDelete(item.id),
+            });
+          } else {
+            options.push({
+              text: 'Report',
+              style: 'destructive',
+              onPress: () => {}, // stub — no report endpoint yet
+            });
+          }
+          options.push({ text: 'Cancel', style: 'cancel' });
+          Alert.alert('Comment', undefined, options);
+        }}
+        delayLongPress={350}
         style={styles.commentRow}
       >
         <Image
@@ -175,7 +216,7 @@ const CommentRow: React.FC<CommentRowProps> = React.memo(
             <Text style={styles.commentUsername}>
               {item.user?.username ?? 'user'}{' '}
             </Text>
-            {item.text}
+            {renderCommentText(item.text, colors.text)}
           </Text>
 
           {/* Meta row */}
@@ -318,7 +359,11 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
         const params: Record<string, any> = { limit: 20 };
         if (nextCursor) params.cursor = nextCursor;
         const res = await api.get(`${basePath}/comments`, { params });
-        const data: CommentItem[] = res.data?.data ?? [];
+        const data: CommentItem[] = (res.data?.data ?? []).map((c: any) => ({
+          ...c,
+          likesCount: c.likesCount ?? 0,
+          isLiked: c.isLiked ?? false,
+        }));
         const meta = res.data?.meta ?? {};
 
         setComments((prev) => (append ? [...prev, ...data] : data));

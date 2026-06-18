@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, FlatList, Pressable, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, View, SectionList, Pressable, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,19 +10,21 @@ import { NotificationItem } from '@/components/NotificationItem';
 import { NotificationsSkeleton } from '@/components/Skeleton';
 import { notificationService, Notification } from '@/services/notifications';
 import { followService } from '@/services/follow';
-import { useSocket } from '@/contexts/SocketContext';
 import { useBadge } from '@/contexts/BadgeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { GradientPullRefresh } from '@/components/GradientPullRefresh';
+import { groupNotificationsByPeriod, NotificationSection } from '@/utils/groupNotifications';
 
 export default function NotificationsScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
-  const { socket } = useSocket();
   const { clearNotifications } = useBadge();
+  const { showToast } = useToast();
   const scrollY = useSharedValue(0);
 
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [sections, setSections] = useState<NotificationSection[]>([]);
+  const [flatNotifications, setFlatNotifications] = useState<Notification[]>([]);
   const [followRequests, setFollowRequests] = useState<any[]>([]);
   const [showRequests, setShowRequests] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,9 +71,14 @@ export default function NotificationsScreen() {
 
       if (response.success) {
         if (isRefresh) {
-          setNotifications(response.notifications);
+          setFlatNotifications(response.notifications);
+          setSections(groupNotificationsByPeriod(response.notifications));
         } else {
-          setNotifications(prev => [...prev, ...response.notifications]);
+          setFlatNotifications(prev => {
+            const updated = [...prev, ...response.notifications];
+            setSections(groupNotificationsByPeriod(updated));
+            return updated;
+          });
         }
         setCursor(response.nextCursor);
         setHasMore(!!response.nextCursor);
@@ -98,25 +105,27 @@ export default function NotificationsScreen() {
     clearNotifications();
   }, [clearNotifications]);
 
-  useEffect(() => {
-    if (!socket) return;
+  const handleDeleteNotification = async (id: string) => {
+    // Optimistic removal
+    const snapshot = sections;
+    const flatSnapshot = flatNotifications;
+    setSections(prev =>
+      prev
+        .map(s => ({ ...s, data: s.data.filter(n => n.id !== id) }))
+        .filter(s => s.data.length > 0),
+    );
+    setFlatNotifications(prev => prev.filter(n => n.id !== id));
 
-    const handleNotificationReceived = (notification: any) => {
-      console.log('[NotificationsScreen] Real-time notification received:', notification);
-      setNotifications((prev) => [notification, ...prev]);
-
-      // Proactively mark as read since user is actively viewing this screen
-      notificationService.markAsRead([notification.id]).catch((err) => {
-        console.error('Failed to mark real-time notification as read:', err);
-      });
-    };
-
-    socket.on('notificationReceived', handleNotificationReceived);
-
-    return () => {
-      socket.off('notificationReceived', handleNotificationReceived);
-    };
-  }, [socket]);
+    try {
+      await notificationService.deleteNotification(id);
+      showToast({ message: 'Notification deleted', type: 'success' });
+    } catch {
+      // Restore on failure
+      setSections(snapshot);
+      setFlatNotifications(flatSnapshot);
+      showToast({ message: 'Failed to delete notification', type: 'error' });
+    }
+  };
 
   const handleLoadMore = () => {
     if (hasMore && !isLoading && !isRefreshing && cursor) {
@@ -161,6 +170,12 @@ export default function NotificationsScreen() {
       </View>
     );
   };
+
+  const renderSectionHeader = ({ section }: { section: NotificationSection }) => (
+    <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
+      <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
+    </View>
+  );
 
   const renderFollowRequests = () => {
     if (followRequests.length === 0) return null;
@@ -242,12 +257,13 @@ export default function NotificationsScreen() {
           await fetchNotifications(true);
         }}
       >
-        <FlatList
-          data={notifications}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <NotificationItem
               notification={item}
+              onDelete={handleDeleteNotification}
               onPress={() => {
                 // Deep link based on notification type
                 try {
@@ -255,7 +271,6 @@ export default function NotificationsScreen() {
                   if (type === 'LIKE_POST' || type === 'COMMENT_POST') {
                     if (item.postId) router.push(`/post/${item.postId}` as any);
                   } else if (type === 'LIKE_REEL' || type === 'COMMENT_REEL') {
-                    // Navigate to reels tab — reel detail route not yet implemented
                     router.push('/(tabs)/reels' as any);
                   } else if (type === 'FOLLOW' || type === 'FOLLOW_REQUEST' || type === 'FOLLOW_REQUEST_ACCEPTED') {
                     if (item.actorId) router.push(`/profile?userId=${item.actorId}` as any);
@@ -266,6 +281,8 @@ export default function NotificationsScreen() {
               }}
             />
           )}
+          renderSectionHeader={renderSectionHeader}
+          stickySectionHeadersEnabled={false}
           ListHeaderComponent={renderFollowRequests}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
@@ -307,6 +324,14 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  sectionTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14,
   },
   emptyContainer: {
     flex: 1,

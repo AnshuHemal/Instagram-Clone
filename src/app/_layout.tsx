@@ -24,6 +24,7 @@ import {
   Outfit_700Bold,
 } from '@expo-google-fonts/outfit';
 import { NotificationBannerBridge } from '@/components/NotificationBannerBridge';
+import { NotificationBannerProvider } from '@/contexts/NotificationBannerContext';
 
 // Configure how notifications are displayed while the app is in the foreground
 Notifications.setNotificationHandler({
@@ -89,7 +90,9 @@ export default function RootLayout() {
                       <SavedProvider>
                         <BadgeProvider>
                           <ToastProvider>
-                            <RootLayoutContent />
+                            <NotificationBannerProvider>
+                              <RootLayoutContent />
+                            </NotificationBannerProvider>
                           </ToastProvider>
                         </BadgeProvider>
                       </SavedProvider>
