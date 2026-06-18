@@ -130,7 +130,7 @@ function RootLayoutContent() {
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(chat)" />
-        <Stack.Screen name="create" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="create" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen
           name="connections"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
