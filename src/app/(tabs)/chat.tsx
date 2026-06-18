@@ -9,7 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -42,6 +42,7 @@ interface Conversation {
 }
 
 export default function InboxScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { setPagerScrollEnabled } = useTabPager();
@@ -166,10 +167,10 @@ export default function InboxScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}
+      edges={['left', 'right']}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: insets.top, height: 56 + insets.top }]}>
         <ThemedText style={styles.headerTitle} type="subtitle">
           Messages
         </ThemedText>

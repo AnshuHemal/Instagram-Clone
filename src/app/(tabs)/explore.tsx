@@ -296,9 +296,9 @@ export default function ExploreScreen() {
   const isSearchActive = search.trim().length > 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right']}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: insets.top, height: 56 + insets.top }]}>
         <ThemedText style={styles.headerTitle} type="subtitle">
           Explore
         </ThemedText>

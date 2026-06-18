@@ -11,7 +11,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
@@ -274,6 +274,7 @@ const ContentTab = ({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { userId: rawUserId } = useLocalSearchParams<{ userId?: string }>();
   const viewUserId = (rawUserId && rawUserId !== 'undefined' && rawUserId !== 'null') ? rawUserId : undefined;
@@ -733,8 +734,8 @@ export default function ProfileScreen() {
   if (!isOwnProfile && isViewLoading) {
     return (
       <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        edges={['top', 'left', 'right']}
+        style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
+        edges={['left', 'right']}
       >
         <ProfileSkeleton />
       </SafeAreaView>
@@ -763,7 +764,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}
+      edges={['left', 'right']}
     >
       {/* ── Reels Dropdown Backdrop ── */}
       {showReelsDropdown && (
@@ -773,7 +774,7 @@ export default function ProfileScreen() {
         />
       )}
       {/* ── Sticky Header ── */}
-      <Animated.View style={[styles.header, headerAnimStyle, { backgroundColor: colors.background }]}>
+      <Animated.View style={[styles.header, headerAnimStyle, { backgroundColor: colors.background, paddingTop: insets.top, height: 50 + insets.top }]}>
         {/* Left: Back or + new post */}
         {isOwnProfile ? (
           <Pressable

@@ -505,7 +505,7 @@ export default function FeedScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
-      edges={['top', 'left', 'right']}
+      edges={['left', 'right']}
     >
       {/* Fixed header */}
       <FeedHeader />

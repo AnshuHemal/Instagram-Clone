@@ -11,8 +11,10 @@ import { ThemedText } from '@/components/themed-text';
 import { usePosts } from '@/contexts/PostsContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const FeedHeader: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { feedType, setFeedType } = usePosts();
@@ -73,7 +75,7 @@ export const FeedHeader: React.FC = () => {
   }));
 
   return (
-    <View style={[styles.container, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+    <View style={[styles.container, { borderBottomColor: colors.border, backgroundColor: colors.background, paddingTop: insets.top, height: 54 + insets.top }]}>
       {/* Left side: Plus button to create post */}
       <Pressable
         onPress={() => {
