@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -56,7 +57,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { MOCK_STORIES } from '@/constants/mockData';
 import { FollowButton } from '@/components/FollowButton';
 import { followService, UserProfileResponse } from '@/services/follow';
+import { blockService, MutualFollower } from '@/services/block';
 import { api } from '@/services/api';
+import { haptics } from '@/utils/haptics';
 import { PostCard } from '@/components/PostCard';
 import { ReelItem } from '@/components/ReelItem';
 import { useSaved } from '@/contexts/SavedContext';
@@ -298,6 +301,14 @@ export default function ProfileScreen() {
   const [viewProfile, setViewProfile] = useState<UserProfileResponse['user'] | null>(null);
   const [isViewLoading, setIsViewLoading] = useState(false);
 
+  // Block / mute / mutual followers / tagged
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [mutualFollowers, setMutualFollowers] = useState<MutualFollower[]>([]);
+  const [mutualTotal, setMutualTotal] = useState(0);
+  const [taggedPosts, setTaggedPosts] = useState<any[]>([]);
+  const [loadingTagged, setLoadingTagged] = useState(false);
+
   // Real user media posts & reels states
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [userReels, setUserReels] = useState<any[]>([]);
@@ -381,6 +392,17 @@ export default function ProfileScreen() {
           const res = await followService.getUserProfile(viewUserId);
           if (res.success && res.user) {
             setViewProfile(res.user);
+            // Sync block/mute status returned from API
+            if ((res.user as any).isBlocked !== undefined) setIsBlocked(Boolean((res.user as any).isBlocked));
+            if ((res.user as any).isMuted !== undefined) setIsMuted(Boolean((res.user as any).isMuted));
+            // Fetch mutual followers
+            try {
+              const mutualRes = await blockService.getMutualFollowers(viewUserId);
+              if (mutualRes.success) {
+                setMutualFollowers(mutualRes.data);
+                setMutualTotal(mutualRes.total);
+              }
+            } catch {}
           }
         } catch (err) {
           console.error('Failed to fetch user profile:', err);
@@ -487,6 +509,91 @@ export default function ProfileScreen() {
   useEffect(() => {
     fetchUserMedia();
   }, [fetchUserMedia]);
+
+  // Fetch posts tagged with @username when tagged tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'tagged' || !profileUser?.username) return;
+    setLoadingTagged(true);
+    api
+      .get('/posts/search', { params: { q: `@${profileUser.username}` } })
+      .then((res) => setTaggedPosts(res.data?.data ?? []))
+      .catch(() => setTaggedPosts([]))
+      .finally(() => setLoadingTagged(false));
+  }, [activeTab, profileUser?.username]);
+
+  const handleMoreOptions = () => {
+    const tid = viewProfile?.id ?? viewUserId ?? '';
+    const uname = viewProfile?.username ?? '';
+    Alert.alert(uname, undefined, [
+      {
+        text: isBlocked ? 'Unblock' : 'Block',
+        style: 'destructive',
+        onPress: () => {
+          haptics.medium();
+          if (isBlocked) {
+            blockService
+              .unblockUser(tid)
+              .then(() => {
+                setIsBlocked(false);
+                showToast({ title: 'Unblocked', message: `Unblocked ${uname}`, type: 'success' });
+              })
+              .catch(() => {});
+          } else {
+            Alert.alert(
+              `Block ${uname}?`,
+              "They won't be notified that you blocked them.",
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Block',
+                  style: 'destructive',
+                  onPress: () => {
+                    blockService
+                      .blockUser(tid)
+                      .then(() => {
+                        setIsBlocked(true);
+                        showToast({ title: 'Blocked', message: `Blocked ${uname}`, type: 'info' });
+                      })
+                      .catch(() => {});
+                  },
+                },
+              ],
+            );
+          }
+        },
+      },
+      {
+        text: isMuted ? 'Unmute' : 'Mute',
+        onPress: () => {
+          haptics.light();
+          if (isMuted) {
+            blockService
+              .unmuteUser(tid)
+              .then(() => {
+                setIsMuted(false);
+                showToast({ title: 'Unmuted', message: `Unmuted ${uname}`, type: 'success' });
+              })
+              .catch(() => {});
+          } else {
+            blockService
+              .muteUser(tid)
+              .then(() => {
+                setIsMuted(true);
+                showToast({ title: 'Muted', message: `Muted ${uname}'s posts`, type: 'info' });
+              })
+              .catch(() => {});
+          }
+        },
+      },
+      {
+        text: 'Report',
+        style: 'destructive',
+        onPress: () =>
+          showToast({ title: 'Reported', message: 'Thank you for your report.', type: 'info' }),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   const onPostLikeToggle = async (postId: string) => {
     try {
@@ -832,7 +939,7 @@ export default function ProfileScreen() {
         </View>
         ) : (
           <View style={styles.headerRightGroup}>
-            <Pressable style={styles.headerIconBtn} hitSlop={8}>
+            <Pressable style={styles.headerIconBtn} hitSlop={8} onPress={handleMoreOptions}>
               <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
             </Pressable>
           </View>
@@ -1106,6 +1213,46 @@ export default function ProfileScreen() {
             </>
           )}
         </Animated.View>
+
+        {/* Mutual followers row */}
+        {!isOwnProfile && mutualFollowers.length > 0 && (
+          <Animated.View entering={FadeIn.duration(300)} style={styles.mutualFollowersRow}>
+            <View style={styles.mutualAvatarsStack}>
+              {mutualFollowers.slice(0, 3).map((mf, idx) =>
+                mf.avatarUrl ? (
+                  <Image
+                    key={mf.id}
+                    source={{ uri: mf.avatarUrl }}
+                    style={[styles.mutualAvatar, { left: idx * 14 }]}
+                  />
+                ) : (
+                  <View
+                    key={mf.id}
+                    style={[
+                      styles.mutualAvatar,
+                      { left: idx * 14, backgroundColor: isDark ? '#3A3A3C' : '#E0E0E0', borderRadius: 11 },
+                    ]}
+                  />
+                ),
+              )}
+            </View>
+            <ThemedText
+              style={[styles.mutualFollowersText, { color: colors.textSecondary }]}
+              numberOfLines={2}
+            >
+              {'Followed by '}
+              <ThemedText style={{ color: colors.text, fontFamily: Fonts.semiBold, fontSize: 12 }}>
+                {mutualFollowers[0]?.username}
+              </ThemedText>
+              {mutualFollowers.length > 1 && (
+                <ThemedText style={{ color: colors.textSecondary, fontSize: 12 }}>
+                  {`, ${mutualFollowers[1]?.username}`}
+                  {mutualTotal > 2 ? ` and ${mutualTotal - 2} more` : ''}
+                </ThemedText>
+              )}
+            </ThemedText>
+          </Animated.View>
+        )}
 
         {/* ── Follow Suggestions ── */}
         {isOwnProfile && showSuggestions && suggestions.length > 0 && (
@@ -1403,21 +1550,50 @@ export default function ProfileScreen() {
 
             {/* Page 3: Tagged */}
             <View style={{ width: SCREEN_WIDTH }}>
-              <Animated.View
-                entering={FadeInDown.duration(400).delay(80)}
-                layout={LinearTransition}
-                style={styles.emptyStateContainer}
-              >
-                <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-                  <Ionicons name="pricetag-outline" size={34} color={isDark ? '#555' : '#BDBDBD'} />
+              {loadingTagged ? (
+                <View style={styles.emptyStateContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
                 </View>
-                <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
-                  No tagged posts
-                </ThemedText>
-                <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                  When people tag you, it'll appear here.
-                </ThemedText>
-              </Animated.View>
+              ) : taggedPosts.length > 0 ? (
+                <FlatList
+                  data={taggedPosts}
+                  keyExtractor={(item) => item.id}
+                  numColumns={3}
+                  scrollEnabled={false}
+                  renderItem={({ item }) => {
+                    const thumb = item.media?.[0]?.mediaUrl ?? item.thumbnailUrl ?? '';
+                    return (
+                      <Pressable
+                        style={styles.gridItem}
+                        onPress={() => router.push(`/post/${item.id}` as any)}
+                      >
+                        <Image source={{ uri: thumb }} style={styles.gridImage} />
+                        {item.media?.length > 1 && (
+                          <View style={styles.multiMediaBadge}>
+                            <Ionicons name="copy-outline" size={10} color="#FFF" />
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  }}
+                />
+              ) : (
+                <Animated.View
+                  entering={FadeInDown.duration(400).delay(80)}
+                  layout={LinearTransition}
+                  style={styles.emptyStateContainer}
+                >
+                  <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
+                    <Ionicons name="pricetag-outline" size={34} color={isDark ? '#555' : '#BDBDBD'} />
+                  </View>
+                  <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
+                    No tagged posts
+                  </ThemedText>
+                  <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                    When people tag you, it'll appear here.
+                  </ThemedText>
+                </Animated.View>
+              )}
             </View>
 
             {/* Page 4: Saved (only if own profile) */}
@@ -2143,5 +2319,42 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: Fonts.bold,
     fontSize: 16,
+  },
+  // ── Mutual followers ──
+  mutualFollowersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  mutualAvatarsStack: {
+    position: 'relative',
+    width: 50,
+    height: 24,
+    flexShrink: 0,
+  },
+  mutualAvatar: {
+    position: 'absolute',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  mutualFollowersText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    lineHeight: 16,
+  },
+  // ── Tagged grid item badge ──
+  multiMediaBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 4,
+    padding: 3,
   },
 });

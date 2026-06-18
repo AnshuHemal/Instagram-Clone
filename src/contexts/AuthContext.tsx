@@ -43,6 +43,7 @@ export interface User {
   onboardingStep: string;
   phone?: string;
   birthday?: string;
+  isPrivate?: boolean;
 }
 
 /**
@@ -115,6 +116,7 @@ function mapApiUser(u: any, fallback?: Partial<User>): User {
     onboardingStep: u.onboardingStep ?? fallback?.onboardingStep ?? 'PERMISSIONS',
     phone: u.phone ?? fallback?.phone ?? '',
     birthday: u.birthday ?? fallback?.birthday ?? '',
+    isPrivate: u.isPrivate ?? fallback?.isPrivate ?? false,
   };
 }
 

@@ -36,20 +36,32 @@ export default function ExploreScreen() {
 
   const router = useRouter();
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'accounts' | 'posts' | 'tags'>('accounts');
+  const [activeTab, setActiveTab] = useState<'accounts' | 'posts' | 'tags' | 'reels'>('accounts');
   const [userResults, setUserResults] = useState<any[]>([]);
   const [postResults, setPostResults] = useState<any[]>([]);
   const [tagResults, setTagResults] = useState<any[]>([]);
+  const [reelResults, setReelResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Explore category filter
+  const [exploreCategory, setExploreCategory] = useState<'for_you' | 'reels' | 'photos' | 'videos'>('for_you');
+
+  // Trending sounds
+  const [trendingSounds, setTrendingSounds] = useState<{ audioName: string; reelCount: number }[]>([]);
 
   const { handleLikeToggle, handleAddComment } = usePosts();
   const inputRef = useRef<TextInput>(null);
 
-  // Load search history
+  // Load search history + initial trending
   useEffect(() => {
     loadSearchHistory();
-    loadTrending();
+    loadTrending(false, 'for_you');
   }, []);
+
+  // Reload when category changes
+  useEffect(() => {
+    loadTrending(false, exploreCategory);
+  }, [exploreCategory]);
 
   const loadSearchHistory = async () => {
     try {
@@ -75,18 +87,24 @@ export default function ExploreScreen() {
     } catch {}
   };
 
-  const loadTrending = async (isRef = false) => {
+  const loadTrending = async (isRef = false, category = 'for_you') => {
     if (isRef) setRefreshing(true);
     else setLoading(true);
     try {
-      const response = await api.get('/feed/explore', { params: { limit: 30 } });
-      setTrending(response.data.data || []);
+      const [exploreRes] = await Promise.all([
+        api.get('/feed/explore', { params: { limit: 30, category } }),
+      ]);
+      setTrending(exploreRes.data.data || []);
     } catch (err) {
       console.error('Failed to load trending content:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+    // Load trending sounds separately (fire-and-forget)
+    api.get('/reels/trending-sounds', { params: { limit: 8 } })
+      .then(res => setTrendingSounds(res.data?.data || []))
+      .catch(() => {});
   };
 
   // Debounced search
@@ -101,18 +119,21 @@ export default function ExploreScreen() {
       setUserResults([]);
       setPostResults([]);
       setTagResults([]);
+      setReelResults([]);
       return;
     }
     setSearchLoading(true);
     try {
-      const [usersRes, postsRes, tagsRes] = await Promise.all([
+      const [usersRes, postsRes, tagsRes, reelsRes] = await Promise.all([
         api.get('/auth/users/search', { params: { q: term } }),
         api.get('/posts/search', { params: { q: term } }),
         api.get('/hashtags/search', { params: { q: term } }),
+        api.get('/reels', { params: { search: term, limit: 20 } }).catch(() => ({ data: { data: { reels: [] } } })),
       ]);
       setUserResults(usersRes.data.data || []);
       setPostResults(postsRes.data.data || []);
       setTagResults(tagsRes.data.data || []);
+      setReelResults(reelsRes.data?.data?.reels || reelsRes.data?.data || []);
     } catch (err) {
       console.error('Failed to perform search:', err);
     } finally {
@@ -270,18 +291,39 @@ export default function ExploreScreen() {
 
   const renderGridItem = (item: any, index: number) => {
     const size = getGridItemSize(index);
+    const isReel = item.type === 'reel' || (!!item.hlsUrl && !item.media?.length);
     const mediaUrl = item.thumbnailUrl || item.media?.[0]?.mediaUrl || 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400';
-    const isVideo = !!item.hlsUrl || item.media?.[0]?.mediaType === 'VIDEO';
+    const isVideo = isReel || !!item.hlsUrl || item.media?.[0]?.mediaType === 'VIDEO';
     const cardStyle = size === 'large'
       ? { width: COLUMN_WIDTH * 2, height: COLUMN_WIDTH * 2 }
       : { width: COLUMN_WIDTH, height: COLUMN_WIDTH };
 
     return (
-      <Pressable key={item.id || index} onPress={() => setSelectedPost(item)} style={[styles.gridCard, cardStyle]}>
+      <Pressable
+        key={item.id || index}
+        onPress={() => {
+          if (isReel) router.push({ pathname: '/(tabs)', params: { tab: 'reels' } } as any);
+          else setSelectedPost(item);
+        }}
+        style={[styles.gridCard, cardStyle]}
+      >
         <Image source={{ uri: mediaUrl }} style={styles.gridImage} />
         <View style={styles.indicatorsOverlay}>
-          {isVideo && <Ionicons name="play" size={14} color="#FFFFFF" style={styles.indicatorIcon} />}
-          {item.media && item.media.length > 1 && <Ionicons name="copy" size={12} color="#FFFFFF" style={styles.indicatorIcon} />}
+          {isReel && (
+            <View style={styles.indicatorIconWrap}>
+              <Ionicons name="play" size={12} color="#FFFFFF" />
+            </View>
+          )}
+          {!isReel && isVideo && (
+            <View style={styles.indicatorIconWrap}>
+              <Ionicons name="videocam" size={12} color="#FFFFFF" />
+            </View>
+          )}
+          {!isReel && item.media && item.media.length > 1 && (
+            <View style={styles.indicatorIconWrap}>
+              <Ionicons name="copy" size={11} color="#FFFFFF" />
+            </View>
+          )}
         </View>
         <View style={styles.gridBottomOverlay}>
           <View style={styles.gridStats}>
@@ -387,6 +429,14 @@ export default function ExploreScreen() {
                   Posts
                 </ThemedText>
               </Pressable>
+              <Pressable
+                style={[styles.tab, activeTab === 'reels' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                onPress={() => setActiveTab('reels')}
+              >
+                <ThemedText style={[styles.tabText, { color: activeTab === 'reels' ? colors.text : colors.textSecondary }]}>
+                  Reels
+                </ThemedText>
+              </Pressable>
             </View>
 
             {searchLoading ? (
@@ -429,14 +479,12 @@ export default function ExploreScreen() {
                   </View>
                 }
               />
-            ) : (
+            ) : activeTab === 'posts' ? (
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.scrollContent}
-                onScroll={(e) => {
-                  scrollY.value = e.nativeEvent.contentOffset.y;
-                }}
+                onScroll={(e) => { scrollY.value = e.nativeEvent.contentOffset.y; }}
                 scrollEventThrottle={16}
                 bounces={false}
                 overScrollMode="never"
@@ -448,6 +496,26 @@ export default function ExploreScreen() {
                   <View style={styles.emptyContainer}>
                     <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
                     <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No posts found</ThemedText>
+                  </View>
+                )}
+              </ScrollView>
+            ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.scrollContent}
+                onScroll={(e) => { scrollY.value = e.nativeEvent.contentOffset.y; }}
+                scrollEventThrottle={16}
+                bounces={false}
+                overScrollMode="never"
+              >
+                <View style={styles.gridContainer}>
+                  {reelResults.map((reel, index) => renderGridItem({ ...reel, type: 'reel' }, index))}
+                </View>
+                {reelResults.length === 0 && (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="videocam-outline" size={40} color={colors.textSecondary} />
+                    <ThemedText style={{ color: colors.textSecondary, marginTop: 12 }}>No reels found</ThemedText>
                   </View>
                 )}
               </ScrollView>
@@ -469,12 +537,71 @@ export default function ExploreScreen() {
               bounces={false}
               overScrollMode="never"
             >
-              {/* Section Header */}
+              {/* ── Category pills ── */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}
+              >
+                {([
+                  { key: 'for_you', label: '✨ For You' },
+                  { key: 'reels', label: '🎬 Reels' },
+                  { key: 'photos', label: '📷 Photos' },
+                  { key: 'videos', label: '🎥 Videos' },
+                ] as const).map(cat => (
+                  <Pressable
+                    key={cat.key}
+                    onPress={() => { haptics.selection(); setExploreCategory(cat.key); }}
+                    style={[
+                      styles.categoryPill,
+                      {
+                        backgroundColor: exploreCategory === cat.key ? colors.text : (isDark ? '#2C2C2E' : '#F0F0F0'),
+                        borderColor: exploreCategory === cat.key ? colors.text : (isDark ? '#3A3A3C' : '#E0E0E0'),
+                      },
+                    ]}
+                  >
+                    <Text style={{ color: exploreCategory === cat.key ? colors.background : colors.text, fontFamily: Fonts.semiBold, fontSize: 13 }}>
+                      {cat.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {/* ── Trending Sounds ── */}
+              {exploreCategory === 'for_you' && trendingSounds.length > 0 && (
+                <Animated.View entering={FadeInDown.duration(250)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 }}>
+                    <Text style={{ fontFamily: Fonts.bold, fontSize: 15, color: colors.text }}>Trending Sounds</Text>
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 4, gap: 10 }}>
+                    {trendingSounds.map((sound, idx) => (
+                      <Animated.View key={sound.audioName} entering={FadeInRight.duration(220).delay(idx * 50)}>
+                        <Pressable
+                          style={[styles.soundCard, { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5', borderColor: isDark ? '#2C2C2E' : '#E5E5E5' }]}
+                          onPress={() => { haptics.light(); setSearch(sound.audioName); }}
+                        >
+                          <View style={styles.soundIconCircle}>
+                            <Ionicons name="musical-notes" size={18} color="#FFF" />
+                          </View>
+                          <Text numberOfLines={1} style={{ fontFamily: Fonts.semiBold, fontSize: 13, color: colors.text }}>{sound.audioName}</Text>
+                          <Text style={{ fontFamily: Fonts.regular, fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>
+                            {sound.reelCount >= 1000 ? `${(sound.reelCount / 1000).toFixed(0)}K` : sound.reelCount} reels
+                          </Text>
+                        </Pressable>
+                      </Animated.View>
+                    ))}
+                  </ScrollView>
+                </Animated.View>
+              )}
+
+              {/* ── Section Header ── */}
               <Animated.View entering={FadeInDown.duration(250)} style={styles.sectionHeader}>
                 <View>
-                  <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>Trending</ThemedText>
+                  <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
+                    {exploreCategory === 'for_you' ? 'Trending' : exploreCategory === 'reels' ? 'Reels' : exploreCategory === 'photos' ? 'Photos' : 'Videos'}
+                  </ThemedText>
                   <ThemedText style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-                    Popular content from the Instagram community
+                    Popular content from the community
                   </ThemedText>
                 </View>
               </Animated.View>
@@ -594,4 +721,36 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, paddingVertical: 12, borderBottomWidth: 0.5 },
   backButton: { padding: 5 },
   modalTitle: { fontFamily: Fonts.bold },
+
+  // Category pills
+  categoryPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+
+  // Grid indicators
+  indicatorIconWrap: {
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    borderRadius: 4,
+    padding: 3,
+  },
+
+  // Trending sounds
+  soundCard: {
+    width: 130,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 0.5,
+    gap: 5,
+  },
+  soundIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0095F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

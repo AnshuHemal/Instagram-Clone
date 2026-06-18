@@ -5,7 +5,7 @@
  * All items animated with stagger FadeInDown.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -147,7 +147,11 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
+
+  useEffect(() => {
+    setIsPrivate(user?.isPrivate ?? false);
+  }, [user?.isPrivate]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = () => {

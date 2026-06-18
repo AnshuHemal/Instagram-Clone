@@ -8,7 +8,17 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  TextInput,
+  FlatList,
+  Alert,
+  KeyboardAvoidingView,
+  Text,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useStories } from '@/contexts/StoriesContext';
+import { haptics } from '@/utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -190,14 +200,67 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { deleteStory } = useStories();
+  const { user: currentUser } = useAuth();
 
   const [groupIndex, setGroupIndex] = useState(initialGroupIndex);
   const [storyIndex, setStoryIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [resetCounter, setResetCounter] = useState(0);
 
+  const [viewersList, setViewersList] = useState<{ id: string; username: string; avatarUrl: string | null; viewedAt: string }[]>([]);
+  const [showViewers, setShowViewers] = useState(false);
+  const [viewersLoading, setViewersLoading] = useState(false);
+  const viewersSheetY = useSharedValue(SCREEN_HEIGHT);
+
+  const [replyText, setReplyText] = useState('');
+
+  const [stickers, setStickers] = useState<{ id: string; text: string; x: number; y: number }[]>([]);
+  const [showStickerInput, setShowStickerInput] = useState(false);
+  const [stickerInputText, setStickerInputText] = useState('');
+
   const translateY = useSharedValue(0);
   const dragStartY = useSharedValue(0);
+
+  // Animated style for viewers bottom sheet
+  const viewersSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: viewersSheetY.value }],
+  }));
+
+  // Fetch viewers
+  const fetchViewers = async (storyId: string) => {
+    setViewersLoading(true);
+    try {
+      const res = await api.get(`/stories/${storyId}/viewers`);
+      setViewersList(res.data?.data || []);
+    } catch (_) {
+    } finally {
+      setViewersLoading(false);
+    }
+  };
+
+  // Send reply → go to DM
+  const handleSendReply = async () => {
+    const text = replyText.trim();
+    if (!text || !activeGroup || !activeStory) return;
+    setReplyText('');
+    setIsPaused(false);
+    try {
+      const convRes = await api.post('/chat/conversations', { userId: activeGroup.userId });
+      const conversationId = convRes.data?.data?.id || convRes.data?.id;
+      if (conversationId) {
+        await api.post(`/chat/conversations/${conversationId}/messages`, {
+          text,
+          storyId: activeStory.id,
+        });
+        router.push({ pathname: '/(chat)/[id]', params: { id: conversationId } } as any);
+        onClose();
+      }
+    } catch (err) {
+      console.error('[StoryPlayer] Reply failed:', err);
+    }
+  };
 
   // Sync index when group changes or open
   useEffect(() => {
@@ -223,6 +286,9 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
     }
     return null;
   }, [activeGroup, storyIndex]);
+
+  // Derived: is this story owned by the current user?
+  const isOwnStory = activeGroup?.userId === currentUser?.id;
 
   // Reanimated progress bar control
   const progress = useSharedValue(0);
@@ -438,11 +504,176 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
                 <ThemedText style={styles.timestamp}>
                   {` • ${getRelativeTime(activeStory.createdAt)}`}
                 </ThemedText>
+                {isOwnStory && (
+                  <>
+                    <Pressable
+                      onPress={() => { haptics.light(); setIsPaused(true); setShowStickerInput(true); }}
+                      style={styles.headerActionBtn}
+                      hitSlop={10}
+                    >
+                      <Ionicons name="text-outline" size={20} color="rgba(255,255,255,0.85)" />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        haptics.light();
+                        Alert.alert('Delete Story', 'Remove this story permanently?', [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: async () => {
+                              if (!activeStory) return;
+                              const ok = await deleteStory(activeStory.id);
+                              if (ok) handleNextStory();
+                            },
+                          },
+                        ]);
+                      }}
+                      style={styles.headerActionBtn}
+                      hitSlop={10}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="rgba(255,255,255,0.85)" />
+                    </Pressable>
+                  </>
+                )}
                 <Pressable onPress={onClose} style={styles.closeButton} hitSlop={12}>
                   <Ionicons name="close" size={26} color="#FFFFFF" />
                 </Pressable>
               </View>
             </View>
+
+            {/* ── Text sticker overlays ── */}
+            {stickers.map(sticker => (
+              <View key={sticker.id} style={[styles.stickerOverlay, { left: sticker.x, top: sticker.y }]}>
+                <Text style={styles.stickerText}>{sticker.text}</Text>
+              </View>
+            ))}
+
+            {/* ── Sticker input ── */}
+            {showStickerInput && (
+              <View style={styles.stickerInputContainer}>
+                <TextInput
+                  autoFocus
+                  placeholder="Add text..."
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  value={stickerInputText}
+                  onChangeText={setStickerInputText}
+                  style={styles.stickerTextInput}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (stickerInputText.trim()) {
+                      setStickers(prev => [...prev, {
+                        id: Date.now().toString(),
+                        text: stickerInputText.trim(),
+                        x: SCREEN_WIDTH / 2 - 60,
+                        y: SCREEN_HEIGHT * 0.35,
+                      }]);
+                    }
+                    setStickerInputText('');
+                    setShowStickerInput(false);
+                    setIsPaused(false);
+                  }}
+                />
+              </View>
+            )}
+
+            {/* ── Viewers bar (own stories only) ── */}
+            {isOwnStory && !showStickerInput && (
+              <Pressable
+                style={[styles.viewersBar, { bottom: Math.max(insets.bottom + 16, 32) }]}
+                onPress={() => {
+                  haptics.light();
+                  fetchViewers(activeStory!.id);
+                  setShowViewers(true);
+                  viewersSheetY.value = withSpring(0, { damping: 22, stiffness: 200 });
+                }}
+              >
+                <Ionicons name="eye-outline" size={16} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.viewersCountText}>
+                  {viewersList.length} {viewersList.length === 1 ? 'viewer' : 'viewers'}
+                </Text>
+                <Ionicons name="chevron-up" size={13} color="rgba(255,255,255,0.65)" />
+              </Pressable>
+            )}
+
+            {/* ── Reply bar (other people's stories only) ── */}
+            {!isOwnStory && !showStickerInput && (
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'position' : undefined}
+                style={[styles.replyBarWrapper, { bottom: Math.max(insets.bottom + 12, 24) }]}
+              >
+                <View style={styles.replyBar}>
+                  <TextInput
+                    placeholder={`Reply to ${activeGroup?.username ?? ''}…`}
+                    placeholderTextColor="rgba(255,255,255,0.5)"
+                    value={replyText}
+                    onChangeText={setReplyText}
+                    style={styles.replyInput}
+                    onFocus={() => setIsPaused(true)}
+                    onBlur={() => { if (!replyText.trim()) setIsPaused(false); }}
+                    returnKeyType="send"
+                    onSubmitEditing={handleSendReply}
+                  />
+                  {replyText.trim() ? (
+                    <Pressable onPress={handleSendReply} style={styles.replySendBtn}>
+                      <Ionicons name="send" size={17} color="#FFF" />
+                    </Pressable>
+                  ) : (
+                    <Pressable hitSlop={8} onPress={() => {}}>
+                      <Ionicons name="heart-outline" size={22} color="rgba(255,255,255,0.85)" />
+                    </Pressable>
+                  )}
+                </View>
+              </KeyboardAvoidingView>
+            )}
+
+            {/* ── Viewers bottom sheet ── */}
+            {showViewers && (
+              <Animated.View style={[styles.viewersSheet, viewersSheetStyle]}>
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => {
+                    viewersSheetY.value = withTiming(SCREEN_HEIGHT, { duration: 220 });
+                    setTimeout(() => setShowViewers(false), 230);
+                  }}
+                />
+                <View style={[styles.viewersContent, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+                  <View style={styles.viewersHandle} />
+                  <Text style={[styles.viewersTitle, { color: isDark ? '#FFF' : '#000' }]}>
+                    {viewersList.length} {viewersList.length === 1 ? 'Viewer' : 'Viewers'}
+                  </Text>
+                  {viewersLoading ? (
+                    <ActivityIndicator size="small" color="#0095F6" style={{ marginVertical: 20 }} />
+                  ) : viewersList.length === 0 ? (
+                    <Text style={{ color: isDark ? '#8E8E8F' : '#737373', textAlign: 'center', paddingVertical: 20, fontFamily: Fonts.regular, fontSize: 14 }}>
+                      No views yet
+                    </Text>
+                  ) : (
+                    <FlatList
+                      data={viewersList}
+                      keyExtractor={item => item.id}
+                      style={{ maxHeight: 300 }}
+                      renderItem={({ item }) => (
+                        <View style={styles.viewerRow}>
+                          <Image
+                            source={{ uri: item.avatarUrl || 'https://ui-avatars.com/api/?name=U&size=80' }}
+                            style={styles.viewerAvatar}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.viewerUsername, { color: isDark ? '#FFF' : '#000' }]}>
+                              {item.username}
+                            </Text>
+                            <Text style={[styles.viewerTime, { color: isDark ? '#8E8E8F' : '#737373' }]}>
+                              {getRelativeTime(item.viewedAt)} ago
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                    />
+                  )}
+                </View>
+              </Animated.View>
+            )}
           </Animated.View>
         </GestureDetector>
       </View>
@@ -538,5 +769,153 @@ const styles = StyleSheet.create({
   closeButton: {
     marginLeft: 'auto',
     padding: 4,
+  },
+
+  // Header action buttons (delete, sticker)
+  headerActionBtn: {
+    padding: 4,
+    marginLeft: 8,
+  },
+
+  // Sticker overlays
+  stickerOverlay: {
+    position: 'absolute',
+    zIndex: 50,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  stickerText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+  },
+
+  // Sticker input
+  stickerInputContainer: {
+    position: 'absolute',
+    bottom: 80,
+    left: 20,
+    right: 20,
+    zIndex: 150,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 16,
+    padding: 14,
+  },
+  stickerTextInput: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+    paddingVertical: 6,
+  },
+
+  // Viewers bar (bottom of screen for own stories)
+  viewersBar: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    zIndex: 100,
+  },
+  viewersCountText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
+    flex: 1,
+  },
+
+  // Viewers bottom sheet
+  viewersSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 200,
+    justifyContent: 'flex-end',
+  },
+  viewersContent: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  viewersHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(128,128,128,0.35)',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  viewersTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  viewerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 12,
+  },
+  viewerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  viewerUsername: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14,
+  },
+  viewerTime: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    marginTop: 1,
+  },
+
+  // Reply bar (bottom of screen for other people's stories)
+  replyBarWrapper: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 100,
+  },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  replyInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    paddingVertical: 4,
+  },
+  replySendBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0095F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

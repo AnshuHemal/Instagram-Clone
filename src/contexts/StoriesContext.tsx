@@ -26,6 +26,7 @@ interface StoriesContextProps {
   fetchStories: () => Promise<void>;
   uploadStory: (uri: string, type: 'image' | 'video') => Promise<boolean>;
   viewStory: (storyId: string) => Promise<void>;
+  deleteStory: (storyId: string) => Promise<boolean>;
 }
 
 const StoriesContext = createContext<StoriesContextProps | undefined>(undefined);
@@ -117,6 +118,21 @@ export const StoriesProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const deleteStory = async (storyId: string): Promise<boolean> => {
+    try {
+      await api.delete(`/stories/${storyId}`);
+      // Remove the story from local state
+      setStories(prev => prev.map(group => ({
+        ...group,
+        stories: group.stories.filter(s => s.id !== storyId),
+      })).filter(group => group.stories.length > 0));
+      return true;
+    } catch (err) {
+      console.error('[StoriesContext] Failed to delete story:', err);
+      return false;
+    }
+  };
+
   return (
     <StoriesContext.Provider
       value={{
@@ -125,6 +141,7 @@ export const StoriesProvider: React.FC<{ children: React.ReactNode }> = ({ child
         fetchStories,
         uploadStory,
         viewStory,
+        deleteStory,
       }}
     >
       {children}
