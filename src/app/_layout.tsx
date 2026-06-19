@@ -25,6 +25,7 @@ import {
 } from '@expo-google-fonts/outfit';
 import { NotificationBannerBridge } from '@/components/NotificationBannerBridge';
 import { NotificationBannerProvider } from '@/contexts/NotificationBannerContext';
+import { api } from '@/services/api';
 
 // Configure how notifications are displayed while the app is in the foreground
 Notifications.setNotificationHandler({
@@ -126,6 +127,22 @@ function RootLayoutContent() {
     return () => subscription.remove();
   }, [router]);
 
+  // Refresh push token on every launch
+  useEffect(() => {
+    const registerPushToken = async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        if (existingStatus !== 'granted') return;
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        if (tokenData?.data) {
+          // Fire-and-forget: update token on server (token can rotate between launches)
+          api.patch('/auth/push-token', { pushToken: tokenData.data }).catch(() => {});
+        }
+      } catch (_) {}
+    };
+    registerPushToken();
+  }, []);
+
   return (
     <>
       <Stack screenOptions={{ headerShown: false }}>
@@ -160,6 +177,14 @@ function RootLayoutContent() {
         />
         <Stack.Screen
           name="settings"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="blocked-accounts"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="notification-preferences"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
       </Stack>

@@ -291,11 +291,11 @@ export default function SettingsScreen() {
             {...rowProps} delay={130}
           />
           <SettingRow
-            icon={<Ionicons name="eye-off-outline" size={16} color="#FFF" />}
+            icon={<Ionicons name="person-remove-outline" size={16} color="#FFF" />}
             iconBg="#FF453A"
             label="Blocked Accounts"
             sublabel="Manage blocked users"
-            onPress={() => {}}
+            onPress={() => router.push('/blocked-accounts' as any)}
             {...rowProps} delay={150}
           />
           <SettingRow
@@ -314,9 +314,9 @@ export default function SettingsScreen() {
           <SettingRow
             icon={<Ionicons name="notifications-outline" size={16} color="#FFF" />}
             iconBg="#FF9F0A"
-            label="Push Notifications"
-            sublabel="Likes, comments, follows, mentions"
-            onPress={() => Linking.openSettings()}
+            label="Notification Preferences"
+            sublabel="Likes, comments, follows, messages"
+            onPress={() => router.push('/notification-preferences' as any)}
             {...rowProps} delay={200}
           />
         </View>
