@@ -355,9 +355,11 @@ export default function FeedScreen() {
             renderItem={({ item }) => {
               if (typeof item === 'string') {
                 return (
-                  <View style={{ marginRight: 15, alignItems: 'center', width: 66 }}>
+                  <View style={{ marginRight: 15, alignItems: 'center' }}>
                     <Skeleton width={66} height={66} borderRadius={33} />
-                    <Skeleton width={45} height={10} borderRadius={5} style={{ marginTop: 6 }} />
+                    <View style={{ marginTop: 7 }}>
+                      <Skeleton width={44} height={10} borderRadius={5} />
+                    </View>
                   </View>
                 );
               }

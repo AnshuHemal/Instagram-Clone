@@ -323,66 +323,78 @@ export default function ProfilePictureScreen() {
         navigationBarTranslucent
         onRequestClose={() => setShowPicker(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <View style={styles.modalContainer}>
+          {/* Backdrop */}
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPicker(false)}>
             <Animated.View
               entering={FadeIn.duration(200)}
               exiting={FadeOut.duration(200)}
-              style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.4)' }]}
+              style={[StyleSheet.absoluteFill, styles.modalBackdrop]}
             />
           </Pressable>
 
+          {/* Sheet — slides up from bottom */}
           <Animated.View
-            entering={SlideInDown.duration(250)}
-            exiting={SlideOutDown.duration(200)}
+            entering={SlideInDown.springify().damping(20).stiffness(160)}
+            exiting={SlideOutDown.duration(220)}
             style={[
               styles.modalSheet,
               {
                 backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                paddingBottom: Math.max(insets.bottom, 24)
-              }
+                paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 0,
+              },
             ]}
           >
             {/* Grab Handle */}
-            <View style={[styles.dragHandle, { backgroundColor: isDark ? '#3A3A3C' : '#CCCCCC' }]} />
-            
+            <View style={[styles.dragHandle, { backgroundColor: isDark ? '#48484A' : '#D1D1D6' }]} />
+
+            {/* Title */}
             <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
               Select Profile Photo
             </Text>
 
-            {/* Choose from Library Button */}
-            <Pressable 
+            {/* Choose from Library */}
+            <Pressable
               onPress={handleAddPicture}
               style={[styles.libraryButton, { backgroundColor: '#0064E0' }]}
             >
-              <Ionicons name="image-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Ionicons name="image-outline" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
               <Text style={styles.libraryButtonText}>Choose from Library</Text>
             </Pressable>
 
+            {/* Divider */}
             <View style={styles.dividerContainer}>
-              <View style={[styles.dividerLine, { backgroundColor: isDark ? '#262626' : '#3A3A3C' }]} />
-              <Text style={[styles.dividerText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Or choose a preset</Text>
-              <View style={[styles.dividerLine, { backgroundColor: isDark ? '#262626' : '#3A3A3C' }]} />
+              <View style={[styles.dividerLine, { backgroundColor: isDark ? '#3A3A3C' : '#D1D1D6' }]} />
+              <Text style={[styles.dividerText, { color: isDark ? '#8E8E93' : '#6E6E73' }]}>Or choose a preset</Text>
+              <View style={[styles.dividerLine, { backgroundColor: isDark ? '#3A3A3C' : '#D1D1D6' }]} />
             </View>
 
-            {/* Grid of mock avatars */}
+            {/* Avatar Grid */}
             <View style={styles.avatarsGrid}>
               {MOCK_AVATARS.map((url, idx) => (
                 <Pressable
                   key={idx}
                   onPress={() => handleChoosePreset(url)}
-                  style={styles.gridItem}
+                  style={({ pressed }) => [
+                    styles.gridItem,
+                    pressed && { opacity: 0.72, transform: [{ scale: 0.96 }] },
+                  ]}
                 >
                   <Image source={{ uri: url }} style={styles.gridAvatar} />
                 </Pressable>
               ))}
             </View>
 
-            <Pressable 
+            {/* Cancel */}
+            <Pressable
               onPress={() => setShowPicker(false)}
-              style={[styles.cancelButton, { backgroundColor: isDark ? '#262626' : '#F2F2F7' }]}
+              style={({ pressed }) => [
+                styles.cancelButton,
+                { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' },
+                pressed && { opacity: 0.7 },
+              ]}
             >
-              <Text style={[styles.cancelButtonText, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+              <Text style={[styles.cancelButtonText, { color: isDark ? '#FFFFFF' : '#1C1C1E' }]}>
                 Cancel
               </Text>
             </Pressable>
@@ -506,43 +518,51 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 14.5,
   },
-  // Sheet Styles
-  modalOverlay: {
+  // ── Modal Sheet ──
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
+  modalBackdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
   modalSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 44 : 28,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 24,
   },
   dragHandle: {
-    width: 36,
-    height: 4.5,
-    borderRadius: 2.25,
+    width: 38,
+    height: 4,
+    borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 18,
+    marginTop: 4,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: Fonts.bold,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+    letterSpacing: -0.2,
   },
   avatarsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
-    marginBottom: 28,
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 10,
   },
   gridItem: {
-    width: '28%',
-    aspectRatio: 1.0,
-    borderRadius: 38,
+    width: '30%',
+    aspectRatio: 1,
+    borderRadius: 40,
     overflow: 'hidden',
   },
   gridAvatar: {
@@ -551,42 +571,42 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   cancelButton: {
-    height: 48,
-    borderRadius: 24,
+    height: 50,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontFamily: Fonts.bold,
-    fontSize: 15.5,
+    fontFamily: Fonts.semiBold,
+    fontSize: 16,
   },
   libraryButton: {
-    height: 48,
-    borderRadius: 24,
+    height: 50,
+    borderRadius: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 16,
+    marginBottom: 18,
   },
   libraryButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
-    fontSize: 15.5,
+    fontFamily: Fonts.semiBold,
+    fontSize: 16,
   },
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginBottom: 16,
+    marginBottom: 18,
+    gap: 10,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
+    height: StyleSheet.hairlineWidth,
   },
   dividerText: {
-    paddingHorizontal: 12,
-    fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontSize: 12.5,
+    fontFamily: Fonts.medium,
   },
 });
