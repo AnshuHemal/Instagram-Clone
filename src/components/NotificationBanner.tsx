@@ -99,8 +99,11 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({
         router.push('/notifications');
       }
     } else if (notification.type === 'LIKE_REEL' || notification.type === 'COMMENT_REEL') {
-      // Navigate to reels tab
-      router.push({ pathname: '/(tabs)', params: { tab: 'reels' } });
+      if (notification.reelId) {
+        router.push(`/reel/${notification.reelId}` as any);
+      } else {
+        router.push({ pathname: '/(tabs)', params: { tab: 'reels' } });
+      }
     } else if (
       notification.type === 'FOLLOW' ||
       notification.type === 'FOLLOW_REQUEST' ||

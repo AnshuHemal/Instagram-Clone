@@ -21,6 +21,18 @@
         "android.permission.READ_CONTACTS",
         "android.permission.POST_NOTIFICATIONS"
       ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "instafrontend"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "softInputMode": "adjustNothing",
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.instafrontend"
@@ -31,6 +43,15 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0095F6",
+          "sounds": [],
+          "androidMode": "default"
+        }
+      ],
       [
         "expo-splash-screen",
         {

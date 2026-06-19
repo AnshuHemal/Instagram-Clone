@@ -53,7 +53,11 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
       if (notification.type === 'LIKE_POST' || notification.type === 'COMMENT_POST') {
         if (notification.postId) router.push(`/post/${notification.postId}` as any);
       } else if (notification.type === 'LIKE_REEL' || notification.type === 'COMMENT_REEL') {
-        router.push('/(tabs)/reels' as any);
+        if (notification.reelId) {
+          router.push(`/reel/${notification.reelId}` as any);
+        } else {
+          router.push('/(tabs)/reels' as any);
+        }
       } else if (
         notification.type === 'FOLLOW' ||
         notification.type === 'FOLLOW_REQUEST' ||

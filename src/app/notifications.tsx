@@ -271,7 +271,8 @@ export default function NotificationsScreen() {
                   if (type === 'LIKE_POST' || type === 'COMMENT_POST') {
                     if (item.postId) router.push(`/post/${item.postId}` as any);
                   } else if (type === 'LIKE_REEL' || type === 'COMMENT_REEL') {
-                    router.push('/(tabs)/reels' as any);
+                    if (item.reelId) router.push(`/reel/${item.reelId}` as any);
+                    else router.push('/(tabs)/reels' as any);
                   } else if (type === 'FOLLOW' || type === 'FOLLOW_REQUEST' || type === 'FOLLOW_REQUEST_ACCEPTED') {
                     if (item.actorId) router.push(`/profile?userId=${item.actorId}` as any);
                   }
