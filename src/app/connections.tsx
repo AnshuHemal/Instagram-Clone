@@ -8,7 +8,6 @@ import {
   ScrollView,
   Platform,
   InteractionManager,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -31,6 +30,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts } from '@/constants/theme';
+import { Skeleton } from '@/components/Skeleton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -560,8 +560,12 @@ export default function ConnectionsScreen() {
   const renderListOrLoading = (data: any, listType: 'followers' | 'following', title: string, subtitle: string) => {
     if (!isReady) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-          <ActivityIndicator size="small" color={colors.textSecondary} />
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <View key={i} style={{ marginBottom: 4 }}>
+              <Skeleton variant="user" />
+            </View>
+          ))}
         </View>
       );
     }
@@ -596,8 +600,12 @@ export default function ConnectionsScreen() {
   const renderSubscriptionsOrLoading = () => {
     if (!isReady) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-          <ActivityIndicator size="small" color={colors.textSecondary} />
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <View key={i} style={{ marginBottom: 4 }}>
+              <Skeleton variant="user" />
+            </View>
+          ))}
         </View>
       );
     }
@@ -622,8 +630,12 @@ export default function ConnectionsScreen() {
   const renderFlaggedOrLoading = () => {
     if (!isReady) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-          <ActivityIndicator size="small" color={colors.textSecondary} />
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <View key={i} style={{ marginBottom: 4 }}>
+              <Skeleton variant="user" />
+            </View>
+          ))}
         </View>
       );
     }

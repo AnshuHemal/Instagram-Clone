@@ -26,6 +26,8 @@ import {
 import { NotificationBannerBridge } from '@/components/NotificationBannerBridge';
 import { NotificationBannerProvider } from '@/contexts/NotificationBannerContext';
 import { api } from '@/services/api';
+import { NetworkProvider } from '@/contexts/NetworkContext';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 // Configure how notifications are displayed while the app is in the foreground
 Notifications.setNotificationHandler({
@@ -80,6 +82,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <NetworkProvider>
       <SafeAreaProvider>
         <LoadingProvider>
           <AuthProvider>
@@ -105,6 +108,7 @@ export default function RootLayout() {
           </AuthProvider>
         </LoadingProvider>
       </SafeAreaProvider>
+      </NetworkProvider>
     </GestureHandlerRootView>
   );
 }
@@ -189,6 +193,7 @@ function RootLayoutContent() {
         />
       </Stack>
       <LoadingOverlay />
+      <OfflineBanner />
       <StatusBar style="auto" />
     </>
   );

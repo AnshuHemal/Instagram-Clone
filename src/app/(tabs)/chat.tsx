@@ -7,7 +7,7 @@ import {
   Pressable,
   Image,
   ScrollView,
-  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -40,6 +40,37 @@ interface Conversation {
   lastMessageSenderId: string | null;
   unreadCount: number;
 }
+
+// ─── Chat Skeleton ─────────────────────────────────────────────────────────
+
+const ChatConversationSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, { toValue: 1, duration: 1000, useNativeDriver: false }),
+        Animated.timing(shimmerAnim, { toValue: 0, duration: 1000, useNativeDriver: false }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+  const bg = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [isDark ? '#1C1C1E' : '#F0F0F0', isDark ? '#2C2C2E' : '#E0E0E0'],
+  });
+  const Row = () => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 12, gap: 14 }}>
+      <Animated.View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: bg as any }} />
+      <View style={{ flex: 1, gap: 8 }}>
+        <Animated.View style={{ width: '55%', height: 13, borderRadius: 6, backgroundColor: bg as any }} />
+        <Animated.View style={{ width: '80%', height: 11, borderRadius: 5, backgroundColor: bg as any }} />
+      </View>
+      <Animated.View style={{ width: 36, height: 11, borderRadius: 5, backgroundColor: bg as any }} />
+    </View>
+  );
+  return <View>{Array.from({ length: 7 }).map((_, i) => <Row key={i} />)}</View>;
+};
 
 export default function InboxScreen() {
   const insets = useSafeAreaInsets();
@@ -186,9 +217,7 @@ export default function InboxScreen() {
         }}
       >
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0064E0" />
-          </View>
+          <ChatConversationSkeleton isDark={isDark} />
         ) : (
           <FlatList
             data={filteredChats}

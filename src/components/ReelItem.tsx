@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -701,7 +702,15 @@ export const ReelItem = React.memo(({
 
   const renderVideoPlayer = () => {
     if (!reel.hlsUrl) {
-      return <Image source={{ uri: reel.imageUrl }} style={styles.backgroundImage} />;
+      return (
+        <ExpoImage
+          source={{ uri: reel.imageUrl }}
+          style={styles.backgroundImage}
+          contentFit="cover"
+          placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+          transition={300}
+        />
+      );
     }
 
     if (ExpoVideo && isActive) {
@@ -740,7 +749,15 @@ export const ReelItem = React.memo(({
     }
 
     // Default static image fallback for inactive items
-    return <Image source={{ uri: reel.imageUrl }} style={styles.backgroundImage} />;
+    return (
+      <ExpoImage
+        source={{ uri: reel.imageUrl }}
+        style={styles.backgroundImage}
+        contentFit="cover"
+        placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+        transition={200}
+      />
+    );
   };
 
   return (
@@ -812,14 +829,24 @@ export const ReelItem = React.memo(({
 
         {/* Rotating Music Disc */}
         <Animated.View style={[styles.musicDiscContainer, { transform: [{ rotate: spin }] }]}>
-          <Image source={{ uri: reel.avatar }} style={styles.musicDiscImage} />
+          <ExpoImage
+            source={{ uri: reel.avatar }}
+            style={styles.musicDiscImage}
+            contentFit="cover"
+          />
         </Animated.View>
       </View>
 
       {/* Bottom Text Details Overlay */}
       <View style={[styles.bottomOverlay, { bottom: finalBottomOffset + 15 }]}>
         <View style={styles.userRow}>
-          <Image source={{ uri: reel.avatar }} style={styles.avatar} />
+          <ExpoImage
+            source={{ uri: reel.avatar }}
+            style={styles.avatar}
+            contentFit="cover"
+            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            transition={200}
+          />
           <ThemedText style={styles.usernameText}>
             {reel.username}
           </ThemedText>

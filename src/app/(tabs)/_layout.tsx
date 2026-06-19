@@ -41,6 +41,7 @@ import ProfileScreen from './profile';
 import { TabPagerProvider, useTabPager } from '@/contexts/TabPagerContext';
 import { AccountSwitcherSheet } from '@/components/AccountSwitcherSheet';
 import { haptics } from '@/utils/haptics';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -244,27 +245,27 @@ function TabLayout() {
       >
         {/* Page 0: Home */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <HomeScreen />
+          <ErrorBoundary><HomeScreen /></ErrorBoundary>
         </View>
 
         {/* Page 1: Reels (Full screen underneath absolute tab bar) */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', backgroundColor: '#000000' }}>
-          <ReelsScreen isTabActive={activeIndex === 1} />
+          <ErrorBoundary><ReelsScreen isTabActive={activeIndex === 1} /></ErrorBoundary>
         </View>
 
         {/* Page 2: Chat */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <InboxScreen />
+          <ErrorBoundary><InboxScreen /></ErrorBoundary>
         </View>
 
         {/* Page 3: Explore */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ExploreScreen />
+          <ErrorBoundary><ExploreScreen /></ErrorBoundary>
         </View>
 
         {/* Page 4: Profile */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ProfileScreen />
+          <ErrorBoundary><ProfileScreen /></ErrorBoundary>
         </View>
       </Animated.ScrollView>
 
