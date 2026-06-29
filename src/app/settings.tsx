@@ -27,6 +27,7 @@ import Animated, {
   FadeInDown,
   SlideInDown,
   SlideOutDown,
+  Easing,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -73,13 +74,20 @@ export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const handleBack = () => {
+    haptics.light();
+    requestAnimationFrame(() => {
+      router.back();
+    });
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [closeFriendsCount, setCloseFriendsCount] = useState(0);
 
   // Bottom Sheet States
-  const [activeSheet, setActiveSheet] = useState<null | 'accounts_center' | 'archive' | 'activity' | 'time_management' | 'close_friends' | 'crossposting'>(null);
+  const [activeSheet, setActiveSheet] = useState<null | 'accounts_center' | 'archive' | 'activity' | 'time_management' | 'close_friends' | 'crossposting' | 'tablet'>(null);
 
   // Time Management Settings
   const [dailyLimit, setDailyLimit] = useState<'off' | '30m' | '1h' | '2h'>('off');
@@ -162,8 +170,8 @@ export default function SettingsScreen() {
         { id: 'archive', icon: 'clock', iconType: 'feather', label: 'Archive', onPress: () => setActiveSheet('archive') },
         { id: 'activity', icon: 'activity', iconType: 'feather', label: 'Your activity', onPress: () => setActiveSheet('activity') },
         { id: 'notifications', icon: 'bell', iconType: 'feather', label: 'Notifications', onPress: () => router.push('/notification-preferences' as any) },
-        { id: 'time', icon: 'hourglass-outline', iconType: 'ionicons', label: 'Time management', onPress: () => setActiveSheet('time_management') },
-        { id: 'tablet', icon: 'tablet', iconType: 'feather', label: 'Instagram for tablets', onPress: () => setActiveSheet('crossposting') },
+        { id: 'time', icon: 'hourglass-outline', iconType: 'ionicons', label: 'Time management', onPress: () => router.push('/time-management' as any) },
+        { id: 'tablet', icon: 'tablet', iconType: 'feather', label: 'Instagram for tablets', onPress: () => setActiveSheet('tablet') },
       ],
     },
     {
@@ -224,7 +232,7 @@ export default function SettingsScreen() {
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => router.back()} style={styles.headerBtn}>
+        <Pressable onPress={handleBack} hitSlop={12} style={styles.headerBackBtn}>
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Settings and activity</Text>
@@ -252,8 +260,15 @@ export default function SettingsScreen() {
               <Text style={[styles.accountsTitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>Your account</Text>
               {/* Meta Branding */}
               <View style={styles.metaRow}>
-                <MaterialCommunityIcons name="infinity" size={18} color="#0064e0" style={{ marginRight: 4 }} />
-                <Text style={[styles.metaText, { color: isDark ? '#FFFFFF' : '#262626' }]}>Meta</Text>
+                <Image
+                  source={require('@/assets/images/meta.png')}
+                  style={[
+                    styles.metaIcon,
+                    { tintColor: isDark ? '#FFFFFF' : '#0064E0' },
+                  ]}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.metaText, { color: isDark ? '#FFFFFF' : '#0064E0' }]}>Meta</Text>
               </View>
             </View>
 
@@ -357,7 +372,7 @@ export default function SettingsScreen() {
           <Pressable style={styles.dismissOverlay} onPress={() => setActiveSheet(null)} />
           
           <Animated.View
-            entering={SlideInDown.springify().damping(18)}
+            entering={SlideInDown.duration(300).easing(Easing.out(Easing.cubic))}
             exiting={SlideOutDown}
             style={[styles.sheetContent, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
           >
@@ -365,256 +380,291 @@ export default function SettingsScreen() {
             <View style={[styles.grabber, { backgroundColor: isDark ? '#3A3A3C' : '#E0E0E0' }]} />
 
             {/* Header controls inside Sheet */}
-            <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-                {activeSheet === 'accounts_center' && 'Accounts Center'}
-                {activeSheet === 'archive' && 'Archive'}
-                {activeSheet === 'activity' && 'Your activity'}
-                {activeSheet === 'time_management' && 'Time management'}
-                {activeSheet === 'close_friends' && 'Close Friends'}
-                {activeSheet === 'crossposting' && 'Crossposting'}
-              </Text>
-              <Pressable onPress={() => setActiveSheet(null)} style={styles.closeBtn}>
-                <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
-              </Pressable>
-            </View>
+            {activeSheet !== 'tablet' && (
+              <View style={styles.sheetHeader}>
+                <Text style={[styles.sheetTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+                  {activeSheet === 'accounts_center' && 'Accounts Center'}
+                  {activeSheet === 'archive' && 'Archive'}
+                  {activeSheet === 'activity' && 'Your activity'}
+                  {activeSheet === 'time_management' && 'Time management'}
+                  {activeSheet === 'close_friends' && 'Close Friends'}
+                  {activeSheet === 'crossposting' && 'Crossposting'}
+                </Text>
+                <Pressable onPress={() => setActiveSheet(null)} style={styles.closeBtn}>
+                  <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+                </Pressable>
+              </View>
+            )}
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetBody}>
-              
-              {/* 1. Accounts Center Dashboard */}
-              {activeSheet === 'accounts_center' && (
-                <View>
-                  <View style={styles.accountsAlertPill}>
-                    <MaterialCommunityIcons name="infinity" size={22} color="#0064e0" />
-                    <Text style={[styles.accountsAlertText, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                      Manage connected experiences across Meta technologies like Facebook, Instagram, and Horizon.
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.sheetList}>
-                    {[
-                      { title: 'Profiles', desc: 'Manage avatars, sync profile info', icon: 'people-outline' },
-                      { title: 'Personal details', desc: 'Contact info, birthday, account ownership', icon: 'card-outline' },
-                      { title: 'Password and security', desc: 'Change password, 2-factor, login alerts', icon: 'shield-checkmark-outline' },
-                      { title: 'Ad preferences', desc: 'Manage ads topics, profile details used for ads', icon: 'logo-facebook' },
-                    ].map(opt => (
-                      <Pressable key={opt.title} style={styles.sheetRow}>
-                        <Ionicons name={opt.icon as any} size={22} color={colors.primary} style={{ marginRight: 12 }} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.sheetRowLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>{opt.title}</Text>
-                          <Text style={[styles.sheetRowDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>{opt.desc}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#8E8E8F" />
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* 2. Archive Dashboard */}
-              {activeSheet === 'archive' && (
-                <View>
-                  <Text style={[styles.archiveDescription, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                    Only you can see your archived stories and posts after they disappear.
-                  </Text>
-                  
-                  <View style={styles.storiesGrid}>
-                    {archiveStories.map(story => (
-                      <View key={story.id} style={styles.archiveThumbnailWrapper}>
-                        <Image source={{ uri: story.image }} style={styles.archiveThumbnail} />
-                        <View style={styles.archiveDateBadge}>
-                          <Text style={styles.archiveDateText}>{story.date}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* 3. Your Activity Dashboard */}
-              {activeSheet === 'activity' && (
-                <View>
-                  <Text style={[styles.activitySubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                    One place to manage your photos, comments, likes, and history.
-                  </Text>
-
-                  {/* Summary Card */}
-                  <View style={[styles.activitySummaryCard, { backgroundColor: isDark ? '#262626' : '#F2F2F7' }]}>
-                    <View style={styles.activitySummaryColumn}>
-                      <Text style={[styles.activitySummaryNum, { color: isDark ? '#FFFFFF' : '#000000' }]}>142</Text>
-                      <Text style={[styles.activitySummaryText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Likes</Text>
-                    </View>
-                    <View style={styles.activitySummaryColumn}>
-                      <Text style={[styles.activitySummaryNum, { color: isDark ? '#FFFFFF' : '#000000' }]}>38</Text>
-                      <Text style={[styles.activitySummaryText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Comments</Text>
-                    </View>
-                    <View style={styles.activitySummaryColumn}>
-                      <Text style={[styles.activitySummaryNum, { color: isDark ? '#FFFFFF' : '#000000' }]}>219</Text>
-                      <Text style={[styles.activitySummaryText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Reels Watched</Text>
-                    </View>
-                  </View>
-
-                  {/* Time Bar Chart */}
-                  <Text style={[styles.activityChartTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Screen Time (Daily Average)</Text>
-                  <View style={styles.chartContainer}>
-                    {[
-                      { day: 'M', min: 45 },
-                      { day: 'T', min: 30 },
-                      { day: 'W', min: 60 },
-                      { day: 'T', min: 25 },
-                      { day: 'F', min: 50 },
-                      { day: 'S', min: 80 },
-                      { day: 'S', min: 95 },
-                    ].map(item => (
-                      <View key={item.day} style={styles.chartCol}>
-                        <View style={styles.chartTrack}>
-                          <View style={[styles.chartFill, { height: `${(item.min / 100) * 100}%`, backgroundColor: colors.primary }]} />
-                        </View>
-                        <Text style={[styles.chartDay, { color: isDark ? '#A8A8A8' : '#737373' }]}>{item.day}</Text>
-                        <Text style={styles.chartMin}>{item.min}m</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* 4. Time Management Dashboard */}
-              {activeSheet === 'time_management' && (
-                <View>
-                  <View style={[styles.timeRow, { borderBottomColor: colors.divider }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Set Daily Limit</Text>
-                      <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                        We will remind you to close the app once you reach your daily limit.
+            {activeSheet === 'tablet' ? (
+              /* Tablet QR sheet — no ScrollView so container shrink-wraps */
+              <View style={styles.tabletSheetBody}>
+                <Image
+                  source={require('@/assets/images/instagram_tablet_qr.png')}
+                  style={styles.tabletQrImage}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.tabletTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+                  Get the Instagram tablet app
+                </Text>
+                <Text style={[styles.tabletDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                  Use your tablet to scan the QR code and download Instagram from the Play Store.
+                </Text>
+                <Pressable
+                  onPress={() => { haptics.success(); }}
+                  style={({ pressed }) => [styles.tabletSaveBtn, { opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <Text style={styles.tabletSaveBtnText}>Save QR code</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => { haptics.light(); setActiveSheet(null); }}
+                  style={styles.tabletDoneBtn}
+                >
+                  <Text style={styles.tabletDoneBtnText}>Done</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.sheetBody}
+              >
+                
+                {/* 1. Accounts Center Dashboard */}
+                {activeSheet === 'accounts_center' && (
+                  <View>
+                    <View style={styles.accountsAlertPill}>
+                      <Image
+                        source={require('@/assets/images/meta.png')}
+                        style={[
+                          styles.metaIconLarge,
+                          { tintColor: isDark ? '#FFFFFF' : '#0064E0' },
+                        ]}
+                        resizeMode="contain"
+                      />
+                      <Text style={[styles.accountsAlertText, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                        Manage connected experiences across Meta technologies like Facebook, Instagram, and Horizon.
                       </Text>
                     </View>
-                    <View style={styles.timeSelector}>
-                      {(['off', '30m', '1h', '2h'] as const).map(lim => (
-                        <Pressable
-                          key={lim}
-                          onPress={() => {
-                            haptics.light();
-                            setDailyLimit(lim);
-                          }}
-                          style={[
-                            styles.timePill,
-                            {
-                              backgroundColor: dailyLimit === lim ? colors.primary : (isDark ? '#262626' : '#F2F2F7'),
-                            }
-                          ]}
-                        >
-                          <Text style={[styles.timePillText, { color: dailyLimit === lim ? '#FFFFFF' : (isDark ? '#FFFFFF' : '#000000') }]}>
-                            {lim.toUpperCase()}
-                          </Text>
+                    
+                    <View style={styles.sheetList}>
+                      {[
+                        { title: 'Profiles', desc: 'Manage avatars, sync profile info', icon: 'people-outline' },
+                        { title: 'Personal details', desc: 'Contact info, birthday, account ownership', icon: 'card-outline' },
+                        { title: 'Password and security', desc: 'Change password, 2-factor, login alerts', icon: 'shield-checkmark-outline' },
+                        { title: 'Ad preferences', desc: 'Manage ads topics, profile details used for ads', icon: 'logo-facebook' },
+                      ].map(opt => (
+                        <Pressable key={opt.title} style={styles.sheetRow}>
+                          <Ionicons name={opt.icon as any} size={22} color={colors.primary} style={{ marginRight: 12 }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.sheetRowLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>{opt.title}</Text>
+                            <Text style={[styles.sheetRowDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>{opt.desc}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={16} color="#8E8E8F" />
                         </Pressable>
                       ))}
                     </View>
                   </View>
+                )}
 
-                  <View style={styles.timeRow}>
-                    <View style={{ flex: 1, marginRight: 16 }}>
-                      <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Quiet Mode</Text>
-                      <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                        Silence push notifications during study or sleep. Your status badge will show "In Quiet Mode".
-                      </Text>
-                    </View>
-                    <Switch
-                      value={quietMode}
-                      onValueChange={val => {
-                        haptics.light();
-                        setQuietMode(val);
-                      }}
-                      trackColor={{ false: '#E0E0E0', true: colors.primary }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-                </View>
-              )}
-
-              {/* 5. Close Friends Editor */}
-              {activeSheet === 'close_friends' && (
-                <View>
-                  <Text style={[styles.friendsSubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                    We do not notify people when you add or remove them from this list.
-                  </Text>
-                  
-                  <View style={styles.friendsList}>
-                    {closeFriendsList.map(friend => (
-                      <Pressable
-                        key={friend.id}
-                        onPress={() => toggleCloseFriend(friend.id)}
-                        style={styles.friendRow}
-                      >
-                        <Image source={{ uri: friend.avatar }} style={styles.friendAvatar} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.friendName, { color: isDark ? '#FFFFFF' : '#000000' }]}>{friend.name}</Text>
-                          <Text style={[styles.friendUser, { color: isDark ? '#A8A8A8' : '#737373' }]}>@{friend.username}</Text>
+                {/* 2. Archive Dashboard */}
+                {activeSheet === 'archive' && (
+                  <View>
+                    <Text style={[styles.archiveDescription, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                      Only you can see your archived stories and posts after they disappear.
+                    </Text>
+                    
+                    <View style={styles.storiesGrid}>
+                      {archiveStories.map(story => (
+                        <View key={story.id} style={styles.archiveThumbnailWrapper}>
+                          <Image source={{ uri: story.image }} style={styles.archiveThumbnail} />
+                          <View style={styles.archiveDateBadge}>
+                            <Text style={styles.archiveDateText}>{story.date}</Text>
+                          </View>
                         </View>
-                        <View style={[
-                          styles.checkbox,
-                          {
-                            borderColor: friend.selected ? colors.primary : '#8E8E8F',
-                            backgroundColor: friend.selected ? colors.primary : 'transparent',
-                          }
-                        ]}>
-                          {friend.selected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* 3. Your Activity Dashboard */}
+                {activeSheet === 'activity' && (
+                  <View>
+                    <Text style={[styles.activitySubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                      One place to manage your photos, comments, likes, and history.
+                    </Text>
+
+                    {/* Summary Card */}
+                    <View style={[styles.activitySummaryCard, { backgroundColor: isDark ? '#262626' : '#F2F2F7' }]}>
+                      <View style={styles.activitySummaryColumn}>
+                        <Text style={[styles.activitySummaryNum, { color: isDark ? '#FFFFFF' : '#000000' }]}>142</Text>
+                        <Text style={[styles.activitySummaryText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Likes</Text>
+                      </View>
+                      <View style={styles.activitySummaryColumn}>
+                        <Text style={[styles.activitySummaryNum, { color: isDark ? '#FFFFFF' : '#000000' }]}>38</Text>
+                        <Text style={[styles.activitySummaryText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Comments</Text>
+                      </View>
+                      <View style={styles.activitySummaryColumn}>
+                        <Text style={[styles.activitySummaryNum, { color: isDark ? '#FFFFFF' : '#000000' }]}>219</Text>
+                        <Text style={[styles.activitySummaryText, { color: isDark ? '#A8A8A8' : '#737373' }]}>Reels Watched</Text>
+                      </View>
+                    </View>
+
+                    {/* Time Bar Chart */}
+                    <Text style={[styles.activityChartTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Screen Time (Daily Average)</Text>
+                    <View style={styles.chartContainer}>
+                      {[
+                        { day: 'M', min: 45 },
+                        { day: 'T', min: 30 },
+                        { day: 'W', min: 60 },
+                        { day: 'T', min: 25 },
+                        { day: 'F', min: 50 },
+                        { day: 'S', min: 80 },
+                        { day: 'S', min: 95 },
+                      ].map(item => (
+                        <View key={item.day} style={styles.chartCol}>
+                          <View style={styles.chartTrack}>
+                            <View style={[styles.chartFill, { height: `${(item.min / 100) * 100}%`, backgroundColor: colors.primary }]} />
+                          </View>
+                          <Text style={[styles.chartDay, { color: isDark ? '#A8A8A8' : '#737373' }]}>{item.day}</Text>
+                          <Text style={styles.chartMin}>{item.min}m</Text>
                         </View>
-                      </Pressable>
-                    ))}
-                  </View>
-
-                  <Pressable onPress={saveCloseFriends} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.actionBtnText}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {/* 6. Crossposting Settings */}
-              {activeSheet === 'crossposting' && (
-                <View>
-                  <Text style={[styles.friendsSubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                    Automatically share your photos, stories, and reels across Meta platforms.
-                  </Text>
-
-                  <View style={styles.timeRow}>
-                    <View style={{ flex: 1, marginRight: 16 }}>
-                      <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Share to Facebook</Text>
-                      <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                        Auto-post feed posts and active stories directly to your linked Facebook profile.
-                      </Text>
+                      ))}
                     </View>
-                    <Switch
-                      value={fbShare}
-                      onValueChange={val => {
-                        haptics.light();
-                        setFbShare(val);
-                      }}
-                      trackColor={{ false: '#E0E0E0', true: colors.primary }}
-                      thumbColor="#FFFFFF"
-                    />
                   </View>
+                )}
 
-                  <View style={styles.timeRow}>
-                    <View style={{ flex: 1, marginRight: 16 }}>
-                      <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Share to WhatsApp status</Text>
-                      <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-                        Auto-share active stories directly to WhatsApp statuses.
-                      </Text>
+                {/* 4. Time Management Dashboard */}
+                {activeSheet === 'time_management' && (
+                  <View>
+                    <View style={[styles.timeRow, { borderBottomColor: colors.divider }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Set Daily Limit</Text>
+                        <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                          We will remind you to close the app once you reach your daily limit.
+                        </Text>
+                      </View>
+                      <View style={styles.timeSelector}>
+                        {(['off', '30m', '1h', '2h'] as const).map(lim => (
+                          <Pressable
+                            key={lim}
+                            onPress={() => {
+                              haptics.light();
+                              setDailyLimit(lim);
+                            }}
+                            style={[
+                              styles.timePill,
+                              {
+                                backgroundColor: dailyLimit === lim ? colors.primary : (isDark ? '#262626' : '#F2F2F7'),
+                              }
+                            ]}
+                          >
+                            <Text style={[styles.timePillText, { color: dailyLimit === lim ? '#FFFFFF' : (isDark ? '#FFFFFF' : '#000000') }]}>
+                              {lim.toUpperCase()}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
                     </View>
-                    <Switch
-                      value={waShare}
-                      onValueChange={val => {
-                        haptics.light();
-                        setWaShare(val);
-                      }}
-                      trackColor={{ false: '#E0E0E0', true: colors.primary }}
-                      thumbColor="#FFFFFF"
-                    />
-                  </View>
-                </View>
-              )}
 
-            </ScrollView>
+                    <View style={styles.timeRow}>
+                      <View style={{ flex: 1, marginRight: 16 }}>
+                        <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Quiet Mode</Text>
+                        <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                          Silence push notifications during study or sleep. Your status badge will show "In Quiet Mode".
+                        </Text>
+                      </View>
+                      <Switch
+                        value={quietMode}
+                        onValueChange={val => {
+                          haptics.light();
+                          setQuietMode(val);
+                        }}
+                        trackColor={{ false: '#E0E0E0', true: colors.primary }}
+                        thumbColor="#FFFFFF"
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* 5. Close Friends Editor */}
+                {activeSheet === 'close_friends' && (
+                  <View>
+                    <Text style={[styles.friendsSubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                      We do not notify people when you add or remove them from this list.
+                    </Text>
+                    
+                    <View style={styles.friendsList}>
+                      {closeFriendsList.map(friend => (
+                        <Pressable
+                          key={friend.id}
+                          onPress={() => toggleCloseFriend(friend.id)}
+                          style={styles.friendRow}
+                        >
+                          <Image source={{ uri: friend.avatar }} style={styles.friendAvatar} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.friendName, { color: isDark ? '#FFFFFF' : '#000000' }]}>{friend.name}</Text>
+                            <Text style={[styles.friendUser, { color: isDark ? '#A8A8A8' : '#737373' }]}>@{friend.username}</Text>
+                          </View>
+                          <View style={[
+                            styles.checkbox,
+                            {
+                              borderColor: friend.selected ? colors.primary : '#8E8E8F',
+                              backgroundColor: friend.selected ? colors.primary : 'transparent',
+                            }
+                          ]}>
+                            {friend.selected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    <Pressable onPress={saveCloseFriends} style={[styles.actionBtn, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.actionBtnText}>Done</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {/* 6. Crossposting Settings */}
+                {activeSheet === 'crossposting' && (
+                  <View>
+                    <Text style={[styles.friendsSubtitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                      Automatically share your photos, stories, and reels across Meta platforms.
+                    </Text>
+
+                    <View style={styles.timeRow}>
+                      <View style={{ flex: 1, marginRight: 16 }}>
+                        <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Share to Facebook</Text>
+                        <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                          Auto-post feed posts and active stories directly to your linked Facebook profile.
+                        </Text>
+                      </View>
+                      <Switch
+                        value={fbShare}
+                        onValueChange={val => { haptics.light(); setFbShare(val); }}
+                        trackColor={{ false: '#E0E0E0', true: colors.primary }}
+                        thumbColor="#FFFFFF"
+                      />
+                    </View>
+
+                    <View style={styles.timeRow}>
+                      <View style={{ flex: 1, marginRight: 16 }}>
+                        <Text style={[styles.timeLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>Share to WhatsApp status</Text>
+                        <Text style={[styles.timeDesc, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                          Auto-share active stories directly to WhatsApp statuses.
+                        </Text>
+                      </View>
+                      <Switch
+                        value={waShare}
+                        onValueChange={val => { haptics.light(); setWaShare(val); }}
+                        trackColor={{ false: '#E0E0E0', true: colors.primary }}
+                        thumbColor="#FFFFFF"
+                      />
+                    </View>
+                  </View>
+                )}
+
+              </ScrollView>
+            )}
           </Animated.View>
         </View>
       </Modal>
@@ -629,19 +679,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 12,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(128, 128, 128, 0.15)',
+    position: 'relative',
   },
-  headerBtn: {
+  headerBackBtn: {
+    position: 'absolute',
+    left: 12,
+    bottom: 8,
     padding: 6,
+    zIndex: 10,
   },
   headerTitle: {
-    flex: 1,
     fontFamily: Fonts.semiBold,
-    fontSize: 22,
-    marginLeft: 12,
+    fontSize: 19.5,
+    textAlign: 'center',
     letterSpacing: -0.4,
   },
   searchContainer: {
@@ -680,6 +735,16 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  metaIcon: {
+    width: 20,
+    height: 18,
+    marginRight: 4,
+  },
+  metaIconLarge: {
+    width: 24,
+    height: 15,
+    marginRight: 6,
   },
   metaText: {
     fontFamily: Fonts.bold,
@@ -1031,5 +1096,66 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Fonts.bold,
     fontSize: 15,
+  },
+
+  // 7. Instagram for Tablets — QR Sheet
+  tabletScrollBody: {
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  tabletSheetBody: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  tabletQrImage: {
+    width: SCREEN_WIDTH * 0.65,
+    height: SCREEN_WIDTH * 0.65,
+    marginBottom: 24,
+    borderRadius: 16,
+  },
+  tabletTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 19,
+    textAlign: 'center',
+    marginBottom: 10,
+    letterSpacing: -0.3,
+  },
+  tabletDesc: {
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 28,
+  },
+  tabletSaveBtn: {
+    width: '100%',
+    backgroundColor: '#3897F0',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#3897F0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  tabletSaveBtnText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+  },
+  tabletDoneBtn: {
+    paddingTop: 4,
+    paddingBottom: 0,
+    paddingHorizontal: 16,
+  },
+  tabletDoneBtnText: {
+    color: '#3897F0',
+    fontFamily: Fonts.semiBold,
+    fontSize: 15.5,
   },
 });
