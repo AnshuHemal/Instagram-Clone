@@ -18,6 +18,8 @@ import { FeedHeader } from '@/components/FeedHeader';
 import { StoryCircle } from '@/components/StoryCircle';
 import { PostCard } from '@/components/PostCard';
 import { FeedSkeleton, Skeleton } from '@/components/Skeleton';
+import { SuggestedAccountsCarousel } from '@/components/SuggestedAccountsCarousel';
+import { TrendingReelsCarousel, TrendingReel } from '@/components/TrendingReelsCarousel';
 import { ThemedText } from '@/components/themed-text';
 import { Ionicons } from '@expo/vector-icons';
 import { usePosts } from '@/contexts/PostsContext';
@@ -99,6 +101,7 @@ export default function FeedScreen() {
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [trendingReels, setTrendingReels] = useState<TrendingReel[]>([]);
 
   const fetchSuggestions = async () => {
     try {
@@ -114,11 +117,37 @@ export default function FeedScreen() {
     }
   };
 
-  useEffect(() => {
-    if (posts.length === 0 && !isLoading) {
-      fetchSuggestions();
+  const fetchTrendingReels = async () => {
+    try {
+      const res = await api.get('/reels/trending?limit=12');
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setTrendingReels(res.data.data);
+      }
+    } catch (err) {
+      console.error('[FeedScreen] Failed to fetch trending reels:', err);
     }
-  }, [posts.length, isLoading]);
+  };
+
+  // ── Feed item types for interleaved rendering ─────────────────────────────
+  type FeedItem =
+    | { type: 'post'; data: any; id: string }
+    | { type: 'suggestions'; id: 'suggestions-card' }
+    | { type: 'trending_reels'; id: 'trending-reels-card' };
+
+  // Build the interleaved feed: suggestions after post[2], trending reels after post[6]
+  const interleavedFeed = useMemo<FeedItem[]>(() => {
+    const result: FeedItem[] = [];
+    posts.forEach((post, index) => {
+      result.push({ type: 'post', data: post, id: post.id });
+      if (index === 2 && suggestions.length > 0) {
+        result.push({ type: 'suggestions', id: 'suggestions-card' });
+      }
+      if (index === 6 && trendingReels.length > 0) {
+        result.push({ type: 'trending_reels', id: 'trending-reels-card' });
+      }
+    });
+    return result;
+  }, [posts, suggestions, trendingReels]);
 
   const handleFollowSuggestion = async (targetId: string) => {
     // Optimistic toggle
@@ -150,6 +179,8 @@ export default function FeedScreen() {
   useEffect(() => {
     fetchPosts(null, true);
     fetchStories();
+    fetchSuggestions();
+    fetchTrendingReels();
 
     const checkTutorial = async () => {
       try {
@@ -541,18 +572,47 @@ export default function FeedScreen() {
         }}
       >
         <FlatList
-          data={posts}
+          data={interleavedFeed}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderStoriesHeader}
-          renderItem={({ item }) => (
-            <PostCard
-              post={item}
-              isActive={activePostId === item.id}
-              onLikeToggle={handleLikeToggle}
-              onBookmarkToggle={handleBookmarkToggle}
-              onAddComment={handleAddComment}
-            />
-          )}
+          renderItem={({ item }) => {
+            if (item.type === 'suggestions') {
+              return (
+                <SuggestedAccountsCarousel
+                  suggestions={suggestions.map((s) => ({
+                    id: s.id,
+                    username: s.username,
+                    displayName: s.displayName,
+                    avatarUrl: s.avatarUrl,
+                    isVerified: s.verified,
+                    isFollowing: s.checked,
+                    mutualFollowers: s.mutualFollowers,
+                  }))}
+                  onFollow={handleFollowSuggestion}
+                  onDismiss={handleDismissSuggestion}
+                  onSeeAll={() => router.push('/(auth)/follow-suggestions')}
+                />
+              );
+            }
+            if (item.type === 'trending_reels') {
+              return (
+                <TrendingReelsCarousel
+                  reels={trendingReels}
+                  onSeeAll={() => router.push('/(tabs)/reels')}
+                />
+              );
+            }
+            // Default: type === 'post'
+            return (
+              <PostCard
+                post={item.data}
+                isActive={activePostId === item.data.id}
+                onLikeToggle={handleLikeToggle}
+                onBookmarkToggle={handleBookmarkToggle}
+                onAddComment={handleAddComment}
+              />
+            );
+          }}
           viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged}
           onScroll={(e) => {
@@ -571,11 +631,6 @@ export default function FeedScreen() {
           updateCellsBatchingPeriod={50}
           windowSize={7}
           initialNumToRender={3}
-          getItemLayout={(_data, index) => ({
-            length: SCREEN_WIDTH + 380,
-            offset: (SCREEN_WIDTH + 380) * index,
-            index,
-          })}
         />
       </GradientPullRefresh>
 

@@ -44,6 +44,17 @@ export interface Reel {
   views: string;
   hlsUrl?: string;
   durationSeconds?: number;
+  isFollowing?: boolean;
+  isRequested?: boolean;
+  userId?: string;
+  author?: {
+    id: string;
+    username: string;
+    displayName?: string;
+    avatarUrl?: string;
+    isVerified?: boolean;
+    isPrivate?: boolean;
+  };
 }
 
 export interface Message {
