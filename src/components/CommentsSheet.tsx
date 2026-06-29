@@ -336,9 +336,9 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
       closeSheet();
       return true; // Intercept and handle event cleanly
     };
-    BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
     return () => {
-      BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
+      subscription.remove();
     };
   }, [visible, closeSheet]);
 
