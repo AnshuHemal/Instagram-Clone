@@ -51,19 +51,6 @@
         }
       ],
       [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/instagram_splash.png",
-          "resizeMode": "contain",
-          "imageWidth": 120,
-          "dark": {
-            "backgroundColor": "#000000",
-            "image": "./assets/images/instagram_splash.png"
-          }
-        }
-      ],
-      [
         "expo-video",
         {
           "supportsBackgroundPlayback": false,
