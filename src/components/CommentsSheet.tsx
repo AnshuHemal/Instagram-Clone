@@ -37,6 +37,7 @@ import {
   Alert,
   Dimensions,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -328,6 +329,18 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
       backdropOpacity.value = 0;
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const handleBackPress = () => {
+      closeSheet();
+      return true; // Intercept and handle event cleanly
+    };
+    BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => {
+      BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
+    };
+  }, [visible, closeSheet]);
 
   // ── Swipe-down gesture ──────────────────────────────────────────────────
 

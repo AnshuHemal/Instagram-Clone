@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Keyboard,
   Modal,
+  BackHandler,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -99,6 +100,18 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
       setSearch('');
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const handleBackPress = () => {
+      close();
+      return true; // Intercept and handle event cleanly
+    };
+    BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => {
+      BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
+    };
+  }, [visible, close]);
 
   useEffect(() => {
     if (!search.trim()) {
