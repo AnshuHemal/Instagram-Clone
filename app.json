@@ -4,17 +4,16 @@
     "slug": "insta-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/instagram-logo-padded.png",
+    "icon": "./assets/images/instagram-logo-perfect.png",
     "scheme": "instafrontend",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/instagram-logo-padded.png"
+      "icon": "./assets/images/instagram-logo-perfect.png"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/instagram-camera-foreground.png",
-        "backgroundImage": "./assets/images/instagram-gradient-background.png"
+        "foregroundImage": "./assets/images/instagram-logo-perfect.png"
       },
       "permissions": [
         "android.permission.READ_CONTACTS",
@@ -45,7 +44,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/instagram-logo-padded.png",
+          "icon": "./assets/images/instagram-logo-perfect.png",
           "color": "#0095F6",
           "sounds": [],
           "androidMode": "default"
