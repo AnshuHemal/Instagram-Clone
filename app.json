@@ -53,10 +53,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/instagram_splash.png",
+          "resizeMode": "contain",
+          "imageWidth": 120,
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/images/instagram_splash.png"
           }
         }
       ],
