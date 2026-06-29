@@ -13,7 +13,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Text,
+  BackHandler,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +41,7 @@ import { UserStoryGroup } from '@/contexts/StoriesContext';
 import { Fonts } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const QUICK_EMOJIS = ['😂', '😮', '😍', '😢', '👏', '🔥'];
 
 // Dynamic check for expo-video
 let ExpoVideo: any = null;
@@ -228,6 +231,14 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
     transform: [{ translateY: viewersSheetY.value }],
   }));
 
+  const [showReactions, setShowReactions] = useState(false);
+  const reactionsY = useSharedValue(SCREEN_HEIGHT);
+
+  // Animated style for quick reactions bottom sheet
+  const animatedReactionsStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: reactionsY.value }],
+  }));
+
   // Fetch viewers
   const fetchViewers = async (storyId: string) => {
     setViewersLoading(true);
@@ -262,6 +273,48 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
     }
   };
 
+  const reactionsInputRef = useRef<TextInput>(null);
+
+  const openReactionsSheet = () => {
+    haptics.light();
+    setIsPaused(true);
+    setShowReactions(true);
+    reactionsY.value = withSpring(0, { damping: 22, stiffness: 180 });
+    setTimeout(() => {
+      reactionsInputRef.current?.focus();
+    }, 150);
+  };
+
+  const closeReactionsSheet = () => {
+    reactionsY.value = withTiming(SCREEN_HEIGHT, { duration: 230 }, (finished) => {
+      if (finished) {
+        runOnJS(setShowReactions)(false);
+        runOnJS(setIsPaused)(false);
+      }
+    });
+  };
+
+  const handleSendStoryReply = async (text?: string, emoji?: string) => {
+    if (!activeGroup || !activeStory) return;
+    haptics.success();
+    
+    // Optimistically close reactions sheet
+    closeReactionsSheet();
+    setReplyText('');
+
+    try {
+      await api.post('/chat/story-reply', {
+        storyId: activeStory.id,
+        targetUserId: activeGroup.userId,
+        text,
+        emoji,
+      });
+    } catch (err) {
+      console.error('[StoryPlayer] Failed to send story reply:', err);
+      Alert.alert('Error', 'Failed to send reply. Please try again.');
+    }
+  };
+
   // Sync index when group changes or open
   useEffect(() => {
     if (visible && initialGroupIndex >= 0 && initialGroupIndex < userGroups.length) {
@@ -272,6 +325,23 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
       setStoryIndex(firstUnseenIdx >= 0 ? firstUnseenIdx : 0);
     }
   }, [visible, initialGroupIndex]);
+
+  // Back button interception for Android (closes reactions sheet first)
+  useEffect(() => {
+    if (!visible) return;
+    const handleBackPress = () => {
+      if (showReactions) {
+        closeReactionsSheet();
+        return true;
+      }
+      onClose();
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => {
+      subscription.remove();
+    };
+  }, [visible, showReactions]);
 
   const activeGroup = useMemo(() => {
     if (groupIndex >= 0 && groupIndex < userGroups.length) {
@@ -419,7 +489,9 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
       translateY.value = Math.max(0, dragStartY.value + e.translationY);
     })
     .onEnd((e) => {
-      if (e.translationY > 120 || e.velocityY > 500) {
+      if (e.translationY < -50 && !showReactions && !showViewers && !showStickerInput && !isOwnStory) {
+        runOnJS(openReactionsSheet)();
+      } else if (e.translationY > 120 || e.velocityY > 500) {
         runOnJS(onClose)();
       } else {
         translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
@@ -596,35 +668,22 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
               </Pressable>
             )}
 
-            {/* ── Reply bar (other people's stories only) ── */}
-            {!isOwnStory && !showStickerInput && (
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'position' : undefined}
-                style={[styles.replyBarWrapper, { bottom: Math.max(insets.bottom + 12, 24) }]}
-              >
-                <View style={styles.replyBar}>
-                  <TextInput
-                    placeholder={`Reply to ${activeGroup?.username ?? ''}…`}
-                    placeholderTextColor="rgba(255,255,255,0.5)"
-                    value={replyText}
-                    onChangeText={setReplyText}
-                    style={styles.replyInput}
-                    onFocus={() => setIsPaused(true)}
-                    onBlur={() => { if (!replyText.trim()) setIsPaused(false); }}
-                    returnKeyType="send"
-                    onSubmitEditing={handleSendReply}
-                  />
-                  {replyText.trim() ? (
-                    <Pressable onPress={handleSendReply} style={styles.replySendBtn}>
-                      <Ionicons name="send" size={17} color="#FFF" />
-                    </Pressable>
-                  ) : (
-                    <Pressable hitSlop={8} onPress={() => {}}>
-                      <Ionicons name="heart-outline" size={22} color="rgba(255,255,255,0.85)" />
-                    </Pressable>
-                  )}
-                </View>
-              </KeyboardAvoidingView>
+            {/* ── Reply bar trigger (other people's stories only) ── */}
+            {!isOwnStory && !showStickerInput && !showReactions && (
+              <View style={[styles.replyBarWrapper, { bottom: Math.max(insets.bottom + 12, 24) }]}>
+                <Pressable style={styles.replyBar} onPress={openReactionsSheet}>
+                  <Text style={styles.replyPlaceholder}>
+                    {`Reply to ${activeGroup?.username ?? ''}…`}
+                  </Text>
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => handleSendStoryReply(undefined, '❤️')}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    <Ionicons name="heart-outline" size={22} color="rgba(255,255,255,0.85)" />
+                  </Pressable>
+                </Pressable>
+              </View>
             )}
 
             {/* ── Viewers bottom sheet ── */}
@@ -656,8 +715,8 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
                       renderItem={({ item }) => (
                         <View style={styles.viewerRow}>
                           <Image
-                            source={{ uri: item.avatarUrl || 'https://ui-avatars.com/api/?name=U&size=80' }}
-                            style={styles.viewerAvatar}
+                             source={{ uri: item.avatarUrl || 'https://ui-avatars.com/api/?name=U&size=80' }}
+                             style={styles.viewerAvatar}
                           />
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.viewerUsername, { color: isDark ? '#FFF' : '#000' }]}>
@@ -672,6 +731,79 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
                     />
                   )}
                 </View>
+              </Animated.View>
+            )}
+
+            {/* ── Quick Reactions Bottom Sheet ── */}
+            {showReactions && (
+              <Animated.View style={[styles.reactionsSheet, animatedReactionsStyle]}>
+                {/* Backdrop to close the sheet */}
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={closeReactionsSheet}
+                />
+                
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                  style={styles.reactionsKeyboardAvoiding}
+                >
+                  <BlurView
+                    intensity={85}
+                    tint="dark"
+                    style={styles.reactionsContent}
+                  >
+                    {/* Drag Handle */}
+                    <View style={styles.reactionsHandle} />
+                    
+                    {/* Emojis Title */}
+                    <Text style={styles.reactionsTitle}>Quick Reactions</Text>
+                    
+                    {/* Horizontal Emoji Row */}
+                    <View style={styles.emojiRow}>
+                      {QUICK_EMOJIS.map((emoji) => (
+                        <Pressable
+                          key={emoji}
+                          style={styles.emojiBtn}
+                          onPress={() => handleSendStoryReply(undefined, emoji)}
+                        >
+                          <Text style={styles.emojiText}>{emoji}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {/* Text Input Row */}
+                    <View style={styles.reactionsInputBar}>
+                      <TextInput
+                        ref={reactionsInputRef}
+                        placeholder={`Reply to ${activeGroup?.username ?? ''}…`}
+                        placeholderTextColor="rgba(255,255,255,0.4)"
+                        value={replyText}
+                        onChangeText={setReplyText}
+                        style={styles.reactionsInput}
+                        returnKeyType="send"
+                        onSubmitEditing={() => {
+                          const text = replyText.trim();
+                          if (text) {
+                            handleSendStoryReply(text);
+                          }
+                        }}
+                      />
+                      {replyText.trim().length > 0 && (
+                        <Pressable
+                          style={styles.reactionsSendBtn}
+                          onPress={() => {
+                            const text = replyText.trim();
+                            if (text) {
+                              handleSendStoryReply(text);
+                            }
+                          }}
+                        >
+                          <Ionicons name="paper-plane" size={18} color="#0095F6" />
+                        </Pressable>
+                      )}
+                    </View>
+                  </BlurView>
+                </KeyboardAvoidingView>
               </Animated.View>
             )}
           </Animated.View>
@@ -917,5 +1049,78 @@ const styles = StyleSheet.create({
     backgroundColor: '#0095F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  reactionsSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 250,
+    justifyContent: 'flex-end',
+  },
+  reactionsKeyboardAvoiding: {
+    width: '100%',
+  },
+  reactionsContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 24,
+    overflow: 'hidden',
+  },
+  reactionsHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  reactionsTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  emojiRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    marginBottom: 20,
+  },
+  emojiBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  emojiText: {
+    fontSize: 34,
+  },
+  reactionsInputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+  },
+  reactionsInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: Fonts.regular,
+  },
+  reactionsSendBtn: {
+    paddingLeft: 8,
+  },
+  replyPlaceholder: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontSize: 14,
+    fontFamily: Fonts.regular,
   },
 });

@@ -94,6 +94,14 @@ interface Message {
   senderId: string;
   text: string | null;
   mediaUrl?: string;
+  referenceType?: 'post' | 'reel' | 'story' | null;
+  referenceId?: string | null;
+  storyId?: string | null;
+  story?: {
+    id: string;
+    mediaUrl: string;
+    mediaType: string;
+  } | null;
   isRead: boolean;
   isDeleted?: boolean;
   createdAt: string;
@@ -691,6 +699,41 @@ const MessageBubble = React.memo(({
                     >
                       {item.replyToText || item.replyToMessage?.text}
                     </Text>
+                  </View>
+                )}
+
+                {/* Story Reference Preview */}
+                {item.referenceType === 'story' && item.story && (
+                  <View
+                    style={[
+                      styles.storyReferenceCard,
+                      {
+                        backgroundColor: isMe ? 'rgba(0,0,0,0.14)' : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                        borderColor: isMe ? 'rgba(255,255,255,0.18)' : colors.border,
+                      }
+                    ]}
+                  >
+                    <View style={styles.storyReferenceLeft}>
+                      <Ionicons
+                        name="image-outline"
+                        size={13}
+                        color={isMe ? 'rgba(255,255,255,0.75)' : colors.textSecondary}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text
+                        style={[
+                          styles.storyReferenceText,
+                          { color: isMe ? 'rgba(255,255,255,0.65)' : colors.textSecondary }
+                        ]}
+                      >
+                        {item.senderId === currentUserId ? 'Replies to story' : 'Replied to story'}
+                      </Text>
+                    </View>
+                    <Image
+                      source={{ uri: item.story.mediaUrl }}
+                      style={styles.storyReferenceThumbnail}
+                      contentFit="cover"
+                    />
                   </View>
                 )}
 
@@ -1761,5 +1804,32 @@ const styles = StyleSheet.create({
   },
   contextMenuActionLabel: {
     fontSize: 15,
+  },
+  storyReferenceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 0.8,
+    marginBottom: 6,
+    width: 200,
+  },
+  storyReferenceLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  storyReferenceText: {
+    fontSize: 11,
+    fontFamily: Fonts.medium,
+    flexShrink: 1,
+  },
+  storyReferenceThumbnail: {
+    width: 32,
+    height: 48,
+    borderRadius: 6,
+    marginLeft: 10,
+    backgroundColor: '#000000',
   },
 });
