@@ -43,7 +43,9 @@ A **production-quality Instagram clone** mobile application built for Android an
 - 🔄 **Swipe-to-navigate tabs** — fluid horizontal pager with Reanimated spring animations
 - 📲 **Multi-step onboarding** — OTP email verification, birthday, permissions, follow suggestions
 - 🎬 **Full Reels experience** — HLS streaming, swipe-up feed, like/comment/share
-- 📖 **Stories with progress bar** — auto-advance, view tracking, highlight creation
+- 📖 **Stories with progress bar** — auto-advance, view tracking, highlight creation, post/reel sticker sharing
+- 💾 **Advanced Offline Caching** — instant cold start hydration of feeds via `expo-secure-store`
+- ⚡ **Optimistic Actions with Rollback** — micro-interaction likes/bookmarks/comments with rollback retry banners
 - 💬 **Real-time chat** — Socket.IO DMs with typing indicators, read receipts, media sharing
 - 🔔 **Push notifications** — Expo Push Notifications with in-app banner overlay
 - 🌐 **Explore & Search** — users, posts, hashtags with tabbed results
@@ -65,7 +67,8 @@ A **production-quality Instagram clone** mobile application built for Android an
 | **HTTP Client** | Axios (with JWT auto-refresh interceptors) |
 | **WebSocket** | Socket.IO Client 4 |
 | **Media** | expo-image, expo-video (HLS), expo-image-picker |
-| **Storage** | expo-secure-store (JWT tokens) |
+| **Storage** | expo-secure-store (JWT tokens + Offline Feed Caches) |
+| **Composition** | react-native-view-shot |
 | **Notifications** | expo-notifications |
 | **Typography** | Outfit (Google Fonts via @expo-google-fonts) |
 | **Icons** | @expo/vector-icons (Ionicons) |
@@ -104,6 +107,10 @@ A multi-step onboarding experience:
 - **Stories Row** — Horizontal scrollable story circles with gradient ring for unviewed stories
 - **Your Story** button — opens camera to create a new story
 - **Post Feed** — Infinite scroll feed with cursor-based pagination
+- **Suggested Accounts Carousel** — Dynamically interleaved card after post #2 with spring animations and follow/unfollow toggle actions
+- **Trending Reels Carousel** — Interleaved after post #6 showing top 10 trending reels with portrait thumbnails and views count badges
+- **Offline Cache Hydration** — Home feed hydrates instantly from disk cache (`expo-secure-store`) on cold launch
+- **Optimistic Actions & Rollbacks** — Likes and comments update immediately in the UI and automatically roll back with an animated retry banner on network failure
 - **Post Cards** — Like, comment, save, share actions with animated counters
 - **Gradient Pull-to-Refresh** — Instagram-style gradient indicator
 - **Notification bell** — tappable with TouchableOpacity haptic feedback
