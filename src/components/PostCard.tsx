@@ -236,12 +236,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                   style={{ marginLeft: 3 }}
                 />
               )}
-              {isReelCard && (
-                <View style={styles.reelBadge}>
-                  <Ionicons name="film" size={10} color="#FFFFFF" />
-                  <ThemedText style={styles.reelBadgeText}>Reel</ThemedText>
-                </View>
-              )}
+
             </View>
             {post.location ? (
               <ThemedText
