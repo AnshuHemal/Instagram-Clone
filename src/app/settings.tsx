@@ -225,10 +225,9 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Pressable onPress={() => router.back()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#F5F5F5' : '#262626'} />
+          <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Settings and activity</Text>
-        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
@@ -640,8 +639,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontFamily: Fonts.bold,
-    fontSize: 19,
+    fontFamily: Fonts.semiBold,
+    fontSize: 22,
+    marginLeft: 12,
     letterSpacing: -0.4,
   },
   searchContainer: {
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: Fonts.regular,
     padding: 0,
   },
@@ -700,14 +700,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   accountsLabel: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 15,
-    marginBottom: 2,
+    fontFamily: Fonts.bold,
+    fontSize: 16.5,
+    marginBottom: 3,
   },
   accountsSublabel: {
     fontFamily: Fonts.regular,
-    fontSize: 11.5,
-    lineHeight: 15,
+    fontSize: 13.5,
+    lineHeight: 18,
   },
 
   // Divider Band
@@ -719,10 +719,10 @@ const styles = StyleSheet.create({
   // Sections
   sectionTitle: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: 14.5,
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   sectionItems: {
     width: '100%',
@@ -743,11 +743,11 @@ const styles = StyleSheet.create({
   rowLabel: {
     flex: 1,
     fontFamily: Fonts.regular,
-    fontSize: 15,
+    fontSize: 16,
   },
   rowValue: {
     fontFamily: Fonts.regular,
-    fontSize: 14,
+    fontSize: 15,
   },
 
   // Logout
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
   },
   logoutLabel: {
     fontFamily: Fonts.semiBold,
-    fontSize: 15.5,
+    fontSize: 16,
     color: '#FF3B30',
   },
 
