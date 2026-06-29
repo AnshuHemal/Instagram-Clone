@@ -828,11 +828,8 @@ export default function ProfileScreen() {
   };
 
   const handleHamburger = () => {
-    Alert.alert('Settings', '', [
-      { text: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode', onPress: toggleTheme },
-      { text: 'Log out', style: 'destructive', onPress: handleLogout },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    haptics.light();
+    router.push('/settings' as any);
   };
 
   if (!user) return null;
