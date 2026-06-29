@@ -16,6 +16,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -44,8 +45,33 @@ import Animated, {
   SlideOutDown,
   runOnJS,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as SecureStore from 'expo-secure-store';
 
 import { useTheme } from '@/contexts/ThemeContext';
+
+const CHAT_THEMES = {
+  default: {
+    name: 'Default',
+    colors: ['#000000', '#000000'],
+  },
+  ocean: {
+    name: 'Ocean Gradient',
+    colors: ['#0A2540', '#0072FF', '#00d4ff'],
+  },
+  lavender: {
+    name: 'Sweet Lavender',
+    colors: ['#3F2B96', '#724DB9', '#A8C0FF'],
+  },
+  maple: {
+    name: 'Autumn Maple',
+    colors: ['#8A2387', '#E94057', '#F27121'],
+  },
+  rose: {
+    name: 'Desert Rose',
+    colors: ['#1A0B2E', '#3D155F', '#8F94FB'],
+  },
+};
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/contexts/SocketContext';
 import { ThemedText } from '@/components/themed-text';
@@ -505,30 +531,41 @@ const ReplyPreviewBar = ({
   replyTarget,
   colors,
   onDismiss,
+  chatTheme,
 }: {
   replyTarget: { id: string; text: string; username: string };
   colors: any;
   onDismiss: () => void;
-}) => (
-  <Animated.View
-    entering={SlideInDown.duration(180)}
-    exiting={SlideOutDown.duration(140)}
-    style={[styles.replyBanner, { borderTopColor: colors.border, backgroundColor: colors.background }]}
-  >
-    <View style={styles.replyBannerLeftBar} />
-    <View style={{ flex: 1 }}>
-      <Text style={[styles.replyBannerUsername, { fontFamily: Fonts.semiBold }]}>
-        @{replyTarget.username}
-      </Text>
-      <Text numberOfLines={1} style={[styles.replyBannerText, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-        {replyTarget.text}
-      </Text>
-    </View>
-    <Pressable onPress={onDismiss} hitSlop={10}>
-      <Ionicons name="close" size={18} color={colors.textSecondary} />
-    </Pressable>
-  </Animated.View>
-);
+  chatTheme: string;
+}) => {
+  const isCustomTheme = chatTheme && chatTheme !== 'default';
+  return (
+    <Animated.View
+      entering={SlideInDown.duration(180)}
+      exiting={SlideOutDown.duration(140)}
+      style={[
+        styles.replyBanner,
+        {
+          borderTopColor: isCustomTheme ? 'rgba(255,255,255,0.15)' : colors.border,
+          backgroundColor: isCustomTheme ? 'rgba(0,0,0,0.45)' : colors.background,
+        },
+      ]}
+    >
+      <View style={styles.replyBannerLeftBar} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.replyBannerUsername, { color: isCustomTheme ? '#FFFFFF' : colors.text, fontFamily: Fonts.semiBold }]}>
+          @{replyTarget.username}
+        </Text>
+        <Text numberOfLines={1} style={[styles.replyBannerText, { color: isCustomTheme ? 'rgba(255,255,255,0.6)' : colors.textSecondary, fontFamily: Fonts.regular }]}>
+          {replyTarget.text}
+        </Text>
+      </View>
+      <Pressable onPress={onDismiss} hitSlop={10}>
+        <Ionicons name="close" size={18} color={isCustomTheme ? 'rgba(255,255,255,0.6)' : colors.textSecondary} />
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 // ─── EmojiGrid ────────────────────────────────────────────────────────────────
 
@@ -580,6 +617,7 @@ interface MessageBubbleProps {
   onReactionTap: (messageId: string, emoji: string) => void;
   formatTime: (iso: string) => string;
   currentUserId: string;
+  chatTheme: string;
 }
 
 const MessageBubble = React.memo(({
@@ -593,9 +631,28 @@ const MessageBubble = React.memo(({
   onReactionTap,
   formatTime,
   currentUserId,
+  chatTheme,
 }: MessageBubbleProps) => {
   const translateX = useSharedValue(0);
   const replyIconOpacity = useSharedValue(0);
+
+  const lastTapRef = useRef(0);
+  const handleBubblePress = () => {
+    const now = Date.now();
+    if (lastTapRef.current && now - lastTapRef.current < 280) {
+      lastTapRef.current = 0;
+      haptics.success();
+      onReactionTap(item.id, '❤️');
+    } else {
+      lastTapRef.current = now;
+    }
+  };
+
+  const isCustomTheme = chatTheme && chatTheme !== 'default';
+  const bubbleMineBg = isCustomTheme ? 'rgba(255, 255, 255, 0.22)' : INSTAGRAM_BLUE;
+  const bubbleOtherBgColor = isCustomTheme ? 'rgba(0, 0, 0, 0.35)' : bubbleOtherBg;
+  const textMineColor = '#FFFFFF';
+  const textOtherColor = isCustomTheme ? '#FFFFFF' : colors.text;
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([8, 999])
@@ -666,13 +723,14 @@ const MessageBubble = React.memo(({
           <GestureDetector gesture={panGesture}>
             <Animated.View style={bubbleAnimStyle}>
               <Pressable
+                onPress={handleBubblePress}
                 onLongPress={() => onLongPress(item)}
                 delayLongPress={280}
                 style={[
                   styles.bubble,
                   isMe
-                    ? styles.bubbleMine
-                    : [styles.bubbleOther, { backgroundColor: bubbleOtherBg }],
+                    ? { backgroundColor: bubbleMineBg, borderBottomRightRadius: 5, alignSelf: 'flex-end' }
+                    : { backgroundColor: bubbleOtherBgColor, borderBottomLeftRadius: 5, alignSelf: 'flex-start' },
                   item.mediaUrl ? { paddingHorizontal: 4, paddingVertical: 4 } : {},
                   { opacity: item.status === 'sending' ? 0.72 : 1 },
                 ]}
@@ -752,7 +810,7 @@ const MessageBubble = React.memo(({
                 {item.text && item.text !== '📷 Photo' && item.text !== '🎥 Video' && (
                   <Text
                     style={{
-                      color: isMe ? '#FFFFFF' : colors.text,
+                      color: isMe ? textMineColor : textOtherColor,
                       fontSize: 15,
                       lineHeight: 22,
                       fontFamily: Fonts.regular,
@@ -866,6 +924,8 @@ export default function ChatRoomScreen() {
   const [replyTarget, setReplyTarget] = useState<{ id: string; text: string; username: string } | null>(null);
   const [showEmojiGrid, setShowEmojiGrid] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null);
+  const [chatTheme, setChatTheme] = useState<string>('default');
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   // Send button spring animation
   const sendScale = useSharedValue(1);
@@ -875,12 +935,29 @@ export default function ChatRoomScreen() {
 
   const bubbleOtherBg = isDark ? '#2C2C2E' : '#F2F2F7';
 
+  // Load cached theme from SecureStore on mount for instant visual feedback
+  useEffect(() => {
+    const loadCachedTheme = async () => {
+      try {
+        const cachedTheme = await SecureStore.getItemAsync(`chat_theme_${id}`);
+        if (cachedTheme) {
+          setChatTheme(cachedTheme);
+        }
+      } catch (_) {}
+    };
+    if (id) loadCachedTheme();
+  }, [id]);
+
   // ── Data fetching ──────────────────────────────────────────────────────────
 
   const fetchConversationDetails = async () => {
     try {
       const res = await api.get(`/chat/conversations/${id}`);
       if (res.data?.data?.partner) setPartner(res.data.data.partner);
+      if (res.data?.data?.theme) {
+        setChatTheme(res.data.data.theme);
+        await SecureStore.setItemAsync(`chat_theme_${id}`, res.data.data.theme).catch(() => {});
+      }
     } catch (err) {
       console.error('[ChatRoom] fetchConversationDetails failed:', err);
     }
@@ -966,15 +1043,60 @@ export default function ChatRoomScreen() {
       }
     };
 
+    const handleMessageReactionUpdate = (data: { messageId: string; userId: string; emoji: string; toggled: 'added' | 'removed'; conversationId: string }) => {
+      if (data.conversationId !== id) return;
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== data.messageId) return msg;
+
+          const existing = msg.reactions || [];
+          let updated: ReactionGroup[];
+
+          if (data.toggled === 'removed') {
+            updated = existing
+              .map((r) => r.emoji === data.emoji ? { ...r, count: r.count - 1, myReaction: r.myReaction && data.userId !== currentUser?.id ? r.myReaction : false } : r)
+              .filter((r) => r.count > 0);
+          } else {
+            const myPrevReaction = existing.find((r) => r.myReaction && data.userId === currentUser?.id);
+            const cleanExisting = myPrevReaction
+              ? existing
+                  .map((r) => r.emoji === myPrevReaction.emoji ? { ...r, count: r.count - 1, myReaction: false } : r)
+                  .filter((r) => r.count > 0)
+              : existing;
+
+            const found = cleanExisting.find((r) => r.emoji === data.emoji);
+            if (found) {
+              updated = cleanExisting.map((r) => r.emoji === data.emoji ? { ...r, count: r.count + 1, myReaction: r.myReaction || data.userId === currentUser?.id } : r);
+            } else {
+              updated = [...cleanExisting, { emoji: data.emoji, count: 1, myReaction: data.userId === currentUser?.id }];
+            }
+          }
+
+          return { ...msg, reactions: updated };
+        })
+      );
+    };
+
+    const handleConversationThemeUpdate = (data: { conversationId: string; theme: string }) => {
+      if (data.conversationId === id) {
+        setChatTheme(data.theme);
+        SecureStore.setItemAsync(`chat_theme_${id}`, data.theme).catch(() => {});
+      }
+    };
+
     socket.on('messageReceived', handleMessageReceived);
     socket.on('typingStatusReceived', handleTypingStatus);
     socket.on('messagesRead', handleMessagesRead);
+    socket.on('messageReactionUpdate', handleMessageReactionUpdate);
+    socket.on('conversationThemeUpdate', handleConversationThemeUpdate);
 
     return () => {
       leaveConversation(id);
       socket.off('messageReceived', handleMessageReceived);
       socket.off('typingStatusReceived', handleTypingStatus);
       socket.off('messagesRead', handleMessagesRead);
+      socket.off('messageReactionUpdate', handleMessageReactionUpdate);
+      socket.off('conversationThemeUpdate', handleConversationThemeUpdate);
     };
   }, [id, socket, partner?.id]);
 
@@ -1197,6 +1319,18 @@ export default function ChatRoomScreen() {
   const KEYBOARD_BUFFER = 46;
   const bottomOffset = keyboardHeight > 0 ? keyboardHeight + KEYBOARD_BUFFER : Math.max(insets.bottom, 8);
 
+  const handleThemeChange = async (themeKey: string) => {
+    haptics.light();
+    setShowThemeModal(false);
+    setChatTheme(themeKey);
+    try {
+      await SecureStore.setItemAsync(`chat_theme_${id}`, themeKey);
+      await api.patch(`/chat/conversations/${id}/theme`, { theme: themeKey });
+    } catch (err) {
+      console.error('[ChatRoom] handleThemeChange failed:', err);
+    }
+  };
+
   // ── Copy ──────────────────────────────────────────────────────────────────
 
   const handleCopy = (text: string) => {
@@ -1235,11 +1369,12 @@ export default function ChatRoomScreen() {
             onReactionTap={handleReact}
             formatTime={formatMessageTime}
             currentUserId={currentUser?.id || ''}
+            chatTheme={chatTheme}
           />
         </View>
       );
     },
-    [messages, currentUser, isDark, colors, bubbleOtherBg, handleLongPress, handleReact, formatMessageTime],
+    [messages, currentUser, isDark, colors, bubbleOtherBg, handleLongPress, handleReact, formatMessageTime, chatTheme],
   );
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -1298,6 +1433,9 @@ export default function ChatRoomScreen() {
             </Pressable>
 
             <View style={styles.headerActions}>
+              <Pressable style={styles.headerButton} hitSlop={8} onPress={() => setShowThemeModal(true)}>
+                <Ionicons name="color-palette-outline" size={22} color={colors.text} />
+              </Pressable>
               <Pressable style={styles.headerButton} hitSlop={8}>
                 <Ionicons name="call-outline" size={22} color={colors.text} />
               </Pressable>
@@ -1327,6 +1465,12 @@ export default function ChatRoomScreen() {
           keyboardVerticalOffset={0}
         >
           <View style={[styles.content, { paddingBottom: Platform.OS === 'ios' ? 0 : bottomOffset }]}>
+            {chatTheme !== 'default' && CHAT_THEMES[chatTheme as keyof typeof CHAT_THEMES] && (
+              <LinearGradient
+                colors={CHAT_THEMES[chatTheme as keyof typeof CHAT_THEMES].colors as [string, string, ...string[]]}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
             <FlatList
               ref={flatListRef}
               data={messages}
@@ -1363,6 +1507,7 @@ export default function ChatRoomScreen() {
                 replyTarget={replyTarget}
                 colors={colors}
                 onDismiss={() => setReplyTarget(null)}
+                chatTheme={chatTheme}
               />
             )}
 
@@ -1376,16 +1521,19 @@ export default function ChatRoomScreen() {
             <View
               style={[
                 styles.inputBarContainer,
-                { borderTopColor: colors.border, backgroundColor: colors.background },
+                {
+                  borderTopColor: chatTheme !== 'default' ? 'transparent' : colors.border,
+                  backgroundColor: chatTheme !== 'default' ? 'transparent' : colors.background,
+                },
               ]}
             >
               <View
                 style={[
                   styles.inputBar,
                   {
-                    backgroundColor: isDark ? '#2C2C2E' : '#EFEFEF',
+                    backgroundColor: chatTheme !== 'default' ? 'rgba(255,255,255,0.18)' : (isDark ? '#2C2C2E' : '#EFEFEF'),
                     borderWidth: 0.8,
-                    borderColor: isDark ? '#3A3A3C' : '#D1D1D6',
+                    borderColor: chatTheme !== 'default' ? 'rgba(255,255,255,0.22)' : (isDark ? '#3A3A3C' : '#D1D1D6'),
                   },
                 ]}
               >
@@ -1394,7 +1542,7 @@ export default function ChatRoomScreen() {
                   onPress={() => handleMediaSelection(true)}
                   disabled={mediaUploading}
                 >
-                  <Ionicons name="camera" size={22} color={colors.text} />
+                  <Ionicons name="camera" size={22} color={chatTheme !== 'default' ? '#FFFFFF' : colors.text} />
                 </Pressable>
 
                 <Pressable
@@ -1404,16 +1552,16 @@ export default function ChatRoomScreen() {
                   <Ionicons
                     name={showEmojiGrid ? 'close-circle-outline' : 'happy-outline'}
                     size={22}
-                    color={showEmojiGrid ? INSTAGRAM_BLUE : colors.text}
+                    color={showEmojiGrid ? INSTAGRAM_BLUE : (chatTheme !== 'default' ? '#FFFFFF' : colors.text)}
                   />
                 </Pressable>
 
                 <TextInput
                   placeholder="Message…"
-                  placeholderTextColor="#8E8E8F"
+                  placeholderTextColor={chatTheme !== 'default' ? 'rgba(255,255,255,0.6)' : '#8E8E8F'}
                   value={inputText}
                   onChangeText={handleInputChange}
-                  style={[styles.inputField, { color: colors.text }]}
+                  style={[styles.inputField, { color: chatTheme !== 'default' ? '#FFFFFF' : colors.text }]}
                   multiline
                   editable={!mediaUploading}
                   onFocus={() => setShowEmojiGrid(false)}
@@ -1430,10 +1578,10 @@ export default function ChatRoomScreen() {
                 ) : (
                   <View style={styles.inputRightIcons}>
                     <Pressable style={styles.inputIconButton} hitSlop={6}>
-                      <Ionicons name="mic-outline" size={22} color={colors.text} />
+                      <Ionicons name="mic-outline" size={22} color={chatTheme !== 'default' ? '#FFFFFF' : colors.text} />
                     </Pressable>
                     <Pressable style={styles.inputIconButton} onPress={() => handleMediaSelection(false)}>
-                      <Ionicons name="image-outline" size={22} color={colors.text} />
+                      <Ionicons name="image-outline" size={22} color={chatTheme !== 'default' ? '#FFFFFF' : colors.text} />
                     </Pressable>
                   </View>
                 )}
@@ -1461,6 +1609,84 @@ export default function ChatRoomScreen() {
             ]);
           }}
         />
+
+        {/* ── Theme selector modal ────────────────────────────────────────── */}
+        <Modal
+          visible={showThemeModal}
+          transparent
+          animationType="slide"
+          statusBarTranslucent
+          onRequestClose={() => setShowThemeModal(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowThemeModal(false)}>
+            <View style={styles.themeModalBackdrop}>
+              <TouchableWithoutFeedback>
+                <View style={[styles.themeModalCard, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+                  <View style={styles.themeModalHeader}>
+                    <Text style={[styles.themeModalTitle, { color: colors.text, fontFamily: Fonts.semiBold }]}>
+                      Theme settings
+                    </Text>
+                    <Pressable onPress={() => setShowThemeModal(false)} hitSlop={8}>
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.themeModalDivider} />
+
+                  <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                    {Object.keys(CHAT_THEMES).map((themeKey) => {
+                      const theme = CHAT_THEMES[themeKey as keyof typeof CHAT_THEMES];
+                      const isSelected = chatTheme === themeKey;
+                      return (
+                        <Pressable
+                          key={themeKey}
+                          style={styles.themeOptionRow}
+                          onPress={() => handleThemeChange(themeKey)}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            {themeKey === 'default' ? (
+                              <View
+                                style={[
+                                  styles.themePreviewCircle,
+                                  {
+                                    backgroundColor: isDark ? '#000000' : '#FFFFFF',
+                                    borderWidth: 1.5,
+                                    borderColor: isDark ? '#3A3A3C' : '#E5E5EA',
+                                  },
+                                ]}
+                              />
+                            ) : (
+                              <LinearGradient
+                                colors={theme.colors as [string, string, ...string[]]}
+                                style={styles.themePreviewCircle}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                              />
+                            )}
+                            <Text
+                              style={[
+                                styles.themeOptionLabel,
+                                {
+                                  color: colors.text,
+                                  fontFamily: isSelected ? Fonts.semiBold : Fonts.medium,
+                                },
+                              ]}
+                            >
+                              {theme.name}
+                            </Text>
+                          </View>
+                          {isSelected && (
+                            <Ionicons name="checkmark-circle" size={22} color={INSTAGRAM_BLUE} />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
       </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -1831,5 +2057,48 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginLeft: 10,
     backgroundColor: '#000000',
+  },
+  themeModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  themeModalCard: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 30,
+    maxHeight: '60%',
+  },
+  themeModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  themeModalTitle: {
+    fontSize: 17,
+  },
+  themeModalDivider: {
+    height: 0.5,
+    backgroundColor: 'rgba(120,120,120,0.2)',
+    marginBottom: 16,
+  },
+  themeOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(120,120,120,0.1)',
+  },
+  themeOptionLabel: {
+    fontSize: 15,
+  },
+  themePreviewCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
 });
