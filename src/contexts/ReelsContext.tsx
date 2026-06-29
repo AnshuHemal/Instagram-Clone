@@ -172,10 +172,11 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 
   const mapBackendReel = (item: any): Reel => {
+    const authorInfo = item.author || item.user;
     return {
       id: item.id,
-      username: item.user?.username || 'anonymous',
-      avatar: item.user?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      username: authorInfo?.username || 'anonymous',
+      avatar: authorInfo?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
       imageUrl: item.thumbnailUrl || 'https://images.unsplash.com/photo-1530789253388-582c481c54b0?w=800',
       description: item.caption || '',
       likesCount: Number(item.likesCount || 0),
@@ -185,6 +186,17 @@ export const ReelsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       views: Number(item.viewsCount || 0).toLocaleString(),
       hlsUrl: item.hlsUrl || undefined,
       durationSeconds: item.durationSeconds ? Number(item.durationSeconds) : undefined,
+      isFollowing: item.isFollowing ?? authorInfo?.isFollowing ?? false,
+      isRequested: item.isRequested ?? authorInfo?.isRequested ?? false,
+      userId: item.userId || authorInfo?.id,
+      author: authorInfo ? {
+        id: authorInfo.id,
+        username: authorInfo.username,
+        displayName: authorInfo.displayName || authorInfo.username,
+        avatarUrl: authorInfo.avatarUrl,
+        isVerified: !!authorInfo.isVerified,
+        isPrivate: !!authorInfo.isPrivate,
+      } : undefined,
     };
   };
 

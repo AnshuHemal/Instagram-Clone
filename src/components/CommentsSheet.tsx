@@ -481,7 +481,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
   const inputPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
       {/* Backdrop */}
       <Animated.View
         style={[styles.backdrop, backdropAnimStyle]}

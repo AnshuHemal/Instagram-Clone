@@ -1185,6 +1185,7 @@ export default function ProfileScreen() {
                   isPrivate={viewProfile?.isPrivate ?? false}
                   size="medium"
                   variant="filled"
+                  fullWidth
                   onFollowChange={(status, count) => {
                     setViewProfile(prev => prev ? {
                       ...prev,

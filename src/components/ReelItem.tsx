@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform } from 'react-native';
+import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform, ActivityIndicator } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -104,6 +104,13 @@ const VideoPlayerExpoVideo = ({ hlsUrl, isPlaying, isActive, isScreenFocused, is
         player.pause();
       }
     }
+    return () => {
+      if (player) {
+        try {
+          player.pause();
+        } catch (e) {}
+      }
+    };
   }, [isPlaying, player]);
 
   // Seek back to start ONLY when first focusing or changing active items
@@ -182,6 +189,13 @@ const VideoPlayerExpoVideoPreloaded = ({ player, reelId, isPlaying, isActive, is
         player.pause();
       }
     }
+    return () => {
+      if (player) {
+        try {
+          player.pause();
+        } catch (e) {}
+      }
+    };
   }, [isPlaying, player]);
 
   // Seek back to start ONLY when first focusing or changing active items
@@ -257,8 +271,16 @@ export const ReelItem = React.memo(({
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const tabHeight = 0;
-  const finalBottomOffset = bottomOffset !== undefined ? bottomOffset : tabHeight;
+  const finalBottomOffset = bottomOffset !== undefined ? bottomOffset : insets.bottom;
+
+  const isPlayerReady = (player: any) => {
+    if (!player) return false;
+    try {
+      return player.status === 'readyToPlay';
+    } catch (e) {
+      return false;
+    }
+  };
   
   const [isFollowed, setIsFollowed] = useState(false);
   const [localLiked, setLocalLiked] = useState(reel.isLiked);
@@ -267,21 +289,17 @@ export const ReelItem = React.memo(({
   const [showShareModal, setShowShareModal] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(reel.commentsCount);
   const [lastTap, setLastTap] = useState(0);
+  const singleTapTimeoutRef = useRef<any>(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [showMuteBadge, setShowMuteBadge] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isPausedByHold, setIsPausedByHold] = useState(false);
   const [progress, setProgress] = useState(0);
   const [playerStatus, setPlayerStatus] = useState<string>(() => {
-    const isReadyNow = preloadedPlayer && preloadedPlayer.status === 'readyToPlay';
+    const isReadyNow = isPlayerReady(preloadedPlayer);
     return isReadyNow ? 'readyToPlay' : 'loading';
   });
-  const [showShimmer, setShowShimmer] = useState(() => {
-    const isReadyNow = preloadedPlayer && preloadedPlayer.status === 'readyToPlay';
-    return !isReadyNow;
-  });
-  const shimmerOpacity = useRef(
-    new Animated.Value(preloadedPlayer && preloadedPlayer.status === 'readyToPlay' ? 0 : 1)
-  ).current;
+  const [showShimmer, setShowShimmer] = useState(true);
+  const shimmerOpacity = useRef(new Animated.Value(1)).current;
 
   // Synchronously adjust state during render if active state or preloaded player changes to prevent visual flash
   const [prevIsActive, setPrevIsActive] = useState(isActive);
@@ -290,21 +308,16 @@ export const ReelItem = React.memo(({
   if (isActive !== prevIsActive || preloadedPlayer !== prevPreloadedPlayer) {
     setPrevIsActive(isActive);
     setPrevPreloadedPlayer(preloadedPlayer);
+    setIsPaused(false);
     
-    const isReadyNow = preloadedPlayer && preloadedPlayer.status === 'readyToPlay';
+    const isReadyNow = isPlayerReady(preloadedPlayer);
     if (isActive) {
-      if (isReadyNow) {
-        setPlayerStatus('readyToPlay');
-        setShowShimmer(false);
-        shimmerOpacity.setValue(0);
-      } else {
-        setPlayerStatus('loading');
-        setShowShimmer(true);
-        shimmerOpacity.setValue(1);
-      }
+      setPlayerStatus(isReadyNow ? 'readyToPlay' : 'loading');
+      setShowShimmer(true);
+      shimmerOpacity.setValue(1);
     } else {
-      setShowShimmer(!isReadyNow);
-      shimmerOpacity.setValue(isReadyNow ? 0 : 1);
+      setShowShimmer(true);
+      shimmerOpacity.setValue(1);
       setPlayerStatus(isReadyNow ? 'readyToPlay' : 'loading');
     }
   }
@@ -312,10 +325,9 @@ export const ReelItem = React.memo(({
   // React to video status changes and perform transition fade-out
   useEffect(() => {
     if (!isActive) {
-      // Check if the preloaded player is already ready to avoid flashing shimmer
-      const isReadyNow = preloadedPlayer && preloadedPlayer.status === 'readyToPlay';
-      setShowShimmer(!isReadyNow);
-      shimmerOpacity.setValue(isReadyNow ? 0 : 1);
+      setShowShimmer(true);
+      shimmerOpacity.setValue(1);
+      const isReadyNow = isPlayerReady(preloadedPlayer);
       setPlayerStatus(isReadyNow ? 'readyToPlay' : 'loading');
       return;
     }
@@ -365,7 +377,7 @@ export const ReelItem = React.memo(({
   const heartScale = useRef(new Animated.Value(0)).current;
   const heartOpacity = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
-  const muteBadgeOpacity = useRef(new Animated.Value(0)).current;
+  const pausedControlsOpacity = useRef(new Animated.Value(0)).current;
 
   // Interactive Seekbar & Player state refs
   const activePlayerRef = useRef<any>(null);
@@ -375,7 +387,21 @@ export const ReelItem = React.memo(({
   const seekbarScaleY = useRef(new Animated.Value(1)).current;
   const handleScale = useRef(new Animated.Value(0)).current;
 
-  const isPlaying = isActive && isScreenFocused && !isPausedByHold;
+  const isPlaying = isActive && isScreenFocused && !isPausedByHold && !isPaused;
+
+
+
+  useEffect(() => {
+    if (isPaused) {
+      Animated.timing(pausedControlsOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      pausedControlsOpacity.setValue(0);
+    }
+  }, [isPaused]);
 
   // Progress update handler that ignores updates while the user is actively dragging/scrubbing
   const handleProgressUpdate = (ratio: number) => {
@@ -599,31 +625,13 @@ export const ReelItem = React.memo(({
     ]).start();
   };
 
-  const triggerMuteBadgeAnim = () => {
-    setShowMuteBadge(true);
-    muteBadgeOpacity.setValue(0);
-    
-    Animated.sequence([
-      Animated.timing(muteBadgeOpacity, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.delay(600),
-      Animated.timing(muteBadgeOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setShowMuteBadge(false);
-    });
-  };
 
-  // Cleanup hold timeout on unmount
+
+  // Cleanup hold timeout and tap timeouts on unmount
   useEffect(() => {
     return () => {
       if (holdTimeout.current) clearTimeout(holdTimeout.current);
+      if (singleTapTimeoutRef.current) clearTimeout(singleTapTimeoutRef.current);
     };
   }, []);
 
@@ -652,21 +660,31 @@ export const ReelItem = React.memo(({
 
   const handleReelPress = () => {
     const now = Date.now();
-    const DOUBLE_PRESS_DELAY = 300;
+    const DOUBLE_PRESS_DELAY = 280; // Delay window to register double taps cleanly
+
     if (lastTap && now - lastTap < DOUBLE_PRESS_DELAY) {
+      // Clear the single-tap toggle timeout to prevent a double-tap from pausing/resuming
+      if (singleTapTimeoutRef.current) {
+        clearTimeout(singleTapTimeoutRef.current);
+        singleTapTimeoutRef.current = null;
+      }
+
       if (!localLiked) {
         handleLike();
       }
       triggerDoubleTapHeart();
+      setLastTap(0); // Reset tap reference
     } else {
       setLastTap(now);
-      // Only trigger mute animations if a native video player is active
-      const hasNativeVideo = !!ExpoVideo;
-      if (hasNativeVideo) {
-        const nextMuteState = !isMuted;
-        setIsMuted(nextMuteState);
-        triggerMuteBadgeAnim();
+      
+      if (singleTapTimeoutRef.current) {
+        clearTimeout(singleTapTimeoutRef.current);
       }
+
+      singleTapTimeoutRef.current = setTimeout(() => {
+        setIsPaused(prev => !prev);
+        singleTapTimeoutRef.current = null;
+      }, DOUBLE_PRESS_DELAY);
     }
   };
 
@@ -701,17 +719,7 @@ export const ReelItem = React.memo(({
   });
 
   const renderVideoPlayer = () => {
-    if (!reel.hlsUrl) {
-      return (
-        <ExpoImage
-          source={{ uri: reel.imageUrl }}
-          style={styles.backgroundImage}
-          contentFit="cover"
-          placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-          transition={300}
-        />
-      );
-    }
+    if (!reel.hlsUrl) return null;
 
     if (ExpoVideo && isActive) {
       const currentPlayer = preloadedPlayer;
@@ -748,24 +756,43 @@ export const ReelItem = React.memo(({
       );
     }
 
-    // Default static image fallback for inactive items
-    return (
-      <ExpoImage
-        source={{ uri: reel.imageUrl }}
-        style={styles.backgroundImage}
-        contentFit="cover"
-        placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-        transition={200}
-      />
-    );
+    return null;
   };
 
   return (
     <View style={[styles.container, { height }]}>
       {/* Background Media with Tap handler */}
       <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} style={StyleSheet.absoluteFill}>
-        {renderVideoPlayer()}
+        {isActive && renderVideoPlayer()}
         <View style={styles.dimOverlay} />
+
+        {/* Stable Poster Image Overlay (Prevents unmounting and JNI blinking on load) */}
+        {showShimmer && (
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                opacity: isActive ? shimmerOpacity : 1,
+                zIndex: 1,
+                backgroundColor: '#000000',
+              }
+            ]}
+            pointerEvents="none"
+          >
+            <ExpoImage
+              source={{ uri: reel.imageUrl }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+              transition={150}
+            />
+            {isActive && playerStatus === 'loading' && (
+              <View style={styles.posterLoaderContainer}>
+                <ActivityIndicator size="large" color="#FFFFFF" />
+              </View>
+            )}
+          </Animated.View>
+        )}
         
         {/* Animated Pop-up Center Heart */}
         <Animated.View
@@ -774,24 +801,43 @@ export const ReelItem = React.memo(({
             {
               transform: [{ scale: heartScale }],
               opacity: heartOpacity,
+              zIndex: 10,
             },
           ]}
         >
           <Ionicons name="heart" size={100} color="#FFFFFF" />
         </Animated.View>
 
-        {/* Animated Sound Status Badge */}
-        {showMuteBadge && (
-          <Animated.View
-            style={[
-              styles.muteBadge,
-              { opacity: muteBadgeOpacity },
-            ]}
-          >
-            <Ionicons name={isMuted ? 'volume-mute' : 'volume-high'} size={24} color="#FFFFFF" />
-          </Animated.View>
-        )}
       </Pressable>
+
+      {/* Paused Controls Row (Rendered outside parent Pressable so taps don't bubble) */}
+      {isPaused && (
+        <Animated.View style={[styles.pausedControlsContainer, { opacity: pausedControlsOpacity }]}>
+          <Pressable
+            onPress={() => {
+              setIsPaused(false);
+            }}
+            style={styles.pausedControlHalf}
+          >
+            <Ionicons name="play" size={24} color="#FFFFFF" style={{ marginLeft: 2 }} />
+          </Pressable>
+
+          <View style={styles.pausedControlDivider} />
+
+          <Pressable
+            onPress={() => {
+              setIsMuted(!isMuted);
+            }}
+            style={styles.pausedControlHalf}
+          >
+            <Ionicons
+              name={isMuted ? 'volume-mute' : 'volume-high'}
+              size={20}
+              color="#FFFFFF"
+            />
+          </Pressable>
+        </Animated.View>
+      )}
 
       {/* Right Action Buttons */}
       <View style={[styles.rightSidebar, { bottom: finalBottomOffset + 15 }]}>
@@ -900,22 +946,6 @@ export const ReelItem = React.memo(({
           ]} 
         />
       </View>
-
-      {/* Dynamic Loading Shimmer Skeleton Overlay */}
-      {isActive && showShimmer && (
-        <Animated.View 
-          style={[
-            StyleSheet.absoluteFill, 
-            { 
-              opacity: shimmerOpacity, 
-              zIndex: 30 
-            }
-          ]} 
-          pointerEvents="none"
-        >
-          <ReelShimmer />
-        </Animated.View>
-      )}
 
       {/* Comments Sheet — rendered above the reel */}
       <CommentsSheet
@@ -1062,17 +1092,37 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
-  muteBadge: {
+
+  pausedControlsContainer: {
     position: 'absolute',
     alignSelf: 'center',
     top: '45%',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 24,
-    width: 48,
-    height: 48,
+    marginTop: -28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    width: 130,
+    height: 56,
+    zIndex: 30,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  pausedControlHalf: {
+    flex: 1,
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+  },
+  pausedControlDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
   seekbarContainer: {
     position: 'absolute',
@@ -1104,5 +1154,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 2,
     elevation: 4,
+  },
+  posterLoaderContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
 });

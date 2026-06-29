@@ -7,7 +7,9 @@ import {
   useWindowDimensions,
   Pressable,
   Text,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -46,6 +48,10 @@ export default function ReelsScreen({ isTabActive = true }: { isTabActive?: bool
   );
   
   const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tabHeight = Platform.OS === 'ios'
+    ? 50 + insets.bottom
+    : 60 + (insets.bottom > 0 ? insets.bottom - 5 : 8);
   const flatListRef = useRef<FlatList>(null);
 
   const viewabilityConfig = useRef({
@@ -121,6 +127,7 @@ export default function ReelsScreen({ isTabActive = true }: { isTabActive?: bool
               onLikeToggle={handleLikeToggle}
               height={windowHeight}
               preloadedPlayer={players[item.id] || null}
+              bottomOffset={tabHeight}
             />
           )}
           pagingEnabled={true}

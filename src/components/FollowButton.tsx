@@ -21,6 +21,7 @@ type FollowButtonProps = {
   size?: 'small' | 'medium' | 'large';
   variant?: 'filled' | 'outlined' | 'icon';
   showIcon?: boolean;
+  fullWidth?: boolean;
 };
 
 export const FollowButton: React.FC<FollowButtonProps> = ({
@@ -32,6 +33,7 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
   size = 'medium',
   variant = 'filled',
   showIcon = false,
+  fullWidth = false,
 }) => {
   const { colors, isDark } = useTheme();
   const [status, setStatus] = useState<'following' | 'requested' | 'not_following'>(() => {
@@ -169,12 +171,12 @@ export const FollowButton: React.FC<FollowButtonProps> = ({
   const isFollowText = status === 'not_following';
 
   return (
-    <Animated.View entering={FadeIn.duration(100)} style={[animatedStyle, styles.fillParent]}>
+    <Animated.View entering={FadeIn.duration(100)} style={[animatedStyle, fullWidth && styles.fillParent]}>
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => [
           ...getContainerStyle(),
-          styles.fillParent,
+          fullWidth && styles.fillParent,
           { opacity: pressed ? 0.7 : 1 },
         ]}
       >

@@ -169,6 +169,15 @@ export const PostCard: React.FC<PostCardProps> = ({
       triggerDoubleTapHeart();
     } else {
       lastTapRef.current = now;
+      if (isReelCard) {
+        // Wait 300ms to see if a second tap comes in
+        setTimeout(() => {
+          if (lastTapRef.current === now) {
+            lastTapRef.current = 0;
+            router.push(`/reel/${post.id}` as any);
+          }
+        }, 300);
+      }
     }
   };
 
@@ -250,9 +259,9 @@ export const PostCard: React.FC<PostCardProps> = ({
       </View>
 
       {/* ── Media (Reel thumbnail or Post carousel) ── */}
-      <View style={styles.carouselWrapper}>
+      <View style={[styles.carouselWrapper, isReelCard && styles.reelCarouselWrapper]}>
         {isReelCard ? (
-          <Pressable onPress={handleImagePress} style={styles.mediaContainer}>
+          <Pressable onPress={handleImagePress} style={styles.reelMediaContainer}>
             <ExpoImage
               source={{ uri: post.thumbnailUrl || post.media?.[0]?.mediaUrl || '' }}
               style={styles.postImage}
@@ -261,14 +270,9 @@ export const PostCard: React.FC<PostCardProps> = ({
               transition={300}
             />
             <View style={styles.reelOverlay}>
-              <View style={styles.reelPlayButton}>
-                <Ionicons name="play-circle" size={52} color="#FFFFFF" />
+              <View style={styles.reelPlayButtonContainer}>
+                <Ionicons name="play" size={24} color="#FFFFFF" style={{ marginLeft: 3 }} />
               </View>
-              {post.viewsCount && (
-                <ThemedText style={styles.reelViewsText}>
-                  {parseInt(post.viewsCount).toLocaleString()} views
-                </ThemedText>
-              )}
             </View>
           </Pressable>
         ) : post.media && post.media.length > 0 ? (
@@ -316,8 +320,8 @@ export const PostCard: React.FC<PostCardProps> = ({
           </View>
         )}
 
-        {/* Double-tap heart (only for posts) */}
-        {!isReelCard && (
+        {/* Double-tap heart (for posts and reels) */}
+        {true && (
           <Animated.View
             style={[
               styles.doubleTapHeart,
@@ -544,9 +548,17 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
   },
+  reelCarouselWrapper: {
+    aspectRatio: 0.8, // 4:5 aspect ratio for Reels in feed
+  },
   mediaContainer: {
     width: WINDOW_WIDTH,
     height: WINDOW_WIDTH,
+    backgroundColor: '#000',
+  },
+  reelMediaContainer: {
+    width: WINDOW_WIDTH,
+    height: WINDOW_WIDTH * 1.25,
     backgroundColor: '#000',
   },
   postImage: {
@@ -558,20 +570,22 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
-  reelPlayButton: {
+  reelPlayButtonContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  reelViewsText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    marginTop: 6,
-    fontWeight: '600',
+    shadowRadius: 6,
+    elevation: 5,
   },
   videoPlaceholder: {
     flex: 1,

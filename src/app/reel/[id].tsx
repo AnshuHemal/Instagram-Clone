@@ -31,10 +31,11 @@ export default function ReelPermalinkScreen() {
       try {
         const res = await api.get(`/reels/${id}`);
         const data = res.data?.data ?? res.data;
+        const authorInfo = data.author || data.user;
         setReel({
           id: data.id,
-          username: data.user?.username ?? '',
-          avatar: data.user?.avatarUrl ?? '',
+          username: authorInfo?.username ?? '',
+          avatar: authorInfo?.avatarUrl ?? '',
           imageUrl: data.thumbnailUrl ?? '',
           description: data.caption ?? '',
           likesCount: Number(data.likesCount ?? 0),
@@ -44,6 +45,17 @@ export default function ReelPermalinkScreen() {
           views: Number(data.viewsCount ?? 0).toLocaleString(),
           hlsUrl: data.hlsUrl ?? undefined,
           durationSeconds: data.durationSeconds ? Number(data.durationSeconds) : undefined,
+          isFollowing: data.isFollowing ?? authorInfo?.isFollowing ?? false,
+          isRequested: data.isRequested ?? authorInfo?.isRequested ?? false,
+          userId: data.userId || authorInfo?.id,
+          author: authorInfo ? {
+            id: authorInfo.id,
+            username: authorInfo.username,
+            displayName: authorInfo.displayName || authorInfo.username,
+            avatarUrl: authorInfo.avatarUrl,
+            isVerified: !!authorInfo.isVerified,
+            isPrivate: !!authorInfo.isPrivate,
+          } : undefined,
         });
       } catch {
         setError(true);
@@ -95,6 +107,7 @@ export default function ReelPermalinkScreen() {
             isScreenFocused={true}
             onLikeToggle={handleLike}
             height={SCREEN_HEIGHT}
+            bottomOffset={insets.bottom}
           />
         </Animated.View>
       )}
