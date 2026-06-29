@@ -283,6 +283,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
   const [inputText, setInputText] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [localCount, setLocalCount] = useState(commentsCount);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -341,6 +342,23 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
       subscription.remove();
     };
   }, [visible, closeSheet]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // ── Swipe-down gesture ──────────────────────────────────────────────────
 
@@ -510,23 +528,21 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
           <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
         </Animated.View>
 
-        {/* Sheet */}
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-              maxHeight: SHEET_MAX_HEIGHT,
-              paddingBottom: inputPadding,
-            },
-            sheetAnimStyle,
-          ]}
-        >
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={0}
+        {/* Sheet container */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {/* Sheet */}
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                maxHeight: SHEET_MAX_HEIGHT,
+                paddingBottom: inputPadding + keyboardHeight,
+              },
+              sheetAnimStyle,
+            ]}
           >
+            <View style={{ flex: 1 }}>
             {/* Drag handle + header */}
             <GestureDetector gesture={panGesture}>
               <View style={styles.sheetHeader}>
@@ -665,10 +681,11 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
                 )}
               </Pressable>
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Animated.View>
       </View>
-    </Modal>
+    </View>
+  </Modal>
   );
 };
 

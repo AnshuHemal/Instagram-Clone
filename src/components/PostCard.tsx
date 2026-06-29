@@ -18,6 +18,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { haptics } from '@/utils/haptics';
 import { useSaved } from '@/contexts/SavedContext';
 import { useRouter } from 'expo-router';
+import ReAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 
 const WINDOW_WIDTH = Dimensions.get('window').width;
 
@@ -28,12 +33,28 @@ try {
   ExpoVideo = require('expo-video');
 } catch (e) {}
 
-const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({
+// Global muting state to sync sound settings across all feed items (matching Instagram UX)
+let globalFeedMuted = true;
+
+const VideoItem: React.FC<{
+  mediaUrl: string;
+  isActive: boolean;
+  onDoubleTap?: () => void;
+}> = ({
   mediaUrl,
   isActive,
+  onDoubleTap,
 }) => {
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(globalFeedMuted);
   const [player, setPlayer] = useState<any>(null);
+  const opacity = useSharedValue(0);
+
+  const lastTapRef = useRef(0);
+  const singleTapTimeoutRef = useRef<any>(null);
+
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
 
   useEffect(() => {
     if (!ExpoVideo || !mediaUrl) return;
@@ -58,12 +79,62 @@ const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({
   }, [mediaUrl]);
 
   useEffect(() => {
-    if (player) { isActive ? player.play() : player.pause(); }
+    if (player) {
+      if (isActive) {
+        player.play();
+        opacity.value = withTiming(1, { duration: 300 });
+      } else {
+        player.pause();
+        opacity.value = 0;
+      }
+    } else {
+      opacity.value = 0;
+    }
   }, [isActive, player]);
 
+  // Keep player muted state in sync with local state
   useEffect(() => {
-    if (player) { player.muted = isMuted; }
+    if (player) {
+      player.muted = isMuted;
+    }
   }, [isMuted, player]);
+
+  // Keep local state in sync with global feed muting state changes
+  useEffect(() => {
+    setIsMuted(globalFeedMuted);
+  }, [isActive]);
+
+  const handleToggleMute = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    globalFeedMuted = nextMuted;
+  };
+
+  const handlePress = () => {
+    const now = Date.now();
+    if (lastTapRef.current && now - lastTapRef.current < 280) {
+      if (singleTapTimeoutRef.current) {
+        clearTimeout(singleTapTimeoutRef.current);
+        singleTapTimeoutRef.current = null;
+      }
+      lastTapRef.current = 0;
+      onDoubleTap?.();
+    } else {
+      lastTapRef.current = now;
+      singleTapTimeoutRef.current = setTimeout(() => {
+        lastTapRef.current = 0;
+        handleToggleMute();
+      }, 250);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (singleTapTimeoutRef.current) {
+        clearTimeout(singleTapTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!ExpoVideo) {
     return (
@@ -74,15 +145,17 @@ const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({
   }
 
   return (
-    <Pressable onPress={() => setIsMuted((m) => !m)} style={styles.videoPressable}>
+    <Pressable onPress={handlePress} style={StyleSheet.absoluteFill}>
       {player && (
-        <ExpoVideo.VideoView
-          key={`post-video-${mediaUrl}`}
-          player={player}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          nativeControls={false}
-        />
+        <ReAnimated.View style={[StyleSheet.absoluteFill, animStyle]}>
+          <ExpoVideo.VideoView
+            key={`post-video-${mediaUrl}`}
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            nativeControls={false}
+          />
+        </ReAnimated.View>
       )}
       <View style={styles.volumeIconContainer}>
         <Ionicons
@@ -99,6 +172,7 @@ const VideoItem: React.FC<{ mediaUrl: string; isActive: boolean }> = ({
 
 interface PostCardProps {
   post: Post;
+  isActive?: boolean;
   onLikeToggle: (id: string) => void;
   onBookmarkToggle: (id: string) => void;
   onAddComment: (postId: string, text: string) => Promise<any>;
@@ -108,6 +182,7 @@ interface PostCardProps {
 
 export const PostCard: React.FC<PostCardProps> = ({
   post,
+  isActive = false,
   onLikeToggle,
   onBookmarkToggle,
   onAddComment,
@@ -137,6 +212,10 @@ export const PostCard: React.FC<PostCardProps> = ({
   const heartOpacity = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
 
+  // Separate animated values for reel double-tap heart (same animation, clean lifecycle)
+  const reelHeartScale = useRef(new Animated.Value(0)).current;
+  const reelHeartOpacity = useRef(new Animated.Value(0)).current;
+
   const triggerLikeAnim = () => {
     Animated.sequence([
       Animated.timing(likeScale, { toValue: 1.4, duration: 70, useNativeDriver: true }),
@@ -156,7 +235,33 @@ export const PostCard: React.FC<PostCardProps> = ({
     ]).start();
   };
 
+  const triggerReelDoubleTapHeart = () => {
+    reelHeartScale.setValue(0);
+    reelHeartOpacity.setValue(1);
+    Animated.parallel([
+      Animated.spring(reelHeartScale, {
+        toValue: 1,
+        friction: 3,
+        tension: 70,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(600),
+        Animated.timing(reelHeartOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+      ]),
+    ]).start();
+  };
+
   // ── Handlers ──
+  const handleReelDoubleTap = () => {
+    haptics.onLike();
+    if (!post.isLiked) {
+      onLikeToggle(post.id);
+      triggerLikeAnim();
+    }
+    triggerReelDoubleTapHeart();
+  };
+
   const handleImagePress = () => {
     const now = Date.now();
     if (lastTapRef.current && now - lastTapRef.current < 300) {
@@ -257,18 +362,46 @@ export const PostCard: React.FC<PostCardProps> = ({
       <View style={[styles.carouselWrapper, isReelCard && styles.reelCarouselWrapper]}>
         {isReelCard ? (
           <Pressable onPress={handleImagePress} style={styles.reelMediaContainer}>
+            {/* Always render the thumbnail poster in the background */}
             <ExpoImage
               source={{ uri: post.thumbnailUrl || post.media?.[0]?.mediaUrl || '' }}
-              style={styles.postImage}
+              style={StyleSheet.absoluteFill}
               contentFit="cover"
               placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
               transition={300}
             />
-            <View style={styles.reelOverlay}>
-              <View style={styles.reelPlayButtonContainer}>
-                <Ionicons name="play" size={24} color="#FFFFFF" style={{ marginLeft: 3 }} />
+
+            {/* If active, render the video player on top of it, fading in */}
+            {isActive && (
+              <VideoItem
+                mediaUrl={post.hlsUrl || post.media?.[0]?.mediaUrl || ''}
+                isActive={isActive}
+                onDoubleTap={handleReelDoubleTap}
+              />
+            )}
+
+            {/* If NOT active, show the play button overlay */}
+            {!isActive && (
+              <View style={styles.reelOverlay}>
+                <View style={styles.reelPlayButtonContainer}>
+                  <Ionicons name="play" size={24} color="#FFFFFF" style={{ marginLeft: 3 }} />
+                </View>
               </View>
-            </View>
+            )}
+
+            {/* ── Double-tap heart overlay for Reel ── */}
+            <Animated.View
+              style={[
+                styles.reelDoubleTapHeart,
+                {
+                  transform: [{ scale: reelHeartScale }],
+                  opacity: reelHeartOpacity,
+                },
+              ]}
+              pointerEvents="none"
+            >
+              <Ionicons name="heart" size={100} color="#FFFFFF" />
+            </Animated.View>
           </Pressable>
         ) : post.media && post.media.length > 0 ? (
           <Animated.FlatList
@@ -295,7 +428,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                 {item.mediaType === 'VIDEO' ? (
                   <VideoItem
                     mediaUrl={item.mediaUrl}
-                    isActive={index === activeIndex}
+                    isActive={isActive && index === activeIndex}
                   />
                 ) : (
                   <ExpoImage
@@ -610,6 +743,18 @@ const styles = StyleSheet.create({
     shadowColor: '#FF3040',
     shadowOpacity: 0.45,
     shadowRadius: 20,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  reelDoubleTapHeart: {
+    position: 'absolute',
+    zIndex: 30,
+    alignSelf: 'center',
+    top: '50%',
+    marginTop: -50,
+    // Premium glow shadow matching Instagram's burst effect
+    shadowColor: '#FF3040',
+    shadowOpacity: 0.6,
+    shadowRadius: 30,
     shadowOffset: { width: 0, height: 0 },
   },
   dotsContainer: {

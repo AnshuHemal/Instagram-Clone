@@ -18,6 +18,8 @@ import {
   Keyboard,
   Modal,
   BackHandler,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -76,6 +78,7 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const open = useCallback(() => {
     backdropOpacity.value = withTiming(1, { duration: 260 });
@@ -112,6 +115,23 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
       subscription.remove();
     };
   }, [visible, close]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -252,18 +272,19 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
 
-        <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                maxHeight: SCREEN_HEIGHT * 0.75,
-                paddingBottom: Math.max(insets.bottom, 16),
-              },
-              sheetStyle,
-            ]}
-          >
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
+              style={[
+                styles.sheet,
+                {
+                  backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                  maxHeight: SCREEN_HEIGHT * 0.75,
+                  paddingBottom: Math.max(insets.bottom, 16) + keyboardHeight,
+                },
+                sheetStyle,
+              ]}
+            >
             {/* Handle */}
             <View style={styles.handleContainer}>
               <View style={[styles.handle, { backgroundColor: isDark ? '#48484A' : '#C7C7CC' }]} />
@@ -330,8 +351,9 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
                 }
               />
             )}
-          </Animated.View>
-        </GestureDetector>
+            </Animated.View>
+          </GestureDetector>
+        </View>
       </View>
     </Modal>
   );

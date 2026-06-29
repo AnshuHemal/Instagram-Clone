@@ -82,6 +82,20 @@ export default function FeedScreen() {
   const [playerVisible, setPlayerVisible] = useState(false);
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+  }).current;
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems && viewableItems.length > 0) {
+      const firstViewable = viewableItems[0];
+      if (firstViewable && firstViewable.item) {
+        setActivePostId(firstViewable.item.id);
+      }
+    }
+  }).current;
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -533,11 +547,14 @@ export default function FeedScreen() {
           renderItem={({ item }) => (
             <PostCard
               post={item}
+              isActive={activePostId === item.id}
               onLikeToggle={handleLikeToggle}
               onBookmarkToggle={handleBookmarkToggle}
               onAddComment={handleAddComment}
             />
           )}
+          viewabilityConfig={viewabilityConfig}
+          onViewableItemsChanged={onViewableItemsChanged}
           onScroll={(e) => {
             scrollY.value = e.nativeEvent.contentOffset.y;
           }}
