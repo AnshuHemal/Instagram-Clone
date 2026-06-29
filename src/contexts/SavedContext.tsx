@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { api } from '@/services/api';
 import { useAuth } from './AuthContext';
+import { useActionError } from '@/contexts/ActionErrorContext';
 
 interface SavedContextType {
   savedPostIds: Set<string>;
@@ -20,6 +21,7 @@ export const SavedProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { user, isAuthenticated } = useAuth();
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const { showActionError } = useActionError();
 
   // Hydrate saved post IDs on login
   useEffect(() => {
@@ -51,7 +53,7 @@ export const SavedProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       await api.post(`/posts/${postId}/save`);
-    } catch {
+    } catch (err) {
       // Rollback on failure
       setSavedPostIds(prev => {
         const next = new Set(prev);
@@ -62,8 +64,13 @@ export const SavedProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         return next;
       });
+      showActionError('Failed to bookmark post. Check network.', {
+        icon: 'bookmark-outline',
+        onRetry: () => toggleSave(postId),
+      });
     }
-  }, []);
+  }, [showActionError]);
+
 
   return (
     <SavedContext.Provider value={{ savedPostIds, isSaved, toggleSave, isLoading }}>

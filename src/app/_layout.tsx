@@ -28,6 +28,8 @@ import { NotificationBannerProvider } from '@/contexts/NotificationBannerContext
 import { api } from '@/services/api';
 import { NetworkProvider } from '@/contexts/NetworkContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { ActionErrorProvider } from '@/contexts/ActionErrorContext';
+import { ActionErrorBanner } from '@/components/ActionErrorBanner';
 
 // Configure how notifications are displayed while the app is in the foreground
 Notifications.setNotificationHandler({
@@ -85,6 +87,7 @@ export default function RootLayout() {
       <NetworkProvider>
       <SafeAreaProvider>
         <LoadingProvider>
+          <ActionErrorProvider>
           <AuthProvider>
             <SocketProvider>
               <StoriesProvider>
@@ -106,6 +109,7 @@ export default function RootLayout() {
               </StoriesProvider>
             </SocketProvider>
           </AuthProvider>
+          </ActionErrorProvider>
         </LoadingProvider>
       </SafeAreaProvider>
       </NetworkProvider>
@@ -198,6 +202,7 @@ function RootLayoutContent() {
       </Stack>
       <LoadingOverlay />
       <OfflineBanner />
+      <ActionErrorBanner />
       <StatusBar style="auto" />
     </>
   );

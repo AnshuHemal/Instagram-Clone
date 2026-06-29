@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { api } from '@/services/api';
+import { feedCache } from '@/services/feedCache';
+import { useActionError } from '@/contexts/ActionErrorContext';
 
 export interface Comment {
   id: string;
@@ -74,6 +76,22 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cursor, setCursor] = useState<string | null>(null);
   const [feedType, setFeedType] = useState<FeedType>('following');
   const fetchingRef = useRef(false);
+  const { showActionError } = useActionError();
+
+  // Load cache on startup
+  useEffect(() => {
+    const hydrateCache = async () => {
+      try {
+        const cached = await feedCache.loadFeedPage();
+        if (cached && cached.length > 0) {
+          setPosts(cached);
+        }
+      } catch (err) {
+        console.warn('Failed to load feed cache:', err);
+      }
+    };
+    hydrateCache();
+  }, []);
 
   const fetchPosts = useCallback(async (nextCursor: string | null = null, refresh: boolean = false) => {
     if (fetchingRef.current) return;
@@ -109,6 +127,11 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setPosts((prev) => (refresh ? newPosts : [...prev, ...newPosts]));
       setCursor(meta.nextCursor);
       setHasMore(meta.hasMore);
+
+      // Cache first page on successful refresh
+      if (refresh) {
+        await feedCache.saveFeedPage(newPosts);
+      }
     } catch (err) {
       console.error('Failed to fetch unified feed:', err);
     } finally {
@@ -160,34 +183,46 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Rollback on fail
       setPosts(originalPosts);
       console.error(`Failed to toggle like on ${postId}:`, err);
+      showActionError('Failed to toggle like. Check network.', {
+        icon: 'heart-outline',
+        onRetry: () => handleLikeToggle(postId),
+      });
     }
-  }, [posts]);
+  }, [posts, showActionError]);
 
   const handleAddComment = useCallback(async (postId: string, text: string) => {
     if (!text.trim()) return null;
 
+    const originalPosts = [...posts];
+    const post = posts.find(p => p.id === postId);
+    if (!post) return null;
+
+    // Optimistic update of comment count
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p
+      )
+    );
+
     try {
-      // Check if it's a post or reel in our current state
-      const post = posts.find(p => p.id === postId);
-      const isReel = post?.type === 'reel';
+      const isReel = post.type === 'reel';
       const endpoint = isReel ? `/reels/${postId}/comment` : `/posts/${postId}/comment`;
 
       const response = await api.post(endpoint, { text });
       const newComment = response.data.data;
 
-      // Update comment count on post
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId ? { ...p, commentsCount: p.commentsCount + 1 } : p
-        )
-      );
-
       return newComment;
     } catch (err) {
+      // Rollback comment count on failure
+      setPosts(originalPosts);
       console.error(`Failed to add comment on ${postId}:`, err);
+      showActionError('Failed to post comment. Check network.', {
+        icon: 'chatbubble-outline',
+        onRetry: () => handleAddComment(postId, text),
+      });
       throw err;
     }
-  }, [posts]);
+  }, [posts, showActionError]);
 
   const handleDeletePost = useCallback(async (postId: string) => {
     try {

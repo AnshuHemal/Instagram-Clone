@@ -15,6 +15,7 @@ import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 import * as SecureStore from 'expo-secure-store';
 import { GradientPullRefresh } from '@/components/GradientPullRefresh';
+import { feedCache } from '@/services/feedCache';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width / 3;
@@ -55,6 +56,18 @@ export default function ExploreScreen() {
   // Load search history + initial trending
   useEffect(() => {
     loadSearchHistory();
+    // Hydrate explore cache optimistically
+    const hydrateExplore = async () => {
+      try {
+        const cached = await feedCache.loadExplorePage();
+        if (cached && cached.length > 0) {
+          setTrending(cached);
+        }
+      } catch (err) {
+        console.warn('Failed to load explore cache:', err);
+      }
+    };
+    hydrateExplore();
     loadTrending(false, 'for_you');
   }, []);
 
@@ -94,7 +107,12 @@ export default function ExploreScreen() {
       const [exploreRes] = await Promise.all([
         api.get('/feed/explore', { params: { limit: 30, category } }),
       ]);
-      setTrending(exploreRes.data.data || []);
+      const data = exploreRes.data.data || [];
+      setTrending(data);
+      // Cache explore page content
+      if (category === 'for_you' && data.length > 0) {
+        await feedCache.saveExplorePage(data);
+      }
     } catch (err) {
       console.error('Failed to load trending content:', err);
     } finally {
