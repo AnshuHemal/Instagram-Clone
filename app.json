@@ -13,7 +13,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/instagram-logo-padded.png"
+        "foregroundImage": "./assets/images/instagram-camera-foreground.png",
+        "backgroundImage": "./assets/images/instagram-gradient-background.png"
       },
       "permissions": [
         "android.permission.READ_CONTACTS",
