@@ -37,6 +37,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Fonts } from '@/constants/theme';
 import { api } from '@/services/api';
 import { haptics } from '@/utils/haptics';
+import { useRouter } from 'expo-router';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -71,6 +72,7 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropOpacity = useSharedValue(0);
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -92,6 +94,20 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
       if (finished) runOnJS(onClose)();
     });
   }, [onClose]);
+
+  const handleShareToStory = () => {
+    haptics.light();
+    close();
+    router.push({
+      pathname: '/create-story' as any,
+      params: {
+        mediaUrl: previewImageUrl || '',
+        postId: referenceId,
+        type: 'POST_STICKER',
+        postType: referenceType,
+      },
+    });
+  };
 
   useEffect(() => {
     if (visible) {
@@ -308,6 +324,15 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
               </Animated.View>
             )}
 
+            {/* Share to Story Button */}
+            <Pressable
+              onPress={handleShareToStory}
+              style={[styles.storyShareBtn, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={colors.text} />
+              <Text style={[styles.storyShareBtnText, { color: colors.text }]}>Add post to your story</Text>
+            </Pressable>
+
             {/* Search */}
             <View style={[styles.searchBar, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
               <Feather name="search" size={16} color={colors.textSecondary} />
@@ -424,6 +449,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontSize: 13,
     lineHeight: 18,
+  },
+  storyShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  storyShareBtnText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14.5,
   },
   searchBar: {
     flexDirection: 'row',

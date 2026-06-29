@@ -649,6 +649,37 @@ export const StoryPlayerModal: React.FC<StoryPlayerModalProps> = ({
               </View>
             )}
 
+            {/* ── Parent post link sticker button ── */}
+            {activeStory.parentPostId && !showStickerInput && (
+              <View
+                style={[
+                  styles.parentPostLinkContainer,
+                  {
+                    bottom: isOwnStory
+                      ? Math.max(insets.bottom + 52, 68)
+                      : Math.max(insets.bottom + 62, 74),
+                  },
+                ]}
+              >
+                <Pressable
+                  onPress={() => {
+                    haptics.medium();
+                    onClose();
+                    if (activeStory.parentPostType === 'reel') {
+                      router.push(`/(tabs)/reels`);
+                    } else {
+                      router.push(`/post/${activeStory.parentPostId}` as any);
+                    }
+                  }}
+                  style={styles.parentPostLinkPill}
+                >
+                  <Ionicons name="eye-outline" size={14} color="#FFF" />
+                  <Text style={styles.parentPostLinkLabel}>View Post</Text>
+                  <Ionicons name="chevron-forward" size={11} color="#FFF" />
+                </Pressable>
+              </View>
+            )}
+
             {/* ── Viewers bar (own stories only) ── */}
             {isOwnStory && !showStickerInput && (
               <Pressable
@@ -1015,6 +1046,30 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 12,
     marginTop: 1,
+  },
+
+  parentPostLinkContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 150,
+  },
+  parentPostLinkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    gap: 4,
+  },
+  parentPostLinkLabel: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontFamily: Fonts.semiBold,
   },
 
   // Reply bar (bottom of screen for other people's stories)

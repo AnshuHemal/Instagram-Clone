@@ -9,6 +9,8 @@ export interface StoryItem {
   mediaType: 'IMAGE' | 'VIDEO';
   createdAt: string;
   isSeen: boolean;
+  parentPostId?: string;
+  parentPostType?: 'post' | 'reel';
 }
 
 export interface UserStoryGroup {
@@ -24,7 +26,12 @@ interface StoriesContextProps {
   stories: UserStoryGroup[];
   loading: boolean;
   fetchStories: () => Promise<void>;
-  uploadStory: (uri: string, type: 'image' | 'video') => Promise<boolean>;
+  uploadStory: (
+    uri: string,
+    type: 'image' | 'video',
+    parentPostId?: string,
+    parentPostType?: 'post' | 'reel'
+  ) => Promise<boolean>;
   viewStory: (storyId: string) => Promise<void>;
   deleteStory: (storyId: string) => Promise<boolean>;
 }
@@ -59,7 +66,12 @@ export const StoriesProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [user]);
 
-  const uploadStory = async (uri: string, type: 'image' | 'video'): Promise<boolean> => {
+  const uploadStory = async (
+    uri: string,
+    type: 'image' | 'video',
+    parentPostId?: string,
+    parentPostType?: 'post' | 'reel'
+  ): Promise<boolean> => {
     try {
       setLoading(true);
       const formData = new FormData();
@@ -77,6 +89,13 @@ export const StoriesProvider: React.FC<{ children: React.ReactNode }> = ({ child
         name: filename,
         type: mimeType,
       } as any);
+
+      if (parentPostId) {
+        formData.append('parentPostId', parentPostId);
+      }
+      if (parentPostType) {
+        formData.append('parentPostType', parentPostType);
+      }
 
       await api.post('/stories', formData, {
         headers: {
