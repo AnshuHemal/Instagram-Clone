@@ -481,173 +481,180 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
   const inputPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
-      {/* Backdrop */}
-      <Animated.View
-        style={[styles.backdrop, backdropAnimStyle]}
-        pointerEvents="auto"
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
-      </Animated.View>
-
-      {/* Sheet */}
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-            maxHeight: SHEET_MAX_HEIGHT,
-            paddingBottom: inputPadding,
-          },
-          sheetAnimStyle,
-        ]}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={closeSheet}
+    >
+      <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
+        {/* Backdrop */}
+        <Animated.View
+          style={[styles.backdrop, backdropAnimStyle]}
+          pointerEvents="auto"
         >
-          {/* Drag handle + header */}
-          <GestureDetector gesture={panGesture}>
-            <View style={styles.sheetHeader}>
-              <View style={[styles.dragHandle, { backgroundColor: isDark ? '#48484A' : '#C7C7CC' }]} />
-              <Text style={[styles.sheetTitle, { color: colors.text }]}>
-                Comments
-              </Text>
-              <Text style={[styles.sheetCount, { color: colors.textSecondary }]}>
-                {localCount.toLocaleString()}
-              </Text>
-            </View>
-          </GestureDetector>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
+        </Animated.View>
 
-          <View style={[styles.divider, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]} />
+        {/* Sheet */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+              maxHeight: SHEET_MAX_HEIGHT,
+              paddingBottom: inputPadding,
+            },
+            sheetAnimStyle,
+          ]}
+        >
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={0}
+          >
+            {/* Drag handle + header */}
+            <GestureDetector gesture={panGesture}>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.dragHandle, { backgroundColor: isDark ? '#48484A' : '#C7C7CC' }]} />
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                  Comments
+                </Text>
+                <Text style={[styles.sheetCount, { color: colors.textSecondary }]}>
+                  {localCount.toLocaleString()}
+                </Text>
+              </View>
+            </GestureDetector>
 
-          {/* Comment list */}
-          {isLoading && comments.length === 0 ? (
-            <View style={styles.skeletonContainer}>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <SkeletonRow key={i} isDark={isDark} />
-              ))}
-            </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={comments}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.4}
-              ListFooterComponent={
-                isLoading && comments.length > 0 ? (
-                  <View style={styles.footerLoader}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  </View>
-                ) : null
-              }
-              ListEmptyComponent={
-                !isLoading ? (
-                  <Animated.View entering={FadeIn.duration(300)} style={styles.emptyState}>
-                    <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
-                      <Feather name="message-circle" size={32} color={colors.textSecondary} />
+            <View style={[styles.divider, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]} />
+
+            {/* Comment list */}
+            {isLoading && comments.length === 0 ? (
+              <View style={styles.skeletonContainer}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <SkeletonRow key={i} isDark={isDark} />
+                ))}
+              </View>
+            ) : (
+              <FlatList
+                ref={flatListRef}
+                data={comments}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.4}
+                ListFooterComponent={
+                  isLoading && comments.length > 0 ? (
+                    <View style={styles.footerLoader}>
+                      <ActivityIndicator size="small" color={colors.primary} />
                     </View>
-                    <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                      No comments yet
-                    </Text>
-                    <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                      Be the first to comment.
-                    </Text>
+                  ) : null
+                }
+                ListEmptyComponent={
+                  !isLoading ? (
+                    <Animated.View entering={FadeIn.duration(300)} style={styles.emptyState}>
+                      <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+                        <Feather name="message-circle" size={32} color={colors.textSecondary} />
+                      </View>
+                      <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                        No comments yet
+                      </Text>
+                      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                        Be the first to comment.
+                      </Text>
+                    </Animated.View>
+                  ) : null
+                }
+                renderItem={({ item, index }) => (
+                  <Animated.View entering={FadeIn.delay(Math.min(index * 30, 200)).duration(250)}>
+                    <CommentRow
+                      item={item}
+                      currentUserId={user?.id ?? ''}
+                      isDark={isDark}
+                      colors={colors}
+                      onReply={handleReply}
+                      onDelete={handleDeleteComment}
+                      onLike={handleLikeComment}
+                    />
                   </Animated.View>
-                ) : null
-              }
-              renderItem={({ item, index }) => (
-                <Animated.View entering={FadeIn.delay(Math.min(index * 30, 200)).duration(250)}>
-                  <CommentRow
-                    item={item}
-                    currentUserId={user?.id ?? ''}
-                    isDark={isDark}
-                    colors={colors}
-                    onReply={handleReply}
-                    onDelete={handleDeleteComment}
-                    onLike={handleLikeComment}
-                  />
-                </Animated.View>
-              )}
-            />
-          )}
-
-          {/* Reply indicator */}
-          {replyTo && (
-            <Animated.View
-              entering={FadeIn.duration(150)}
-              exiting={FadeOut.duration(150)}
-              style={[styles.replyBanner, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
-            >
-              <Text style={[styles.replyBannerText, { color: colors.textSecondary }]}>
-                Replying to{' '}
-                <Text style={{ color: colors.text, fontFamily: Fonts.bold }}>
-                  @{replyTo}
-                </Text>
-              </Text>
-              <Pressable
-                onPress={() => { setReplyTo(null); setInputText(''); }}
-                hitSlop={10}
-              >
-                <Ionicons name="close" size={16} color={colors.textSecondary} />
-              </Pressable>
-            </Animated.View>
-          )}
-
-          {/* Input bar */}
-          <View style={[styles.inputBar, { borderTopColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
-            <Image
-              source={{
-                uri: user?.avatar ||
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-              }}
-              style={styles.inputAvatar}
-            />
-            <View style={[
-              styles.inputWrapper,
-              { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' },
-            ]}>
-              <TextInput
-                ref={inputRef}
-                value={inputText}
-                onChangeText={setInputText}
-                placeholder="Add a comment..."
-                placeholderTextColor={colors.textSecondary}
-                style={[styles.input, { color: colors.text }]}
-                returnKeyType="send"
-                onSubmitEditing={handleSubmit}
-                multiline
-                maxLength={2200}
+                )}
               />
-            </View>
-            <Pressable
-              onPress={handleSubmit}
-              disabled={!inputText.trim() || isSubmitting}
-              style={styles.postButton}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Text
-                  style={[
-                    styles.postButtonText,
-                    {
-                      color: inputText.trim() ? '#0095F6' : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  Post
+            )}
+
+            {/* Reply indicator */}
+            {replyTo && (
+              <Animated.View
+                entering={FadeIn.duration(150)}
+                exiting={FadeOut.duration(150)}
+                style={[styles.replyBanner, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
+              >
+                <Text style={[styles.replyBannerText, { color: colors.textSecondary }]}>
+                  Replying to{' '}
+                  <Text style={{ color: colors.text, fontFamily: Fonts.bold }}>
+                    @{replyTo}
+                  </Text>
                 </Text>
-              )}
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </View>
+                <Pressable
+                  onPress={() => { setReplyTo(null); setInputText(''); }}
+                  hitSlop={10}
+                >
+                  <Ionicons name="close" size={16} color={colors.textSecondary} />
+                </Pressable>
+              </Animated.View>
+            )}
+
+            {/* Input bar */}
+            <View style={[styles.inputBar, { borderTopColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+              <Image
+                source={{
+                  uri: user?.avatar ||
+                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                }}
+                style={styles.inputAvatar}
+              />
+              <View style={[
+                styles.inputWrapper,
+                { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' },
+              ]}>
+                <TextInput
+                  ref={inputRef}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Add a comment..."
+                  placeholderTextColor={colors.textSecondary}
+                  style={[styles.input, { color: colors.text }]}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSubmit}
+                  multiline
+                  maxLength={2200}
+                />
+              </View>
+              <Pressable
+                onPress={handleSubmit}
+                disabled={!inputText.trim() || isSubmitting}
+                style={styles.postButton}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.postButtonText,
+                      {
+                        color: inputText.trim() ? '#0095F6' : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    Post
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+          </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 };
 

@@ -16,6 +16,7 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
+  Modal,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -227,92 +228,99 @@ export const ShareSheetModal: React.FC<ShareSheetModalProps> = ({
   if (!visible) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
-      <Animated.View style={[styles.backdrop, backdropStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-      </Animated.View>
-
-      <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-              maxHeight: SCREEN_HEIGHT * 0.75,
-              paddingBottom: Math.max(insets.bottom, 16),
-            },
-            sheetStyle,
-          ]}
-        >
-          {/* Handle */}
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: isDark ? '#48484A' : '#C7C7CC' }]} />
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Share to</Text>
-            <Pressable onPress={close} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color={colors.text} />
-            </Pressable>
-          </View>
-
-          {/* Preview snippet */}
-          {previewImageUrl && (
-            <Animated.View entering={FadeIn.duration(300)} style={[styles.preview, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
-              <Image source={{ uri: previewImageUrl }} style={styles.previewThumb} />
-              <Text style={[styles.previewCaption, { color: colors.text }]} numberOfLines={2}>
-                {previewCaption || (referenceType === 'reel' ? 'Reel' : 'Post')}
-              </Text>
-            </Animated.View>
-          )}
-
-          {/* Search */}
-          <View style={[styles.searchBar, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
-            <Feather name="search" size={16} color={colors.textSecondary} />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search conversations..."
-              placeholderTextColor={colors.textSecondary}
-              style={[styles.searchInput, { color: colors.text, fontFamily: Fonts.regular }]}
-            />
-          </View>
-
-          {/* Optional message input */}
-          <View style={[styles.messageBar, { borderColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
-            <TextInput
-              value={message}
-              onChangeText={setMessage}
-              placeholder="Write a message (optional)..."
-              placeholderTextColor={colors.textSecondary}
-              style={[styles.messageInput, { color: colors.text, fontFamily: Fonts.regular }]}
-              multiline
-              maxLength={300}
-            />
-          </View>
-
-          {/* Conversations list */}
-          {isLoading ? (
-            <ActivityIndicator size="large" color="#0095F6" style={{ paddingVertical: 32 }} />
-          ) : (
-            <FlatList
-              data={filtered}
-              keyExtractor={item => item.id}
-              renderItem={renderItem}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  No conversations found
-                </Text>
-              }
-            />
-          )}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={close}
+    >
+      <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
+        <Animated.View style={[styles.backdrop, backdropStyle]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
-      </GestureDetector>
-    </View>
+
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                maxHeight: SCREEN_HEIGHT * 0.75,
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
+              sheetStyle,
+            ]}
+          >
+            {/* Handle */}
+            <View style={styles.handleContainer}>
+              <View style={[styles.handle, { backgroundColor: isDark ? '#48484A' : '#C7C7CC' }]} />
+            </View>
+
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Share to</Text>
+              <Pressable onPress={close} style={styles.closeBtn}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </Pressable>
+            </View>
+
+            {/* Preview snippet */}
+            {previewImageUrl && (
+              <Animated.View entering={FadeIn.duration(300)} style={[styles.preview, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+                <Image source={{ uri: previewImageUrl }} style={styles.previewThumb} />
+                <Text style={[styles.previewCaption, { color: colors.text }]} numberOfLines={2}>
+                  {previewCaption || (referenceType === 'reel' ? 'Reel' : 'Post')}
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* Search */}
+            <View style={[styles.searchBar, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+              <Feather name="search" size={16} color={colors.textSecondary} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search conversations..."
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.searchInput, { color: colors.text, fontFamily: Fonts.regular }]}
+              />
+            </View>
+
+            {/* Optional message input */}
+            <View style={[styles.messageBar, { borderColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+              <TextInput
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Write a message (optional)..."
+                placeholderTextColor={colors.textSecondary}
+                style={[styles.messageInput, { color: colors.text, fontFamily: Fonts.regular }]}
+                multiline
+                maxLength={300}
+              />
+            </View>
+
+            {/* Conversations list */}
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#0095F6" style={{ paddingVertical: 32 }} />
+            ) : (
+              <FlatList
+                data={filtered}
+                keyExtractor={item => item.id}
+                renderItem={renderItem}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    No conversations found
+                  </Text>
+                }
+              />
+            )}
+          </Animated.View>
+        </GestureDetector>
+      </View>
+    </Modal>
   );
 };
 
