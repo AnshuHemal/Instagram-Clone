@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "insta-frontend",
+    "name": "Instagram Clone",
     "slug": "insta-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/instagram-logo.svg",
     "scheme": "instafrontend",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -46,7 +46,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/icon.png",
+          "icon": "./assets/images/instagram-logo.svg",
           "color": "#0095F6",
           "sounds": [],
           "androidMode": "default"
