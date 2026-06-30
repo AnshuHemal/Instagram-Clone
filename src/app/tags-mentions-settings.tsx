@@ -149,7 +149,7 @@ export default function TagsMentionsSettingsScreen() {
 
   const handleReviewTags = () => {
     haptics.light();
-    showToast({ message: 'No tags to review right now.', type: 'info' });
+    router.push('/review-tags' as any);
   };
 
   const divColor = isDark ? '#262626' : '#DBDBDB';

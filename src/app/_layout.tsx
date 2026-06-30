@@ -336,6 +336,54 @@ function RootLayoutContent() {
           name="hidden-words"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="review-tags"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="tagged-posts"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="pending-tags"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="messages-story-replies"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="story-replies-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="activity-status-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="read-receipts-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="security-alerts-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="message-requests-settings"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="message-deliver-followers"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="message-deliver-others"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="group-chat-add"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
       </Stack>
       <LoadingOverlay />
       <OfflineBanner />

@@ -285,7 +285,7 @@ export default function SettingsScreen() {
       {
         title: 'How others can interact with you',
         items: [
-          { id: 'messages', icon: 'message-circle', iconType: 'feather', label: 'Messages and story replies', onPress: () => handleComingSoon('Messages and story replies') },
+          { id: 'messages', icon: 'message-circle', iconType: 'feather', label: 'Messages and story replies', onPress: () => { haptics.light(); router.push('/messages-story-replies' as any); } },
           { id: 'tags', icon: 'at-sign', iconType: 'feather', label: 'Tags and mentions', onPress: () => { haptics.light(); router.push('/tags-mentions-settings' as any); } },
           { id: 'comments', icon: 'message-square', iconType: 'feather', label: 'Comments', onPress: () => { haptics.light(); router.push('/comments-settings' as any); } },
           { id: 'sharing', icon: 'repeat', iconType: 'feather', label: 'Sharing', onPress: () => { haptics.light(); router.push('/sharing-settings' as any); } },
