@@ -233,6 +233,15 @@ export default function SettingsScreen() {
     { id: 's4', date: 'Apr 11', image: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=300&auto=format&fit=crop' },
   ], []);
 
+  const handleOpenPlayStore = (packageName: string, appName: string) => {
+    haptics.light();
+    showToast({ message: `Opening ${appName}...`, type: 'info' });
+    const webUrl = `https://play.google.com/store/apps/details?id=${packageName}&hl=en_IN`;
+    Linking.openURL(webUrl).catch(() => {
+      showToast({ message: 'Could not open store link.', type: 'error' });
+    });
+  };
+
   // Settings Configuration Structure
   const sectionsData = useMemo<SettingSection[]>(() => {
     const handleComingSoon = (feature: string) => {
@@ -353,7 +362,7 @@ export default function SettingsScreen() {
             iconType: 'ionicons',
             label: 'WhatsApp',
             sublabel: 'Message privately with friends and family',
-            onPress: () => handleComingSoon('WhatsApp')
+            onPress: () => handleOpenPlayStore('com.whatsapp', 'WhatsApp')
           },
           {
             id: 'edits',
@@ -362,7 +371,7 @@ export default function SettingsScreen() {
             label: 'Edits',
             sublabel: 'Create videos with powerful editing tools',
             blueDot: true,
-            onPress: () => handleComingSoon('Edits')
+            onPress: () => handleOpenPlayStore('com.instagram.base', 'Edits')
           },
           {
             id: 'threads',
@@ -370,7 +379,7 @@ export default function SettingsScreen() {
             iconType: 'feather',
             label: 'Threads',
             sublabel: 'Share ideas and join conversations',
-            onPress: () => handleComingSoon('Threads')
+            onPress: () => handleOpenPlayStore('com.instagram.barcelona', 'Threads')
           },
           {
             id: 'facebook',
@@ -378,7 +387,7 @@ export default function SettingsScreen() {
             iconType: 'ionicons',
             label: 'Facebook',
             sublabel: 'Explore things you love',
-            onPress: () => handleComingSoon('Facebook')
+            onPress: () => handleOpenPlayStore('com.facebook.katana', 'Facebook')
           },
           {
             id: 'messenger',
@@ -386,7 +395,7 @@ export default function SettingsScreen() {
             iconType: 'feather',
             label: 'Messenger',
             sublabel: 'Chat and share seamlessly with friends',
-            onPress: () => handleComingSoon('Messenger')
+            onPress: () => handleOpenPlayStore('com.facebook.orca', 'Messenger')
           },
           {
             id: 'instants',
@@ -394,7 +403,7 @@ export default function SettingsScreen() {
             iconType: 'feather',
             label: 'Instants',
             sublabel: 'Share photos with friends',
-            onPress: () => handleComingSoon('Instants')
+            onPress: () => handleOpenPlayStore('com.instagram.moonshot', 'Instants')
           },
         ]
       },
@@ -418,7 +427,7 @@ export default function SettingsScreen() {
         ]
       }
     ];
-  }, [isPrivate, closeFriendsCount, isLoggingOut]);
+  }, [isPrivate, closeFriendsCount, isLoggingOut, handleOpenPlayStore]);
 
   // Filtering settings items based on search query
   const filteredSections = useMemo(() => {
