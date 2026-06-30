@@ -287,12 +287,12 @@ export default function SettingsScreen() {
         items: [
           { id: 'messages', icon: 'message-circle', iconType: 'feather', label: 'Messages and story replies', onPress: () => handleComingSoon('Messages and story replies') },
           { id: 'tags', icon: 'at-sign', iconType: 'feather', label: 'Tags and mentions', onPress: () => handleComingSoon('Tags and mentions') },
-          { id: 'comments', icon: 'message-square', iconType: 'feather', label: 'Comments', onPress: () => handleComingSoon('Comments') },
-          { id: 'sharing', icon: 'repeat', iconType: 'feather', label: 'Sharing', onPress: () => handleComingSoon('Sharing') },
+          { id: 'comments', icon: 'message-square', iconType: 'feather', label: 'Comments', onPress: () => { haptics.light(); router.push('/comments-settings' as any); } },
+          { id: 'sharing', icon: 'repeat', iconType: 'feather', label: 'Sharing', onPress: () => { haptics.light(); router.push('/sharing-settings' as any); } },
           { id: 'restricted', icon: 'alert-circle', iconType: 'feather', label: 'Restricted', value: '0', onPress: () => handleComingSoon('Restricted accounts') },
-          { id: 'limit', icon: 'alert-triangle', iconType: 'feather', label: 'Limit interactions', value: 'Off', onPress: () => handleComingSoon('Limit interactions') },
+          { id: 'limit', icon: 'alert-triangle', iconType: 'feather', label: 'Limit interactions', value: 'Off', onPress: () => { haptics.light(); router.push('/limit-interactions' as any); } },
           { id: 'words', icon: 'type', iconType: 'feather', label: 'Hidden Words', onPress: () => handleComingSoon('Hidden Words') },
-          { id: 'invite', icon: 'user-plus', iconType: 'feather', label: 'Follow and invite friends', onPress: () => handleComingSoon('Follow and invite friends') },
+          { id: 'invite', icon: 'user-plus', iconType: 'feather', label: 'Follow and invite friends', onPress: () => { haptics.light(); router.push('/following-invites' as any); } },
         ],
       },
       {
@@ -301,7 +301,7 @@ export default function SettingsScreen() {
           { id: 'favorites', icon: 'star', iconType: 'feather', label: 'Favorites', value: '0', onPress: () => handleComingSoon('Favorites') },
           { id: 'muted', icon: 'bell-off', iconType: 'feather', label: 'Muted accounts', value: '2', onPress: () => handleComingSoon('Muted accounts') },
           { id: 'content_pref', icon: 'sliders', iconType: 'feather', label: 'Content preferences', onPress: () => handleComingSoon('Content preferences') },
-          { id: 'likes', icon: 'heart', iconType: 'feather', label: 'Like and share counts', onPress: () => handleComingSoon('Like and share counts') },
+          { id: 'likes', icon: 'heart', iconType: 'feather', label: 'Like and share counts', onPress: () => { haptics.light(); router.push('/like-share-counts' as any); } },
         ],
       },
       {

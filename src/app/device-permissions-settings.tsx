@@ -31,9 +31,9 @@ export default function DevicePermissionsSettingsScreen() {
 
   const handlePressOption = (item: PermissionItem) => {
     haptics.light();
-    showToast({ 
-      message: `To change ${item.label.toLowerCase()} permission, please open system Settings -> Instagram`, 
-      type: 'info' 
+    router.push({
+      pathname: '/device-permission-detail',
+      params: { id: item.id }
     });
   };
 

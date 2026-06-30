@@ -284,6 +284,30 @@ function RootLayoutContent() {
           name="device-permissions-settings"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="device-permission-detail"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="like-share-counts"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="following-invites"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="limit-interactions"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="sharing-settings"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="comments-settings"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
       </Stack>
       <LoadingOverlay />
       <OfflineBanner />
