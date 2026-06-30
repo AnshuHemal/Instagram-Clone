@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useCallback } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSegments } from 'expo-router';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -89,6 +90,10 @@ const ThreadsIcon = ({ color }: { color: string }) => (
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
+
+  // Check if we are currently inside the tabs navigator to adjust bottom spacing
+  const isTabScreen = segments[0] === '(tabs)';
 
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
@@ -214,7 +219,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               {
                 backgroundColor: toastBg,
                 borderColor: toastBorder,
-                bottom: insets.bottom + 65, // Floating right above the bottom tab navigator
+                bottom: isTabScreen ? insets.bottom + 65 : insets.bottom + 16,
               },
               animatedStyle,
             ]}
