@@ -416,6 +416,50 @@ function RootLayoutContent() {
           name="saved-control"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="likes-activity-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="comments-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="reposts-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="stickers-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="reviews-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="deleted-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="posts-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="reels-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="highlights-activity"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="account-history-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="link-history-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
       </Stack>
       <LoadingOverlay />
       <OfflineBanner />

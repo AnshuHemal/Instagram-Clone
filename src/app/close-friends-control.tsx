@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     textAlign: 'center',
     flex: 1,
-    paddingLeft: 38,
+    paddingLeft: 0,
   },
   infoBlock: {
     paddingHorizontal: 32,

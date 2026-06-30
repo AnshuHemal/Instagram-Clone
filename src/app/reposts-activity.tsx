@@ -3,13 +3,14 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
-export default function BlockedSuggestionsScreen() {
+export default function RepostsActivityScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -22,7 +23,6 @@ export default function BlockedSuggestionsScreen() {
   const divColor = isDark ? '#262626' : '#DBDBDB';
   const labelColor = isDark ? '#FFFFFF' : '#000000';
   const descColor = isDark ? '#737373' : '#8E8E8F';
-  const bannerBg = isDark ? '#1C1C1E' : '#F2F2F7';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -39,17 +39,30 @@ export default function BlockedSuggestionsScreen() {
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-          You may want to block
+          Reposts
         </Text>
         <View style={{ width: 38 }} />
       </View>
 
-      {/* Suggestion Banner */}
-      <Animated.View entering={FadeInDown.delay(100).duration(350)}>
-        <View style={[styles.banner, { backgroundColor: bannerBg }]}>
-          <Text style={[styles.bannerTitle, { color: labelColor }]}>No suggestions</Text>
-          <Text style={[styles.bannerDesc, { color: descColor }]}>
-            Accounts blocked by another account in your Accounts Center will appear here.
+      {/* Empty State Layout */}
+      <Animated.View entering={FadeIn.delay(100).duration(300)} style={styles.content}>
+        <View style={styles.emptyWrap}>
+          <LinearGradient
+            colors={['#F58529', '#DD2A7B', '#8134AF', '#515BD4']}
+            style={styles.gradientCircle}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={[styles.innerCircle, { backgroundColor: colors.background }]}>
+              <Text style={styles.exclamationMark}>!</Text>
+            </View>
+          </LinearGradient>
+
+          <Text style={[styles.emptyTitle, { color: labelColor }]}>
+            No reposts
+          </Text>
+          <Text style={[styles.emptyDesc, { color: descColor }]}>
+            When you repost content, it will appear here.
           </Text>
         </View>
       </Animated.View>
@@ -57,9 +70,6 @@ export default function BlockedSuggestionsScreen() {
   );
 }
 
-// ─────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -83,22 +93,49 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingLeft: 0,
   },
-  banner: {
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    alignItems: 'center',
+  content: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  bannerTitle: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 15.5,
-    marginBottom: 6,
-    textAlign: 'center',
+  emptyWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 48,
   },
-  bannerDesc: {
+  gradientCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 2.5,
+    marginBottom: 24,
+  },
+  innerCircle: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  exclamationMark: {
+    fontSize: 48,
     fontFamily: Fonts.regular,
-    fontSize: 13,
-    lineHeight: 18,
+    color: '#FF3B30',
+    textAlign: 'center',
+    lineHeight: 52,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 22,
+    textAlign: 'center',
+    marginBottom: 10,
+    letterSpacing: -0.4,
+  },
+  emptyDesc: {
+    fontFamily: Fonts.regular,
+    fontSize: 14.5,
+    lineHeight: 20,
     textAlign: 'center',
   },
 });

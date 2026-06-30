@@ -54,27 +54,27 @@ export default function YourActivityControlScreen() {
     {
       title: 'Interactions',
       items: [
-        { id: 'likes', label: 'Likes', icon: 'heart', iconType: 'feather', onPress: () => handleComingSoon('Likes') },
-        { id: 'comments', label: 'Comments', icon: 'message-circle', iconType: 'feather', onPress: () => handleComingSoon('Comments') },
-        { id: 'reposts', label: 'Reposts', icon: 'repeat', iconType: 'feather', onPress: () => handleComingSoon('Reposts') },
-        { id: 'tags', label: 'Tags', icon: 'user', iconType: 'feather', onPress: () => handleComingSoon('Tags') },
-        { id: 'stickers', label: 'Sticker responses', icon: 'smile', iconType: 'feather', onPress: () => handleComingSoon('Sticker responses') },
-        { id: 'reviews', label: 'Reviews', icon: 'star', iconType: 'feather', onPress: () => handleComingSoon('Reviews') },
+        { id: 'likes', label: 'Likes', icon: 'heart', iconType: 'feather', onPress: () => { haptics.light(); router.push('/likes-activity-control' as any); } },
+        { id: 'comments', label: 'Comments', icon: 'message-circle', iconType: 'feather', onPress: () => { haptics.light(); router.push('/comments-activity' as any); } },
+        { id: 'reposts', label: 'Reposts', icon: 'repeat', iconType: 'feather', onPress: () => { haptics.light(); router.push('/reposts-activity' as any); } },
+        { id: 'tags', label: 'Tags', icon: 'user', iconType: 'feather', onPress: () => { haptics.light(); router.push('/tagged-posts' as any); } },
+        { id: 'stickers', label: 'Sticker responses', icon: 'smile', iconType: 'feather', onPress: () => { haptics.light(); router.push('/stickers-activity' as any); } },
+        { id: 'reviews', label: 'Reviews', icon: 'star', iconType: 'feather', onPress: () => { haptics.light(); router.push('/reviews-activity' as any); } },
       ],
     },
     {
       title: 'Removed and archived content',
       items: [
-        { id: 'deleted', label: 'Recently deleted', icon: 'trash-2', iconType: 'feather', onPress: () => handleComingSoon('Recently deleted') },
+        { id: 'deleted', label: 'Recently deleted', icon: 'trash-2', iconType: 'feather', onPress: () => { haptics.light(); router.push('/deleted-activity' as any); } },
         { id: 'archived', label: 'Archived', icon: 'clock', iconType: 'feather', onPress: () => handleComingSoon('Archived') },
       ],
     },
     {
       title: 'Content you shared',
       items: [
-        { id: 'posts', label: 'Posts', icon: 'grid', iconType: 'feather', onPress: () => handleComingSoon('Posts') },
-        { id: 'reels', label: 'Reels', icon: 'video', iconType: 'feather', onPress: () => handleComingSoon('Reels') },
-        { id: 'highlights', label: 'Highlights', icon: 'heart', iconType: 'feather', onPress: () => handleComingSoon('Highlights') },
+        { id: 'posts', label: 'Posts', icon: 'grid', iconType: 'feather', onPress: () => { haptics.light(); router.push('/posts-activity' as any); } },
+        { id: 'reels', label: 'Reels', icon: 'video', iconType: 'feather', onPress: () => { haptics.light(); router.push('/reels-activity' as any); } },
+        { id: 'highlights', label: 'Highlights', icon: 'heart', iconType: 'feather', onPress: () => { haptics.light(); router.push('/highlights-activity' as any); } },
       ],
     },
     {
@@ -89,9 +89,9 @@ export default function YourActivityControlScreen() {
       items: [
         { id: 'time', label: 'Time management', icon: 'hourglass', iconType: 'feather', onPress: () => { haptics.light(); router.push('/time-management' as any); } },
         { id: 'watch_history', label: 'Watch history', icon: 'play-circle', iconType: 'feather', onPress: () => handleComingSoon('Watch history') },
-        { id: 'account_history', label: 'Account history', icon: 'file-text', iconType: 'feather', onPress: () => handleComingSoon('Account history') },
+        { id: 'account_history', label: 'Account history', icon: 'file-text', iconType: 'feather', onPress: () => { haptics.light(); router.push('/account-history-control' as any); } },
         { id: 'recent_searches', label: 'Recent searches', icon: 'search', iconType: 'feather', onPress: () => handleComingSoon('Recent searches') },
-        { id: 'link_history', label: 'Link History', icon: 'link', iconType: 'feather', onPress: () => handleComingSoon('Link History') },
+        { id: 'link_history', label: 'Link History', icon: 'link', iconType: 'feather', onPress: () => { haptics.light(); router.push('/link-history-control' as any); } },
       ],
     },
   ];
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     textAlign: 'center',
     flex: 1,
-    paddingLeft: 38,
+    paddingLeft: 0,
   },
   scroll: {
     paddingVertical: 14,
