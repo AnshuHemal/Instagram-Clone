@@ -312,7 +312,7 @@ export default function SettingsScreen() {
           { id: 'accessibility', icon: 'accessibility-outline', iconType: 'ionicons', label: 'Accessibility', onPress: () => handleComingSoon('Accessibility') },
           { id: 'language', icon: 'globe', iconType: 'feather', label: 'Language and translations', onPress: () => handleComingSoon('Language and translations') },
           { id: 'data_usage', icon: 'bar-chart-2', iconType: 'feather', label: 'Data usage and media quality', onPress: () => handleComingSoon('Data usage and media quality') },
-          { id: 'website_perms', icon: 'globe', iconType: 'feather', label: 'App website permissions', onPress: () => handleComingSoon('App website permissions') },
+          { id: 'website_perms', icon: 'globe', iconType: 'feather', label: 'App website permissions', onPress: () => { haptics.light(); router.push('/app-website-permissions' as any); } },
         ],
       },
       {
