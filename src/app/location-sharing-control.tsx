@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ interface CustomSwitchProps {
 function CustomSwitch({ value, onValueChange, isDark }: CustomSwitchProps) {
   const translateX = useSharedValue(value ? 20 : 0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     translateX.value = withTiming(value ? 20 : 0, { duration: 150 });
   }, [value]);
 
@@ -79,57 +79,31 @@ const switchStyles = StyleSheet.create({
 // ─────────────────────────────────────────────
 // MAIN SCREEN
 // ─────────────────────────────────────────────
-export default function NotificationPreferencesScreen() {
+export default function LocationSharingControlScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [pauseAll, setPauseAll] = useState(false);
+  const [shareLocation, setShareLocation] = useState(false);
 
   const handleBack = () => {
     haptics.light();
     router.back();
   };
 
-  const handleComingSoon = (feature: string) => {
+  const handleSelectVisibility = () => {
     haptics.light();
     showToast({
-      message: `${feature} configurations coming soon`,
+      message: 'Visibility options configuration coming soon',
       type: 'info',
     });
-  };
-
-  const handleSleepMode = () => {
-    haptics.light();
-    router.push('/sleep-mode' as any);
   };
 
   const divColor = isDark ? '#262626' : '#DBDBDB';
   const descColor = isDark ? '#737373' : '#8E8E8F';
   const labelColor = isDark ? '#FFFFFF' : '#000000';
   const sectionTitleColor = isDark ? '#A8A8A8' : '#737373';
-  const separatorBg = isDark ? '#1C1C1E' : '#F5F5F5';
-
-  const pushOptions = [
-    { id: 'posts', label: 'Posts, stories and comments' },
-    { id: 'following', label: 'Following and followers' },
-    { id: 'messages', label: 'Messages' },
-    { id: 'calls', label: 'Calls' },
-    { id: 'live', label: 'Live and reels' },
-    { id: 'fundraisers', label: 'Fundraisers' },
-    { id: 'from_insta', label: 'From Instagram' },
-    { id: 'birthdays', label: 'Birthdays' },
-    { id: 'map', label: 'Map' },
-    { id: 'instants', label: 'Instants' },
-    { id: 'accounts_follow', label: 'From accounts you follow' },
-  ];
-
-  const otherOptions = [
-    { id: 'email', label: 'Email notifications' },
-    { id: 'shopping', label: 'Shopping' },
-    { id: 'voting', label: 'Voting reminders' },
-  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -146,7 +120,7 @@ export default function NotificationPreferencesScreen() {
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-          Notifications
+          Location sharing
         </Text>
         <View style={{ width: 38 }} />
       </View>
@@ -155,100 +129,56 @@ export default function NotificationPreferencesScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section 1: Push notifications */}
         <Animated.View entering={FadeInDown.delay(100).duration(300)}>
           <Text style={[styles.sectionHeader, { color: sectionTitleColor }]}>
-            Push notifications
+            Instagram map
           </Text>
 
-          {/* Pause all toggle row */}
-          <View style={styles.rowAlignTop}>
-            <View style={styles.labelCol}>
-              <Text style={[styles.rowTitle, { color: labelColor }]}>Pause all</Text>
-              <Text style={[styles.rowDesc, { color: descColor }]}>
-                Temporarily pause notifications
-              </Text>
+          <View style={styles.card}>
+            {/* Share location row */}
+            <View style={styles.row}>
+              <View style={styles.labelCol}>
+                <Text style={[styles.rowTitle, { color: labelColor }]}>Share location on map</Text>
+                <Text style={[styles.rowDesc, { color: descColor }]}>
+                  Allow friends to see your location on the Instagram map. You can choose who sees your location.
+                </Text>
+              </View>
+              <CustomSwitch
+                value={shareLocation}
+                onValueChange={(val) => {
+                  setShareLocation(val);
+                  showToast({
+                    message: val ? 'Location sharing is active' : 'Location sharing is disabled',
+                    type: 'info',
+                  });
+                }}
+                isDark={isDark}
+              />
             </View>
-            <CustomSwitch
-              value={pauseAll}
-              onValueChange={(val) => {
-                setPauseAll(val);
-                showToast({
-                  message: val ? 'Notifications paused' : 'Notifications active',
-                  type: 'info',
-                });
-              }}
-              isDark={isDark}
-            />
+
+            {shareLocation && (
+              <>
+                <View style={[styles.innerDivider, { backgroundColor: isDark ? '#1C1C1E' : '#EEEEEE' }]} />
+
+                {/* Who can see row */}
+                <Pressable
+                  onPress={handleSelectVisibility}
+                  style={({ pressed }) => [
+                    styles.row,
+                    pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
+                  ]}
+                >
+                  <Text style={[styles.rowTitle, { color: labelColor, flex: 1 }]}>
+                    Who can see your location
+                  </Text>
+                  <View style={styles.rowRight}>
+                    <Text style={[styles.rowValue, { color: descColor }]}>Friends</Text>
+                    <Ionicons name="chevron-forward" size={18} color={isDark ? '#737373' : '#8E8E8F'} />
+                  </View>
+                </Pressable>
+              </>
+            )}
           </View>
-
-          <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
-
-          {/* Sleep mode row */}
-          <Pressable
-            onPress={handleSleepMode}
-            style={({ pressed }) => [
-              styles.rowAlignTop,
-              pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
-            ]}
-          >
-            <View style={styles.labelCol}>
-              <Text style={[styles.rowTitle, { color: labelColor }]}>Sleep mode</Text>
-              <Text style={[styles.rowDesc, { color: descColor }]}>
-                Automatically mute notifications at night or whenever you need to focus.
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={isDark ? '#737373' : '#8E8E8F'} style={{ marginTop: 2 }} />
-          </Pressable>
-
-          <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
-
-          {/* Detailed Push Sub-options */}
-          {pushOptions.map((item, index) => (
-            <View key={item.id}>
-              {index > 0 && (
-                <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
-              )}
-              <Pressable
-                onPress={() => handleComingSoon(item.label)}
-                style={({ pressed }) => [
-                  styles.simpleRow,
-                  pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
-                ]}
-              >
-                <Text style={[styles.simpleRowLabel, { color: labelColor }]}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color={isDark ? '#737373' : '#8E8E8F'} />
-              </Pressable>
-            </View>
-          ))}
-        </Animated.View>
-
-        {/* Separator block */}
-        <View style={[styles.separator, { backgroundColor: separatorBg }]} />
-
-        {/* Section 2: Other notification types */}
-        <Animated.View entering={FadeInDown.delay(180).duration(300)}>
-          <Text style={[styles.sectionHeader, { color: sectionTitleColor }]}>
-            Other notification types
-          </Text>
-
-          {otherOptions.map((item, index) => (
-            <View key={item.id}>
-              {index > 0 && (
-                <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
-              )}
-              <Pressable
-                onPress={() => handleComingSoon(item.label)}
-                style={({ pressed }) => [
-                  styles.simpleRow,
-                  pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
-                ]}
-              >
-                <Text style={[styles.simpleRowLabel, { color: labelColor }]}>{item.label}</Text>
-                <Ionicons name="chevron-forward" size={18} color={isDark ? '#737373' : '#8E8E8F'} />
-              </Pressable>
-            </View>
-          ))}
         </Animated.View>
       </ScrollView>
     </View>
@@ -279,21 +209,23 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     textAlign: 'center',
     flex: 1,
-    paddingLeft: 38,
+    paddingLeft: 0,
   },
   scroll: {
-    paddingVertical: 14,
+    paddingVertical: 20,
   },
   sectionHeader: {
     fontFamily: Fonts.semiBold,
     fontSize: 14,
     paddingHorizontal: 16,
-    marginBottom: 12,
-    marginTop: 10,
+    marginBottom: 16,
   },
-  rowAlignTop: {
+  card: {
+    marginVertical: 4,
+  },
+  row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -305,31 +237,24 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontFamily: Fonts.semiBold,
     fontSize: 16.5,
-    marginBottom: 4,
   },
   rowDesc: {
     fontFamily: Fonts.regular,
     fontSize: 13.5,
     lineHeight: 18,
+    marginTop: 4,
   },
-  simpleRow: {
+  rowRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    paddingHorizontal: 16,
   },
-  simpleRowLabel: {
+  rowValue: {
     fontFamily: Fonts.regular,
-    fontSize: 16.5,
-    flex: 1,
+    fontSize: 15.5,
+    marginRight: 6,
   },
   innerDivider: {
     height: StyleSheet.hairlineWidth,
     marginLeft: 16,
-  },
-  separator: {
-    height: 10,
-    marginVertical: 16,
   },
 });

@@ -44,6 +44,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/services/api';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { closeFriendsStore } from '@/store/close-friends-store';
+import { favoritesStore } from '@/store/favorites-store';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -93,7 +95,25 @@ export default function SettingsScreen() {
     setIsPrivate(user?.isPrivate ?? false);
   }, [user?.isPrivate]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [closeFriendsCount, setCloseFriendsCount] = useState(0);
+  const [closeFriendsCount, setCloseFriendsCount] = useState(closeFriendsStore.getCloseFriendsCount());
+  const [favoritesCount, setFavoritesCount] = useState(favoritesStore.getFavoritesCount());
+
+  useEffect(() => {
+    // Initial sync
+    setCloseFriendsCount(closeFriendsStore.getCloseFriendsCount());
+    setFavoritesCount(favoritesStore.getFavoritesCount());
+
+    const unsubCF = closeFriendsStore.subscribe(() => {
+      setCloseFriendsCount(closeFriendsStore.getCloseFriendsCount());
+    });
+    const unsubFav = favoritesStore.subscribe(() => {
+      setFavoritesCount(favoritesStore.getFavoritesCount());
+    });
+    return () => {
+      unsubCF();
+      unsubFav();
+    };
+  }, []);
 
   // Bottom Sheet States
   const [activeSheet, setActiveSheet] = useState<null | 'accounts_center' | 'archive' | 'activity' | 'time_management' | 'close_friends' | 'crossposting' | 'tablet'>(null);
@@ -253,9 +273,9 @@ export default function SettingsScreen() {
       {
         title: 'How you use Instagram',
         items: [
-          { id: 'saved', icon: 'bookmark', iconType: 'feather', label: 'Saved', onPress: () => router.push({ pathname: '/(tabs)/profile', params: { tab: 'saved' } } as any) },
+          { id: 'saved', icon: 'bookmark', iconType: 'feather', label: 'Saved', onPress: () => { haptics.light(); router.push('/saved-control' as any); } },
           { id: 'archive', icon: 'clock', iconType: 'feather', label: 'Archive', onPress: () => setActiveSheet('archive') },
-          { id: 'activity', icon: 'activity', iconType: 'feather', label: 'Your activity', onPress: () => setActiveSheet('activity') },
+          { id: 'activity', icon: 'activity', iconType: 'feather', label: 'Your activity', onPress: () => { haptics.light(); router.push('/your-activity-control' as any); } },
           { id: 'notifications', icon: 'bell', iconType: 'feather', label: 'Notifications', onPress: () => router.push('/notification-preferences' as any) },
           { id: 'time', icon: 'hourglass-outline', iconType: 'ionicons', label: 'Time management', onPress: () => router.push('/time-management' as any) },
           { id: 'tablet', icon: 'tablet', iconType: 'feather', label: 'Instagram for tablets', onPress: () => setActiveSheet('tablet') },
@@ -275,10 +295,10 @@ export default function SettingsScreen() {
               router.push('/account-privacy' as any);
             }
           },
-          { id: 'friends', icon: 'star', iconType: 'feather', label: 'Close Friends', value: String(closeFriendsCount), onPress: () => setActiveSheet('close_friends') },
+          { id: 'friends', icon: 'star', iconType: 'feather', label: 'Close Friends', value: String(closeFriendsCount), onPress: () => { haptics.light(); router.push('/close-friends-control' as any); } },
           { id: 'crossposting', icon: 'share-2', iconType: 'feather', label: 'Crossposting', onPress: () => { haptics.light(); router.push('/sharing-across-apps' as any); } },
-          { id: 'blocked', icon: 'slash', iconType: 'feather', label: 'Blocked', value: '0', onPress: () => handleComingSoon('Blocked accounts') },
-          { id: 'story_live', icon: 'video', iconType: 'feather', label: 'Story, live and location', onPress: () => handleComingSoon('Story, live and location') },
+          { id: 'blocked', icon: 'slash', iconType: 'feather', label: 'Blocked', value: '0', onPress: () => { haptics.light(); router.push('/blocked-accounts' as any); } },
+          { id: 'story_live', icon: 'video', iconType: 'feather', label: 'Story, live and location', onPress: () => { haptics.light(); router.push('/story-live-location' as any); } },
           { id: 'friends_feed', icon: 'users', iconType: 'feather', label: 'Activity in Friends feed', onPress: () => { haptics.light(); router.push('/friends-feed-activity' as any); } },
         ],
       },
@@ -298,7 +318,7 @@ export default function SettingsScreen() {
       {
         title: 'What you see',
         items: [
-          { id: 'favorites', icon: 'star', iconType: 'feather', label: 'Favorites', value: '0', onPress: () => handleComingSoon('Favorites') },
+          { id: 'favorites', icon: 'star', iconType: 'feather', label: 'Favorites', value: String(favoritesCount), onPress: () => { haptics.light(); router.push('/favorites-control' as any); } },
           { id: 'muted', icon: 'bell-off', iconType: 'feather', label: 'Muted accounts', value: '2', onPress: () => handleComingSoon('Muted accounts') },
           { id: 'content_pref', icon: 'sliders', iconType: 'feather', label: 'Content preferences', onPress: () => { haptics.light(); router.push('/content-preferences' as any); } },
           { id: 'likes', icon: 'heart', iconType: 'feather', label: 'Like and share counts', onPress: () => { haptics.light(); router.push('/like-share-counts' as any); } },

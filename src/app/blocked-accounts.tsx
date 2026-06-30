@@ -24,10 +24,9 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
-import { ThemedText } from '@/components/themed-text';
+import { useToast } from '@/contexts/ToastContext';
 import { blockService, BlockedUser } from '@/services/block';
 import { haptics } from '@/utils/haptics';
 import { Fonts } from '@/constants/theme';
@@ -80,7 +79,7 @@ const BlockedUserRow = ({
       layout={Layout.springify()}
       style={animStyle}
     >
-      <View style={[styles.row, { borderBottomColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+      <View style={[styles.row, { borderBottomColor: isDark ? '#262626' : '#EEEEEE' }]}>
         <Image
           source={{ uri: item.avatarUrl || 'https://ui-avatars.com/api/?name=U&size=80' }}
           style={styles.avatar}
@@ -101,7 +100,7 @@ const BlockedUserRow = ({
         <Pressable
           onPress={handleUnblock}
           disabled={loading}
-          style={[styles.unblockBtn, { borderColor: isDark ? '#3A3A3C' : '#DBDBDB' }]}
+          style={[styles.unblockBtn, { borderColor: isDark ? '#262626' : '#DBDBDB' }]}
         >
           {loading ? (
             <ActivityIndicator size="small" color={colors.text} />
@@ -120,6 +119,7 @@ const BlockedUserRow = ({
 
 export default function BlockedAccountsScreen() {
   const { colors, isDark } = useTheme();
+  const { showToast } = useToast();
   const router = useRouter();
   const [blocked, setBlocked] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,27 +134,41 @@ export default function BlockedAccountsScreen() {
     }
   }, []);
 
-  useEffect(() => { fetchBlocked(); }, [fetchBlocked]);
+  useEffect(() => {
+    fetchBlocked();
+  }, [fetchBlocked]);
 
   const handleUnblock = async (id: string) => {
     try {
       await blockService.unblockUser(id);
-      setBlocked(prev => prev.filter(u => u.id !== id));
+      setBlocked((prev) => prev.filter((u) => u.id !== id));
+      showToast({ message: 'User unblocked successfully', type: 'success' });
     } catch {}
   };
 
+  const handleAddBlock = () => {
+    haptics.light();
+    showToast({ message: 'Select a user to block', type: 'info' });
+  };
+
+  const divColor = isDark ? '#262626' : '#DBDBDB';
+
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#F2F2F7' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
-      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }}>
-        <View style={[styles.header, { borderBottomColor: isDark ? '#2C2C2E' : '#F0F0F0' }]}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: colors.background }}>
+        <View style={[styles.header, { borderBottomColor: divColor }]}>
           <Pressable onPress={() => router.back()} style={styles.headerBtn} hitSlop={10}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+            <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
           </Pressable>
-          <ThemedText style={styles.headerTitle}>Blocked Accounts</ThemedText>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+            Blocked accounts
+          </Text>
+          <Pressable onPress={handleAddBlock} style={styles.headerBtn} hitSlop={10}>
+            <Ionicons name="add" size={28} color={isDark ? '#FFFFFF' : '#000000'} />
+          </Pressable>
         </View>
       </SafeAreaView>
 
@@ -162,28 +176,54 @@ export default function BlockedAccountsScreen() {
         <Animated.View entering={FadeIn.duration(300)} style={styles.centered}>
           <ActivityIndicator size="large" color="#0095F6" />
         </Animated.View>
-      ) : blocked.length === 0 ? (
-        <Animated.View entering={FadeIn.duration(400)} style={styles.emptyContainer}>
-          <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-            <Ionicons name="person-remove-outline" size={44} color={isDark ? '#555' : '#BDBDBD'} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: colors.text, fontFamily: Fonts.semiBold }]}>
-            No blocked accounts
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-            People you block won't be able to find your profile or see your posts.
-          </Text>
-        </Animated.View>
       ) : (
         <FlatList
           data={blocked}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.list, { paddingBottom: 40 }]}
           ListHeaderComponent={
             <Animated.View entering={FadeInDown.duration(250)}>
-              <Text style={[styles.listNote, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
-                {blocked.length} blocked {blocked.length === 1 ? 'account' : 'accounts'}
-              </Text>
+              {/* Suggestion Row */}
+              <Pressable
+                onPress={() => {
+                  haptics.light();
+                  router.push('/blocked-suggestions' as any);
+                }}
+                style={({ pressed }) => [
+                  styles.suggestionRow,
+                  pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
+                ]}
+              >
+                <View style={styles.suggestionInfo}>
+                  <Text style={[styles.suggestionTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+                    You may want to block
+                  </Text>
+                  <Text style={[styles.suggestionDesc, { color: isDark ? '#737373' : '#8E8E8F' }]}>
+                    Based on your Account Center
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={isDark ? '#737373' : '#8E8E8F'} />
+              </Pressable>
+
+              <View style={[styles.blockSeparator, { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' }]} />
+
+              {blocked.length > 0 ? (
+                <Text style={[styles.listNote, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                  {blocked.length} blocked {blocked.length === 1 ? 'account' : 'accounts'}
+                </Text>
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' }]}>
+                    <Ionicons name="person-remove-outline" size={44} color={isDark ? '#555555' : '#BDBDBD'} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: colors.text, fontFamily: Fonts.semiBold }]}>
+                    No blocked accounts
+                  </Text>
+                  <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
+                    People you block won't be able to find your profile or see your posts.
+                  </Text>
+                </View>
+              )}
             </Animated.View>
           }
           renderItem={({ item, index }) => (
@@ -195,8 +235,7 @@ export default function BlockedAccountsScreen() {
               delay={index * 50}
             />
           )}
-          ItemSeparatorComponent={() => null}
-          style={[styles.flatList, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
+          style={styles.flatList}
         />
       )}
     </View>
@@ -208,25 +247,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerBtn: { padding: 8, width: 40 },
+  headerBtn: { padding: 6, alignItems: 'center', justifyContent: 'center' },
   headerTitle: {
-    flex: 1,
     fontFamily: Fonts.semiBold,
-    fontSize: 17,
+    fontSize: 19.5,
+    letterSpacing: -0.4,
     textAlign: 'center',
-    letterSpacing: -0.3,
+    flex: 1,
+    paddingLeft: 0,
   },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-    gap: 14,
+    paddingVertical: 60,
   },
   emptyIcon: {
     width: 90,
@@ -234,17 +273,39 @@ const styles = StyleSheet.create({
     borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  emptyTitle: { fontSize: 20, textAlign: 'center' },
+  emptyTitle: { fontSize: 20, textAlign: 'center', marginBottom: 8 },
   emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  flatList: { flex: 1, marginTop: 16, borderRadius: 18, marginHorizontal: 16 },
-  list: { paddingTop: 8 },
+  flatList: { flex: 1 },
+  list: { paddingTop: 0 },
   listNote: {
-    fontSize: 13,
+    fontSize: 13.5,
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    paddingTop: 4,
+    paddingVertical: 12,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  suggestionInfo: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  suggestionTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  suggestionDesc: {
+    fontFamily: Fonts.regular,
+    fontSize: 13.5,
+  },
+  blockSeparator: {
+    height: 10,
   },
   row: {
     flexDirection: 'row',

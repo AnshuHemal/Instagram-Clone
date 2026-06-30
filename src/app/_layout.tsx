@@ -384,6 +384,38 @@ function RootLayoutContent() {
           name="group-chat-add"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="story-live-location"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="hide-story-from"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="location-sharing-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="blocked-suggestions"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="close-friends-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="favorites-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="your-activity-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
+          name="saved-control"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
       </Stack>
       <LoadingOverlay />
       <OfflineBanner />
