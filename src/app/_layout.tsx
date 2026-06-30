@@ -193,6 +193,10 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
         <Stack.Screen
+          name="account-privacy"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
+        <Stack.Screen
           name="blocked-accounts"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />

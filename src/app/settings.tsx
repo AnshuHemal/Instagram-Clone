@@ -5,7 +5,7 @@
  * for Archive, Your Activity, Time Management, Close Friends, and Crossposting.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -83,6 +83,10 @@ export default function SettingsScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
+
+  useEffect(() => {
+    setIsPrivate(user?.isPrivate ?? false);
+  }, [user?.isPrivate]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [closeFriendsCount, setCloseFriendsCount] = useState(0);
 
@@ -184,10 +188,8 @@ export default function SettingsScreen() {
           label: 'Account privacy',
           value: isPrivate ? 'Private' : 'Public',
           onPress: () => {
-            Alert.alert('Account Privacy', `Toggle account privacy to ${isPrivate ? 'Public' : 'Private'}?`, [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Toggle', onPress: () => handlePrivacyToggle(!isPrivate) }
-            ]);
+            haptics.light();
+            router.push('/account-privacy' as any);
           }
         },
         { id: 'friends', icon: 'star', iconType: 'feather', label: 'Close Friends', value: String(closeFriendsCount), onPress: () => setActiveSheet('close_friends') },
