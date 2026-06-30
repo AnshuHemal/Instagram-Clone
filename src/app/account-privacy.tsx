@@ -20,13 +20,17 @@ import {
 import Animated, {
   FadeIn,
   FadeOut,
+  SlideInDown,
+  SlideOutDown,
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { useRouter, Stack } from 'expo-router';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,12 +92,76 @@ export default function AccountPrivacyScreen() {
   const [pendingVal, setPendingVal] = useState<boolean | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Reanimated shared values
+  const translateY = useSharedValue(600); // starts offscreen
+  const backdropOpacity = useSharedValue(0);
+
   // Sync state with global context on mount
   useEffect(() => {
     if (user) {
       setIsPrivate(user.isPrivate ?? false);
     }
   }, [user?.isPrivate]);
+
+  // Handle opening transitions
+  useEffect(() => {
+    if (showConfirmModal) {
+      translateY.value = 600;
+      backdropOpacity.value = 0;
+      translateY.value = withTiming(0, { duration: 280 });
+      backdropOpacity.value = withTiming(1, { duration: 280 });
+    }
+  }, [showConfirmModal]);
+
+  const finalizeDismiss = () => {
+    setShowConfirmModal(false);
+    setPendingVal(null);
+  };
+
+  const dismissSheet = () => {
+    haptics.light();
+    backdropOpacity.value = withTiming(0, { duration: 200 });
+    translateY.value = withTiming(600, { duration: 220 }, (finished) => {
+      if (finished) {
+        runOnJS(finalizeDismiss)();
+      }
+    });
+  };
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationY > 0) {
+        translateY.value = e.translationY;
+        // Dampen backdrop opacity as we swipe down
+        const progress = Math.max(0, 1 - e.translationY / 300);
+        backdropOpacity.value = progress;
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationY > 100 || e.velocityY > 800) {
+        backdropOpacity.value = withTiming(0, { duration: 150 });
+        translateY.value = withTiming(600, { duration: 180 }, (finished) => {
+          if (finished) {
+            runOnJS(finalizeDismiss)();
+          }
+        });
+      } else {
+        backdropOpacity.value = withTiming(1, { duration: 150 });
+        translateY.value = withTiming(0, { duration: 150 });
+      }
+    });
+
+  const sheetStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
+
+  const backdropStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: `rgba(0, 0, 0, ${backdropOpacity.value * 0.6})`,
+    };
+  });
 
   const handleBack = () => {
     haptics.light();
@@ -108,18 +176,18 @@ export default function AccountPrivacyScreen() {
     setShowConfirmModal(true);
   };
 
-  const confirmPrivacyChange = async () => {
+  const executePrivacyPatch = async () => {
     if (pendingVal === null) return;
-    haptics.medium();
-    setShowConfirmModal(false);
     setIsUpdating(true);
-
+    const valToSet = pendingVal;
     const oldVal = isPrivate;
+
     // Optimistic UI update
-    setIsPrivate(pendingVal);
+    setIsPrivate(valToSet);
+    finalizeDismiss();
 
     try {
-      await api.patch('/auth/profile', { isPrivate: pendingVal });
+      await api.patch('/auth/profile', { isPrivate: valToSet });
       await refreshProfile();
     } catch (error) {
       // Revert if request fails
@@ -127,14 +195,17 @@ export default function AccountPrivacyScreen() {
       Alert.alert('Error', 'Failed to update account privacy. Please try again.');
     } finally {
       setIsUpdating(false);
-      setPendingVal(null);
     }
   };
 
-  const cancelPrivacyChange = () => {
-    haptics.light();
-    setShowConfirmModal(false);
-    setPendingVal(null);
+  const confirmPrivacyChange = () => {
+    haptics.medium();
+    backdropOpacity.value = withTiming(0, { duration: 200 });
+    translateY.value = withTiming(600, { duration: 220 }, (finished) => {
+      if (finished) {
+        runOnJS(executePrivacyPatch)();
+      }
+    });
   };
 
   return (
@@ -177,60 +248,141 @@ export default function AccountPrivacyScreen() {
         </Text>
       </View>
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Bottom Sheet Modal */}
       <Modal
         visible={showConfirmModal}
         transparent={true}
-        animationType="fade"
-        onRequestClose={cancelPrivacyChange}
+        animationType="none"
+        onRequestClose={dismissSheet}
       >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.dismissOverlay} onPress={cancelPrivacyChange} />
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Animated.View style={[styles.modalOverlay, backdropStyle]}>
+            <Pressable style={styles.dismissOverlay} onPress={dismissSheet} />
           
-          <Animated.View
-            entering={FadeIn.duration(200)}
-            exiting={FadeOut.duration(150)}
-            style={[styles.modalCard, { backgroundColor: isDark ? '#262626' : '#FFFFFF' }]}
-          >
-            <Text style={[styles.modalTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-              {pendingVal === true ? 'Switch to private account?' : 'Change to public account?'}
-            </Text>
+          <GestureDetector gesture={panGesture}>
+            <Animated.View
+              style={[
+                styles.bottomSheetCard,
+                { 
+                  backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                  paddingBottom: (insets.bottom > 0 ? insets.bottom + 16 : 24) + 100
+                },
+                sheetStyle
+              ]}
+            >
+            {/* Grabber Handle */}
+            <View style={[styles.grabber, { backgroundColor: isDark ? '#555555' : '#EFEFEF' }]} />
             
-            <Text style={[styles.modalMessage, { color: isDark ? '#A8A8A8' : '#737373' }]}>
-              {pendingVal === true
-                ? "Only your followers will be able to see your photos and videos. This won't change who can message, tag or @mention you, but you won't be able to tag people who don't follow you."
-                : "Anyone will be able to see your photos, videos, and stories. You won't have to approve followers."}
+            {/* Title */}
+            <Text style={[styles.bottomSheetTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+              {pendingVal === true ? 'Switch to private account?' : 'Switch to public account?'}
             </Text>
 
-            <View style={[styles.modalSeparator, { backgroundColor: isDark ? '#3E3E3E' : '#EFEFEF' }]} />
+            {/* Separator */}
+            <View style={[styles.bottomSheetSeparator, { backgroundColor: isDark ? '#2D2D2D' : '#EFEFEF' }]} />
 
+            {/* Content list */}
+            <View style={styles.bulletsContainer}>
+              {pendingVal === true ? (
+                <>
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <MaterialCommunityIcons name="play-box-outline" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        Only your followers will be able to see your photos and videos.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <Feather name="at-sign" size={22} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        This won't change who can message, tag or @mention you, but you won't be able to tag people who don't follow you.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <Feather name="repeat" size={20} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        No one can reuse your content. All reels, posts and stories that previously used your content in features like remixes, sequences, templates or stickers will be deleted. If you switch back to a public account within 24 hours, they will be restored.
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <MaterialCommunityIcons name="play-box-outline" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        Anyone can see your posts, reels and stories, and can use your original audio and text.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <Feather name="at-sign" size={22} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        This won't change who can message, tag or @mention you.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <Feather name="repeat" size={20} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        People can reuse all or part of your posts and reels in features like remixes, sequences, templates and stickers and download them as part of their reel or post.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.bulletRow}>
+                    <View style={styles.bulletIconContainer}>
+                      <Feather name="settings" size={21} color={isDark ? '#FFFFFF' : '#000000'} />
+                    </View>
+                    <View style={styles.bulletTextContainer}>
+                      <Text style={[styles.bulletText, { color: isDark ? '#EFEFEF' : '#262626' }]}>
+                        You can turn off reuse for each post or reel or change the default in your settings.
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Action button */}
             <Pressable
               onPress={confirmPrivacyChange}
               style={({ pressed }) => [
-                styles.modalActionButton,
-                { opacity: pressed ? 0.7 : 1 }
+                styles.bottomSheetActionButton,
+                { opacity: pressed ? 0.85 : 1 }
               ]}
             >
-              <Text style={[styles.actionButtonText, { color: isDark ? '#3897F0' : '#0095F6' }]}>
-                {pendingVal === true ? 'Switch to Private' : 'Change to Public'}
-              </Text>
-            </Pressable>
-
-            <View style={[styles.modalSeparator, { backgroundColor: isDark ? '#3E3E3E' : '#EFEFEF' }]} />
-
-            <Pressable
-              onPress={cancelPrivacyChange}
-              style={({ pressed }) => [
-                styles.modalCancelButton,
-                { opacity: pressed ? 0.7 : 1 }
-              ]}
-            >
-              <Text style={[styles.cancelButtonText, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-                Cancel
+              <Text style={styles.bottomSheetActionButtonText}>
+                {pendingVal === true ? 'Switch to private' : 'Switch to public'}
               </Text>
             </Pressable>
           </Animated.View>
-        </View>
+          </GestureDetector>
+        </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );
@@ -289,57 +441,81 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   dismissOverlay: {
     ...StyleSheet.absoluteFill,
   },
-  modalCard: {
-    width: SCREEN_WIDTH * 0.82,
-    borderRadius: 14,
-    paddingTop: 24,
-    alignItems: 'center',
-    overflow: 'hidden',
+  bottomSheetCard: {
+    width: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 14,
+    paddingHorizontal: 20,
+    marginBottom: -100,
   },
-  modalTitle: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 18,
+  grabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  bottomSheetTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 16,
+    letterSpacing: -0.3,
   },
-  modalMessage: {
-    fontFamily: Fonts.regular,
-    fontSize: 14,
-    lineHeight: 18,
-    textAlign: 'center',
-    paddingHorizontal: 22,
-    marginBottom: 22,
-  },
-  modalSeparator: {
+  bottomSheetSeparator: {
     width: '100%',
     height: 1,
+    marginBottom: 24,
   },
-  modalActionButton: {
+  bulletsContainer: {
     width: '100%',
-    paddingVertical: 14,
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  bulletIconContainer: {
+    width: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 2,
   },
-  actionButtonText: {
-    fontFamily: Fonts.bold,
-    fontSize: 15,
+  bulletTextContainer: {
+    flex: 1,
+    marginLeft: 16,
   },
-  modalCancelButton: {
-    width: '100%',
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
+  bulletText: {
     fontFamily: Fonts.regular,
-    fontSize: 15,
+    fontSize: 14.5,
+    lineHeight: 20,
+  },
+  bottomSheetActionButton: {
+    width: '100%',
+    backgroundColor: '#3797EF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    shadowColor: '#3797EF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  bottomSheetActionButtonText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.bold,
+    fontSize: 16,
   },
   switchTrack: {
     width: 50,

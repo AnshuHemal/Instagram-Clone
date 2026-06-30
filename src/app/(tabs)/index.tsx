@@ -28,7 +28,7 @@ import { useStories, UserStoryGroup } from '@/contexts/StoriesContext';
 import { useToast } from '@/contexts/ToastContext';
 import { StoryPlayerModal } from '@/components/StoryPlayerModal';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { followService } from '@/services/follow';
 import { api } from '@/services/api';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
@@ -63,7 +63,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function FeedScreen() {
+export default function FeedScreen({ isTabActive = true }: { isTabActive?: boolean }) {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
@@ -85,6 +85,16 @@ export default function FeedScreen() {
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => {
+        setIsFocused(false);
+      };
+    }, [])
+  );
 
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 60,
@@ -606,7 +616,7 @@ export default function FeedScreen() {
             return (
               <PostCard
                 post={item.data}
-                isActive={activePostId === item.data.id}
+                isActive={isFocused && isTabActive && activePostId === item.data.id}
                 onLikeToggle={handleLikeToggle}
                 onBookmarkToggle={handleBookmarkToggle}
                 onAddComment={handleAddComment}

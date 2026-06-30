@@ -245,7 +245,7 @@ function TabLayout() {
       >
         {/* Page 0: Home */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ErrorBoundary><HomeScreen /></ErrorBoundary>
+          <ErrorBoundary><HomeScreen isTabActive={activeIndex === 0} /></ErrorBoundary>
         </View>
 
         {/* Page 1: Reels (Full screen underneath absolute tab bar) */}

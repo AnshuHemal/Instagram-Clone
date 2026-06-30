@@ -25,20 +25,22 @@ import {
 import Animated, {
   FadeIn,
   FadeInDown,
-  SlideInDown,
-  SlideOutDown,
   Easing,
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withTiming,
+  runOnJS,
 } from 'react-native-reanimated';
 import { useRouter, Stack } from 'expo-router';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/services/api';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
@@ -49,8 +51,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface SettingItem {
   id: string;
-  icon: string;
-  iconType: 'feather' | 'ionicons' | 'material' | 'antdesign';
+  icon?: string;
+  iconType?: 'feather' | 'ionicons' | 'material' | 'antdesign';
   label: string;
   sublabel?: string;
   value?: string;
@@ -58,6 +60,8 @@ interface SettingItem {
   onPress?: () => void;
   showChevron?: boolean;
   destructive?: boolean;
+  blueDot?: boolean;
+  color?: string;
 }
 
 interface SettingSection {
@@ -71,6 +75,7 @@ interface SettingSection {
 export default function SettingsScreen() {
   const { colors, isDark } = useTheme();
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -92,6 +97,69 @@ export default function SettingsScreen() {
 
   // Bottom Sheet States
   const [activeSheet, setActiveSheet] = useState<null | 'accounts_center' | 'archive' | 'activity' | 'time_management' | 'close_friends' | 'crossposting' | 'tablet'>(null);
+  const [showSheetModal, setShowSheetModal] = useState(false);
+
+  const translateY = useSharedValue(SCREEN_HEIGHT);
+  const backdropOpacity = useSharedValue(0);
+
+  const finalizeDismiss = () => {
+    setShowSheetModal(false);
+    setActiveSheet(null);
+  };
+
+  const dismissSheet = () => {
+    haptics.light();
+    backdropOpacity.value = withTiming(0, { duration: 200 });
+    translateY.value = withTiming(SCREEN_HEIGHT, { duration: 220 }, (finished) => {
+      if (finished) {
+        runOnJS(finalizeDismiss)();
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (activeSheet !== null) {
+      setShowSheetModal(true);
+      translateY.value = SCREEN_HEIGHT;
+      backdropOpacity.value = 0;
+      translateY.value = withTiming(0, { duration: 280 });
+      backdropOpacity.value = withTiming(1, { duration: 280 });
+    }
+  }, [activeSheet]);
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationY > 0) {
+        translateY.value = e.translationY;
+        const progress = Math.max(0, 1 - e.translationY / 300);
+        backdropOpacity.value = progress;
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationY > 100 || e.velocityY > 800) {
+        backdropOpacity.value = withTiming(0, { duration: 150 });
+        translateY.value = withTiming(SCREEN_HEIGHT, { duration: 180 }, (finished) => {
+          if (finished) {
+            runOnJS(finalizeDismiss)();
+          }
+        });
+      } else {
+        backdropOpacity.value = withTiming(1, { duration: 150 });
+        translateY.value = withTiming(0, { duration: 150 });
+      }
+    });
+
+  const sheetStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
+
+  const backdropStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: `rgba(0, 0, 0, ${backdropOpacity.value * 0.5})`,
+    };
+  });
 
   // Time Management Settings
   const [dailyLimit, setDailyLimit] = useState<'off' | '30m' | '1h' | '2h'>('off');
@@ -153,7 +221,7 @@ export default function SettingsScreen() {
   const saveCloseFriends = () => {
     const selectedCount = closeFriendsList.filter(f => f.selected).length;
     setCloseFriendsCount(selectedCount);
-    setActiveSheet(null);
+    dismissSheet();
     haptics.success();
   };
 
@@ -166,45 +234,191 @@ export default function SettingsScreen() {
   ], []);
 
   // Settings Configuration Structure
-  const sectionsData = useMemo<SettingSection[]>(() => [
-    {
-      title: 'How you use Instagram',
-      items: [
-        { id: 'saved', icon: 'bookmark', iconType: 'feather', label: 'Saved', onPress: () => router.push({ pathname: '/(tabs)/profile', params: { tab: 'saved' } } as any) },
-        { id: 'archive', icon: 'clock', iconType: 'feather', label: 'Archive', onPress: () => setActiveSheet('archive') },
-        { id: 'activity', icon: 'activity', iconType: 'feather', label: 'Your activity', onPress: () => setActiveSheet('activity') },
-        { id: 'notifications', icon: 'bell', iconType: 'feather', label: 'Notifications', onPress: () => router.push('/notification-preferences' as any) },
-        { id: 'time', icon: 'hourglass-outline', iconType: 'ionicons', label: 'Time management', onPress: () => router.push('/time-management' as any) },
-        { id: 'tablet', icon: 'tablet', iconType: 'feather', label: 'Instagram for tablets', onPress: () => setActiveSheet('tablet') },
-      ],
-    },
-    {
-      title: 'Who can see your content',
-      items: [
-        {
-          id: 'privacy',
-          icon: 'lock',
-          iconType: 'feather',
-          label: 'Account privacy',
-          value: isPrivate ? 'Private' : 'Public',
-          onPress: () => {
-            haptics.light();
-            router.push('/account-privacy' as any);
+  const sectionsData = useMemo<SettingSection[]>(() => {
+    const handleComingSoon = (feature: string) => {
+      haptics.light();
+      showToast({ message: `${feature} is coming soon!`, type: 'info' });
+    };
+
+    return [
+      {
+        title: 'How you use Instagram',
+        items: [
+          { id: 'saved', icon: 'bookmark', iconType: 'feather', label: 'Saved', onPress: () => router.push({ pathname: '/(tabs)/profile', params: { tab: 'saved' } } as any) },
+          { id: 'archive', icon: 'clock', iconType: 'feather', label: 'Archive', onPress: () => setActiveSheet('archive') },
+          { id: 'activity', icon: 'activity', iconType: 'feather', label: 'Your activity', onPress: () => setActiveSheet('activity') },
+          { id: 'notifications', icon: 'bell', iconType: 'feather', label: 'Notifications', onPress: () => router.push('/notification-preferences' as any) },
+          { id: 'time', icon: 'hourglass-outline', iconType: 'ionicons', label: 'Time management', onPress: () => router.push('/time-management' as any) },
+          { id: 'tablet', icon: 'tablet', iconType: 'feather', label: 'Instagram for tablets', onPress: () => setActiveSheet('tablet') },
+        ],
+      },
+      {
+        title: 'Who can see your content',
+        items: [
+          {
+            id: 'privacy',
+            icon: 'lock',
+            iconType: 'feather',
+            label: 'Account privacy',
+            value: isPrivate ? 'Private' : 'Public',
+            onPress: () => {
+              haptics.light();
+              router.push('/account-privacy' as any);
+            }
+          },
+          { id: 'friends', icon: 'star', iconType: 'feather', label: 'Close Friends', value: String(closeFriendsCount), onPress: () => setActiveSheet('close_friends') },
+          { id: 'crossposting', icon: 'share-2', iconType: 'feather', label: 'Crossposting', onPress: () => { haptics.light(); router.push('/sharing-across-apps' as any); } },
+          { id: 'blocked', icon: 'slash', iconType: 'feather', label: 'Blocked', value: '0', onPress: () => handleComingSoon('Blocked accounts') },
+          { id: 'story_live', icon: 'video', iconType: 'feather', label: 'Story, live and location', onPress: () => handleComingSoon('Story, live and location') },
+          { id: 'friends_feed', icon: 'users', iconType: 'feather', label: 'Activity in Friends feed', onPress: () => { haptics.light(); router.push('/friends-feed-activity' as any); } },
+        ],
+      },
+      {
+        title: 'How others can interact with you',
+        items: [
+          { id: 'messages', icon: 'message-circle', iconType: 'feather', label: 'Messages and story replies', onPress: () => handleComingSoon('Messages and story replies') },
+          { id: 'tags', icon: 'at-sign', iconType: 'feather', label: 'Tags and mentions', onPress: () => handleComingSoon('Tags and mentions') },
+          { id: 'comments', icon: 'message-square', iconType: 'feather', label: 'Comments', onPress: () => handleComingSoon('Comments') },
+          { id: 'sharing', icon: 'repeat', iconType: 'feather', label: 'Sharing', onPress: () => handleComingSoon('Sharing') },
+          { id: 'restricted', icon: 'alert-circle', iconType: 'feather', label: 'Restricted', value: '0', onPress: () => handleComingSoon('Restricted accounts') },
+          { id: 'limit', icon: 'alert-triangle', iconType: 'feather', label: 'Limit interactions', value: 'Off', onPress: () => handleComingSoon('Limit interactions') },
+          { id: 'words', icon: 'type', iconType: 'feather', label: 'Hidden Words', onPress: () => handleComingSoon('Hidden Words') },
+          { id: 'invite', icon: 'user-plus', iconType: 'feather', label: 'Follow and invite friends', onPress: () => handleComingSoon('Follow and invite friends') },
+        ],
+      },
+      {
+        title: 'What you see',
+        items: [
+          { id: 'favorites', icon: 'star', iconType: 'feather', label: 'Favorites', value: '0', onPress: () => handleComingSoon('Favorites') },
+          { id: 'muted', icon: 'bell-off', iconType: 'feather', label: 'Muted accounts', value: '2', onPress: () => handleComingSoon('Muted accounts') },
+          { id: 'content_pref', icon: 'sliders', iconType: 'feather', label: 'Content preferences', onPress: () => handleComingSoon('Content preferences') },
+          { id: 'likes', icon: 'heart', iconType: 'feather', label: 'Like and share counts', onPress: () => handleComingSoon('Like and share counts') },
+        ],
+      },
+      {
+        title: 'Your app and media',
+        items: [
+          { id: 'permissions', icon: 'smartphone', iconType: 'feather', label: 'Device permissions', onPress: () => handleComingSoon('Device permissions') },
+          { id: 'archiving', icon: 'download', iconType: 'feather', label: 'Archiving and downloading', onPress: () => handleComingSoon('Archiving and downloading') },
+          { id: 'accessibility', icon: 'accessibility-outline', iconType: 'ionicons', label: 'Accessibility', onPress: () => handleComingSoon('Accessibility') },
+          { id: 'language', icon: 'globe', iconType: 'feather', label: 'Language and translations', onPress: () => handleComingSoon('Language and translations') },
+          { id: 'data_usage', icon: 'bar-chart-2', iconType: 'feather', label: 'Data usage and media quality', onPress: () => handleComingSoon('Data usage and media quality') },
+          { id: 'website_perms', icon: 'globe', iconType: 'feather', label: 'App website permissions', onPress: () => handleComingSoon('App website permissions') },
+        ],
+      },
+      {
+        title: 'Family Center',
+        items: [
+          { id: 'supervision', icon: 'people-outline', iconType: 'ionicons', label: 'Supervision for Teen Accounts', onPress: () => handleComingSoon('Supervision for Teen Accounts') },
+        ],
+      },
+      {
+        title: 'Your insights and tools',
+        items: [
+          { id: 'account_type', icon: 'bar-chart', iconType: 'feather', label: 'Account type and tools', onPress: () => handleComingSoon('Account type and tools') },
+          { id: 'subscriptions', icon: 'refresh-cw', iconType: 'feather', label: 'Subscriptions', onPress: () => handleComingSoon('Subscriptions') },
+        ],
+      },
+      {
+        title: 'Your orders and fundraisers',
+        items: [
+          { id: 'orders', icon: 'credit-card', iconType: 'feather', label: 'Orders and payments', onPress: () => handleComingSoon('Orders and payments') },
+        ],
+      },
+      {
+        title: 'More info and support',
+        items: [
+          { id: 'help', icon: 'help-circle', iconType: 'feather', label: 'Help', onPress: () => handleComingSoon('Help Center') },
+          { id: 'meta_ai_support', icon: 'aperture', iconType: 'feather', label: 'Meta AI support assistant', onPress: () => handleComingSoon('Meta AI support assistant') },
+          { id: 'privacy_center', icon: 'shield', iconType: 'feather', label: 'Privacy Center', onPress: () => Linking.openURL('https://privacycenter.instagram.com/policy/') },
+          { id: 'status', icon: 'user', iconType: 'feather', label: 'Account Status', onPress: () => { haptics.light(); router.push('/account-status' as any); } },
+          { id: 'about', icon: 'info', iconType: 'feather', label: 'About', onPress: () => { haptics.light(); router.push('/about' as any); } },
+        ],
+      },
+      {
+        title: 'Also from Meta',
+        items: [
+          {
+            id: 'meta_ai',
+            icon: 'aperture',
+            iconType: 'feather',
+            label: 'Meta AI',
+            sublabel: 'Get answers, advice and generate images',
+            blueDot: true,
+            onPress: () => handleComingSoon('Meta AI')
+          },
+          {
+            id: 'whatsapp',
+            icon: 'logo-whatsapp',
+            iconType: 'ionicons',
+            label: 'WhatsApp',
+            sublabel: 'Message privately with friends and family',
+            onPress: () => handleComingSoon('WhatsApp')
+          },
+          {
+            id: 'edits',
+            icon: 'video',
+            iconType: 'feather',
+            label: 'Edits',
+            sublabel: 'Create videos with powerful editing tools',
+            blueDot: true,
+            onPress: () => handleComingSoon('Edits')
+          },
+          {
+            id: 'threads',
+            icon: 'at-sign',
+            iconType: 'feather',
+            label: 'Threads',
+            sublabel: 'Share ideas and join conversations',
+            onPress: () => handleComingSoon('Threads')
+          },
+          {
+            id: 'facebook',
+            icon: 'logo-facebook',
+            iconType: 'ionicons',
+            label: 'Facebook',
+            sublabel: 'Explore things you love',
+            onPress: () => handleComingSoon('Facebook')
+          },
+          {
+            id: 'messenger',
+            icon: 'message-circle',
+            iconType: 'feather',
+            label: 'Messenger',
+            sublabel: 'Chat and share seamlessly with friends',
+            onPress: () => handleComingSoon('Messenger')
+          },
+          {
+            id: 'instants',
+            icon: 'zap',
+            iconType: 'feather',
+            label: 'Instants',
+            sublabel: 'Share photos with friends',
+            onPress: () => handleComingSoon('Instants')
+          },
+        ]
+      },
+      {
+        title: 'Login',
+        items: [
+          {
+            id: 'add_account',
+            label: 'Add account',
+            color: '#0095F6',
+            showChevron: false,
+            onPress: () => handleComingSoon('Add account')
+          },
+          {
+            id: 'logout',
+            label: 'Log out',
+            color: '#FF3B30',
+            showChevron: false,
+            onPress: handleLogout
           }
-        },
-        { id: 'friends', icon: 'star', iconType: 'feather', label: 'Close Friends', value: String(closeFriendsCount), onPress: () => setActiveSheet('close_friends') },
-        { id: 'crossposting', icon: 'share-2', iconType: 'feather', label: 'Crossposting', onPress: () => setActiveSheet('crossposting') },
-      ],
-    },
-    {
-      title: 'Support & Legal',
-      items: [
-        { id: 'version', icon: 'info', iconType: 'feather', label: 'App Version', value: '1.0.0', showChevron: false },
-        { id: 'terms', icon: 'file-text', iconType: 'feather', label: 'Terms of Service', onPress: () => Linking.openURL('https://www.instagram.com/about/legal/terms/') },
-        { id: 'privacy_policy', icon: 'eye', iconType: 'feather', label: 'Privacy Policy', onPress: () => Linking.openURL('https://privacycenter.instagram.com/policy/') },
-      ],
-    },
-  ], [isPrivate, closeFriendsCount]);
+        ]
+      }
+    ];
+  }, [isPrivate, closeFriendsCount, isLoggingOut]);
 
   // Filtering settings items based on search query
   const filteredSections = useMemo(() => {
@@ -297,7 +511,10 @@ export default function SettingsScreen() {
 
         {/* ─── GROUPED SECTIONS ─── */}
         {filteredSections.map((section, sIndex) => (
-          <View key={section.title}>
+          <Animated.View
+            key={section.title}
+            entering={FadeInDown.delay(sIndex * 80).duration(400)}
+          >
             <Text style={[styles.sectionTitle, { color: isDark ? '#A8A8A8' : '#737373' }]}>{section.title}</Text>
             
             <View style={styles.sectionItems}>
@@ -315,17 +532,41 @@ export default function SettingsScreen() {
                     }
                   ]}
                 >
-                  <View style={styles.rowIcon}>
-                    {renderIcon(item.icon, item.iconType)}
+                  {item.icon && item.iconType && (
+                    <View style={styles.rowIcon}>
+                      {renderIcon(item.icon, item.iconType)}
+                    </View>
+                  )}
+                  <View style={{ flex: 1, justifyContent: 'center', paddingVertical: item.sublabel ? 4 : 0 }}>
+                    {item.id === 'logout' && isLoggingOut ? (
+                      <ActivityIndicator size="small" color="#FF3B30" style={{ alignSelf: 'flex-start' }} />
+                    ) : (
+                      <Text 
+                        style={[
+                          styles.rowLabel, 
+                          { 
+                            flex: 0, 
+                            color: item.color || (item.destructive ? '#FF3B30' : (isDark ? '#FFFFFF' : '#000000')) 
+                          }
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    )}
+                    {item.sublabel && (
+                      <Text style={[styles.rowSublabel, { color: isDark ? '#A8A8A8' : '#737373', marginTop: 2, fontSize: 13, fontFamily: Fonts.regular }]}>
+                        {item.sublabel}
+                      </Text>
+                    )}
                   </View>
-                  <Text style={[styles.rowLabel, { color: item.destructive ? '#FF3B30' : (isDark ? '#FFFFFF' : '#000000') }]}>
-                    {item.label}
-                  </Text>
                   
                   {item.value && (
                     <Text style={[styles.rowValue, { color: isDark ? '#A8A8A8' : '#737373' }]}>
                       {item.value}
                     </Text>
+                  )}
+                  {item.blueDot && (
+                    <View style={styles.blueDot} />
                   )}
                   {item.showChevron !== false && (
                     <Ionicons name="chevron-forward" size={16} color="#8E8E8F" style={{ marginLeft: 6 }} />
@@ -338,25 +579,9 @@ export default function SettingsScreen() {
             {sIndex < filteredSections.length - 1 && (
               <View style={[styles.separatorBand, { backgroundColor: isDark ? '#121212' : '#F2F2F7' }]} />
             )}
-          </View>
+          </Animated.View>
         ))}
 
-        {/* ─── LOGOUT BUTTON ─── */}
-        <View style={[styles.separatorBand, { backgroundColor: isDark ? '#121212' : '#F2F2F7', marginTop: 16 }]} />
-        <Pressable
-          onPress={handleLogout}
-          disabled={isLoggingOut}
-          style={({ pressed }) => [
-            styles.logoutContainer,
-            { backgroundColor: pressed ? (isDark ? '#1A1A1A' : '#F5F5F5') : 'transparent' }
-          ]}
-        >
-          {isLoggingOut ? (
-            <ActivityIndicator size="small" color="#FF3B30" />
-          ) : (
-            <Text style={styles.logoutLabel}>Log Out</Text>
-          )}
-        </Pressable>
       </ScrollView>
 
       {/* ────────────────────────────────────────────────────────────────────────
@@ -365,19 +590,26 @@ export default function SettingsScreen() {
 
       {/* Sheet Container Wrapper */}
       <Modal
-        visible={activeSheet !== null}
-        animationType="slide"
+        visible={showSheetModal}
         transparent={true}
-        onRequestClose={() => setActiveSheet(null)}
+        animationType="none"
+        onRequestClose={dismissSheet}
       >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.dismissOverlay} onPress={() => setActiveSheet(null)} />
-          
-          <Animated.View
-            entering={SlideInDown.duration(300).easing(Easing.out(Easing.cubic))}
-            exiting={SlideOutDown}
-            style={[styles.sheetContent, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}
-          >
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Animated.View style={[styles.modalOverlay, backdropStyle]}>
+            <Pressable style={styles.dismissOverlay} onPress={dismissSheet} />
+            
+            <GestureDetector gesture={panGesture}>
+              <Animated.View
+                style={[
+                  styles.sheetContent,
+                  { 
+                    backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                    paddingBottom: insets.bottom + 100
+                  },
+                  sheetStyle
+                ]}
+              >
             {/* Grabber Handle */}
             <View style={[styles.grabber, { backgroundColor: isDark ? '#3A3A3C' : '#E0E0E0' }]} />
 
@@ -392,7 +624,7 @@ export default function SettingsScreen() {
                   {activeSheet === 'close_friends' && 'Close Friends'}
                   {activeSheet === 'crossposting' && 'Crossposting'}
                 </Text>
-                <Pressable onPress={() => setActiveSheet(null)} style={styles.closeBtn}>
+                <Pressable onPress={dismissSheet} style={styles.closeBtn}>
                   <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
                 </Pressable>
               </View>
@@ -418,8 +650,8 @@ export default function SettingsScreen() {
                 >
                   <Text style={styles.tabletSaveBtnText}>Save QR code</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => { haptics.light(); setActiveSheet(null); }}
+                 <Pressable
+                  onPress={dismissSheet}
                   style={styles.tabletDoneBtn}
                 >
                   <Text style={styles.tabletDoneBtnText}>Done</Text>
@@ -668,7 +900,9 @@ export default function SettingsScreen() {
               </ScrollView>
             )}
           </Animated.View>
-        </View>
+          </GestureDetector>
+        </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );
@@ -849,6 +1083,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 20,
+    marginBottom: -100,
   },
   grabber: {
     width: 40,
@@ -1159,5 +1394,18 @@ const styles = StyleSheet.create({
     color: '#3897F0',
     fontFamily: Fonts.semiBold,
     fontSize: 15.5,
+  },
+  rowSublabel: {
+    fontSize: 12.5,
+    fontFamily: Fonts.regular,
+  },
+  blueDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#3797EF',
+    marginLeft: 8,
+    marginRight: 2,
+    alignSelf: 'center',
   },
 });
