@@ -324,7 +324,7 @@ export default function SettingsScreen() {
       {
         title: 'Your insights and tools',
         items: [
-          { id: 'account_type', icon: 'bar-chart', iconType: 'feather', label: 'Account type and tools', onPress: () => handleComingSoon('Account type and tools') },
+          { id: 'account_type', icon: 'bar-chart', iconType: 'feather', label: 'Account type and tools', onPress: () => { haptics.light(); router.push('/account-type-tools' as any); } },
           { id: 'subscriptions', icon: 'refresh-cw', iconType: 'feather', label: 'Subscriptions', onPress: () => handleComingSoon('Subscriptions') },
         ],
       },
@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   accountsLabel: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16.5,
     marginBottom: 3,
   },
