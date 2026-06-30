@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,12 +10,13 @@ import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
-interface OptionItem {
+interface PermissionItem {
   id: string;
   label: string;
+  status: string;
 }
 
-export default function AppWebsitePermissionsScreen() {
+export default function DevicePermissionsSettingsScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
@@ -28,22 +29,25 @@ export default function AppWebsitePermissionsScreen() {
     });
   };
 
-  const handlePressOption = (item: OptionItem) => {
+  const handlePressOption = (item: PermissionItem) => {
     haptics.light();
-    if (item.id === 'apps_websites') {
-      router.push('/apps-websites' as any);
-    } else if (item.id === 'browser_settings') {
-      router.push('/browser-settings' as any);
-    } else if (item.id === 'message_links') {
-      router.push('/message-links' as any);
-    }
+    showToast({ 
+      message: `To change ${item.label.toLowerCase()} permission, please open system Settings -> Instagram`, 
+      type: 'info' 
+    });
   };
 
-  const options: OptionItem[] = [
-    { id: 'apps_websites', label: 'Apps and websites' },
-    { id: 'browser_settings', label: 'Browser settings' },
-    { id: 'message_links', label: 'Message Links' },
+  const permissions: PermissionItem[] = [
+    { id: 'camera', label: 'Camera', status: 'Not allowed' },
+    { id: 'contacts', label: 'Contacts', status: 'Allowed' },
+    { id: 'location', label: 'Location Services', status: 'Not allowed' },
+    { id: 'microphone', label: 'Microphone', status: 'Not allowed' },
+    { id: 'notifications', label: 'Notifications', status: 'Allowed' },
+    { id: 'photos', label: 'Photos and videos', status: 'Allowed · All' },
   ];
+
+  const sectionHeaderColor = isDark ? '#8E8E8F' : '#737373';
+  const textMuted = isDark ? '#A8A8A8' : '#737373';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -54,14 +58,20 @@ export default function AppWebsitePermissionsScreen() {
         <Pressable onPress={handleBack} hitSlop={12} style={styles.headerBackBtn}>
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>App website permissions</Text>
+        <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Device permissions</Text>
       </View>
 
-      <View style={styles.content}>
-        {options.map((item, index) => (
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Section Header */}
+        <Text style={[styles.sectionHeader, { color: sectionHeaderColor }]}>
+          Your preferences
+        </Text>
+
+        {/* List of Permissions */}
+        {permissions.map((item, index) => (
           <Animated.View
             key={item.id}
-            entering={FadeInDown.delay(index * 70).duration(350)}
+            entering={FadeInDown.delay(index * 60).duration(350)}
           >
             <Pressable
               onPress={() => handlePressOption(item)}
@@ -73,11 +83,16 @@ export default function AppWebsitePermissionsScreen() {
               <Text style={[styles.rowLabel, { color: isDark ? '#FFFFFF' : '#000000' }]}>
                 {item.label}
               </Text>
-              <Ionicons name="chevron-forward" size={16} color="#8E8E8F" />
+              <View style={styles.rightCol}>
+                <Text style={[styles.statusText, { color: textMuted }]}>
+                  {item.status}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#8E8E8F" />
+              </View>
             </Pressable>
           </Animated.View>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -108,21 +123,37 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: -0.4,
   },
-  content: {
-    paddingHorizontal: 16,
+  scrollContent: {
     paddingTop: 20,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14.5,
+    marginLeft: 12,
+    marginBottom: 16,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 12,
     borderRadius: 8,
+    marginBottom: 2,
   },
   rowLabel: {
     fontFamily: Fonts.regular,
     fontSize: 17,
     letterSpacing: -0.15,
+  },
+  rightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusText: {
+    fontFamily: Fonts.regular,
+    fontSize: 16,
   },
 });

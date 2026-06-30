@@ -307,11 +307,11 @@ export default function SettingsScreen() {
       {
         title: 'Your app and media',
         items: [
-          { id: 'permissions', icon: 'smartphone', iconType: 'feather', label: 'Device permissions', onPress: () => handleComingSoon('Device permissions') },
-          { id: 'archiving', icon: 'download', iconType: 'feather', label: 'Archiving and downloading', onPress: () => handleComingSoon('Archiving and downloading') },
-          { id: 'accessibility', icon: 'accessibility-outline', iconType: 'ionicons', label: 'Accessibility', onPress: () => handleComingSoon('Accessibility') },
-          { id: 'language', icon: 'globe', iconType: 'feather', label: 'Language and translations', onPress: () => handleComingSoon('Language and translations') },
-          { id: 'data_usage', icon: 'bar-chart-2', iconType: 'feather', label: 'Data usage and media quality', onPress: () => handleComingSoon('Data usage and media quality') },
+          { id: 'permissions', icon: 'smartphone', iconType: 'feather', label: 'Device permissions', onPress: () => { haptics.light(); router.push('/device-permissions-settings' as any); } },
+          { id: 'archiving', icon: 'download', iconType: 'feather', label: 'Archiving and downloading', onPress: () => { haptics.light(); router.push('/archive-download-settings' as any); } },
+          { id: 'accessibility', icon: 'accessibility-outline', iconType: 'ionicons', label: 'Accessibility', onPress: () => { haptics.light(); router.push('/accessibility' as any); } },
+          { id: 'language', icon: 'globe', iconType: 'feather', label: 'Language and translations', onPress: () => { haptics.light(); router.push('/language-settings' as any); } },
+          { id: 'data_usage', icon: 'bar-chart-2', iconType: 'feather', label: 'Data usage and media quality', onPress: () => { haptics.light(); router.push('/data-usage-settings' as any); } },
           { id: 'website_perms', icon: 'globe', iconType: 'feather', label: 'App website permissions', onPress: () => { haptics.light(); router.push('/app-website-permissions' as any); } },
         ],
       },
