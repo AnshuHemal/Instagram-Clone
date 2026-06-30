@@ -236,7 +236,7 @@ export default function SettingsScreen() {
   const handleOpenPlayStore = (packageName: string, appName: string) => {
     haptics.light();
     showToast({ message: `Opening ${appName}...`, type: 'info' });
-    const webUrl = `https://play.google.com/store/apps/details?id=${packageName}&hl=en_IN`;
+    const webUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
     Linking.openURL(webUrl).catch(() => {
       showToast({ message: 'Could not open store link.', type: 'error' });
     });
@@ -371,7 +371,7 @@ export default function SettingsScreen() {
             label: 'Edits',
             sublabel: 'Create videos with powerful editing tools',
             blueDot: true,
-            onPress: () => handleOpenPlayStore('com.instagram.base', 'Edits')
+            onPress: () => handleOpenPlayStore('com.instagram.basel', 'Edits')
           },
           {
             id: 'threads',
