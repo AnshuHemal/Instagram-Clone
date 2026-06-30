@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     lineHeight: 34,
     marginBottom: 8,
   },
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
   // Modal Bottom Sheet
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   sheetHeaderTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   sheetCloseBtn: {
     padding: 4,
@@ -469,6 +469,6 @@ const styles = StyleSheet.create({
   },
   countryCodeText: {
     fontSize: 15,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
 });

@@ -103,7 +103,7 @@ export const FeedHeader: React.FC = () => {
                 }}
               >
                 <Ionicons name="sparkles-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
-                <ThemedText style={[styles.dropdownOptionText, feedType === 'for_you' && { fontFamily: Fonts.bold, color: colors.primary }]}>
+                <ThemedText style={[styles.dropdownOptionText, feedType === 'for_you' && { fontFamily: Fonts.semiBold, color: colors.primary }]}>
                   For You
                 </ThemedText>
                 {feedType === 'for_you' && (
@@ -121,7 +121,7 @@ export const FeedHeader: React.FC = () => {
                 }}
               >
                 <Ionicons name="people-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
-                <ThemedText style={[styles.dropdownOptionText, feedType === 'following' && { fontFamily: Fonts.bold, color: colors.primary }]}>
+                <ThemedText style={[styles.dropdownOptionText, feedType === 'following' && { fontFamily: Fonts.semiBold, color: colors.primary }]}>
                   Following
                 </ThemedText>
                 {feedType === 'following' && (

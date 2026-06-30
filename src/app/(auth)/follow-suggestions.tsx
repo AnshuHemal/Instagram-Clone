@@ -204,7 +204,7 @@ export default function FollowSuggestionsScreen() {
         ) : suggestions.length === 0 ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }}>
             <Ionicons name="people-outline" size={48} color={isDark ? '#555555' : '#CCCCCC'} style={{ marginBottom: 12 }} />
-            <Text style={{ fontSize: 16, fontFamily: Fonts.bold, color: isDark ? '#FFFFFF' : '#000000', textAlign: 'center', marginBottom: 6 }}>
+            <Text style={{ fontSize: 16, fontFamily: Fonts.semiBold, color: isDark ? '#FFFFFF' : '#000000', textAlign: 'center', marginBottom: 6 }}>
               No Suggestions Found
             </Text>
             <Text style={{ fontSize: 14, fontFamily: Fonts.regular, color: isDark ? '#A8A8A8' : '#737373', textAlign: 'center' }}>
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 19.5,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     flex: 1,
     textAlign: 'center',
   },
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontSize: 15,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     maxWidth: '85%',
   },
   username: {
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   },
   followButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
 });

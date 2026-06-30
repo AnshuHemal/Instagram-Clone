@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   headerBtn: { padding: 8, width: 40 },
   headerTitle: {
     flex: 1,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
     textAlign: 'center',
     letterSpacing: -0.3,

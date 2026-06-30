@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   backTitleText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 10,
     color: '#8E8E93',
     letterSpacing: 1.0,
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   backUsernameText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
     color: '#000000',
     textAlign: 'center',
@@ -605,6 +605,6 @@ const styles = StyleSheet.create({
   topBar: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, height: 50, zIndex: 10 },
   topBarBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   topBarTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  topBarTitle: { fontFamily: Fonts.bold, fontSize: 18, color: '#000000' },
+  topBarTitle: { fontFamily: Fonts.semiBold, fontSize: 18, color: '#000000' },
   avatarContainer: { width: '100%', height: '100%', position: 'relative' },
 });

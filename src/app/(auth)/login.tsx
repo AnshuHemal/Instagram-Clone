@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
   forgotButton: {
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   },
   forgotButtonText: {
     fontSize: 15,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
 
   // Footer
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   dividerText: {
     paddingHorizontal: 16,
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.6,
   },
   createButton: {
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createButtonText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
   metaBranding: { alignItems: 'center', gap: 4, paddingBottom: 8 },
@@ -400,5 +400,5 @@ const styles = StyleSheet.create({
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   metaIcon: { width: 16, height: 16 },
-  metaText: { fontSize: 15, fontFamily: Fonts.bold, letterSpacing: 0.4 },
+  metaText: { fontSize: 15, fontFamily: Fonts.semiBold, letterSpacing: 0.4 },
 });

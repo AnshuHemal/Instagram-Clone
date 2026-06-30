@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   addAccountBtnText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
   },
   separator: {

@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     lineHeight: 36,
     marginBottom: 8,
   },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   usernameText: {
     fontSize: 17.5,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 4,
   },
   nameText: {
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
   facebookButton: {
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   facebookButtonText: {
     color: '#0064E0',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14.5,
   },
   // ── Modal Sheet ──
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 17,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     textAlign: 'center',
     marginBottom: 20,
     letterSpacing: -0.2,

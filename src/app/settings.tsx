@@ -291,7 +291,7 @@ export default function SettingsScreen() {
           { id: 'sharing', icon: 'repeat', iconType: 'feather', label: 'Sharing', onPress: () => { haptics.light(); router.push('/sharing-settings' as any); } },
           { id: 'restricted', icon: 'alert-circle', iconType: 'feather', label: 'Restricted', value: '0', onPress: () => { haptics.light(); router.push('/restricted-accounts' as any); } },
           { id: 'limit', icon: 'alert-triangle', iconType: 'feather', label: 'Limit interactions', value: 'Off', onPress: () => { haptics.light(); router.push('/limit-interactions' as any); } },
-          { id: 'words', icon: 'type', iconType: 'feather', label: 'Hidden Words', onPress: () => handleComingSoon('Hidden Words') },
+          { id: 'words', icon: 'type', iconType: 'feather', label: 'Hidden Words', onPress: () => { haptics.light(); router.push('/hidden-words' as any); } },
           { id: 'invite', icon: 'user-plus', iconType: 'feather', label: 'Follow and invite friends', onPress: () => { haptics.light(); router.push('/following-invites' as any); } },
         ],
       },
@@ -974,7 +974,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   accountsTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
   },
   metaRow: {
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   metaText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 13,
   },
   accountsRow: {
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
 
   // Sections
   sectionTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14.5,
     paddingHorizontal: 16,
     paddingTop: 20,
@@ -1111,7 +1111,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(128, 128, 128, 0.15)',
   },
   sheetTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
   },
   closeBtn: {
@@ -1213,7 +1213,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activitySummaryNum: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 20,
     marginBottom: 4,
   },
@@ -1257,7 +1257,7 @@ const styles = StyleSheet.create({
   },
   chartMin: {
     fontSize: 9,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#8E8E8F',
   },
 
@@ -1290,7 +1290,7 @@ const styles = StyleSheet.create({
   },
   timePillText: {
     fontSize: 11,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
 
   // 5. Close Friends Editor
@@ -1340,7 +1340,7 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15,
   },
 
@@ -1362,7 +1362,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   tabletTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 19,
     textAlign: 'center',
     marginBottom: 10,
@@ -1391,7 +1391,7 @@ const styles = StyleSheet.create({
   },
   tabletSaveBtnText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   tabletDoneBtn: {

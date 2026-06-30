@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 10,
     lineHeight: 24,
   },
@@ -96,12 +96,12 @@ const styles = StyleSheet.create({
   },
   buttonTextDiscard: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   buttonTextKeep: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
 });

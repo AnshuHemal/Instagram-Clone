@@ -324,11 +324,11 @@ const styles = StyleSheet.create({
   topBar: { height: 48, justifyContent: 'center', marginTop: 8 },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
   innerContainer: { flex: 1, marginTop: 10 },
-  title: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: Fonts.semiBold, marginBottom: 12 },
   subtitle: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 20, marginBottom: 24 },
   errorText: { color: '#FF3040', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 12 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
+  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.semiBold, fontSize: 15 },
   requirementsContainer: {
     marginTop: 12,
     gap: 8,
@@ -355,10 +355,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     lineHeight: 20,
   },
-  linkText: { color: '#0064E0', fontFamily: Fonts.bold },
+  linkText: { color: '#0064E0', fontFamily: Fonts.semiBold },
   footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
-  loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
+  loginLinkText: { color: '#0064E0', fontFamily: Fonts.semiBold, fontSize: 15 },
   // Confirmation Modal Styles
   confirmModalOverlay: {
     flex: 1,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   confirmModalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 10,
     lineHeight: 24,
   },
@@ -399,12 +399,12 @@ const styles = StyleSheet.create({
   },
   confirmModalButtonTextBlue: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   confirmModalButtonTextRed: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   accountModalOverlay: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   accountModalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 24,
     lineHeight: 24,
   },
@@ -440,13 +440,13 @@ const styles = StyleSheet.create({
   },
   accountModalButtonTextRed: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#FA3E3E',
     letterSpacing: 0.3,
   },
   accountModalButtonTextBlue: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#0064E0',
     letterSpacing: 0.3,
   },

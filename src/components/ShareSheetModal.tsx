@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 18,
     textAlign: 'center',
     letterSpacing: -0.3,

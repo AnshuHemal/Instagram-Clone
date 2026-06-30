@@ -332,6 +332,10 @@ function RootLayoutContent() {
           name="add-words-phrases"
           options={{ animation: 'slide_from_right', animationDuration: 250 }}
         />
+        <Stack.Screen
+          name="hidden-words"
+          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+        />
       </Stack>
       <LoadingOverlay />
       <OfflineBanner />

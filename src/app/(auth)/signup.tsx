@@ -380,18 +380,18 @@ const styles = StyleSheet.create({
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
   innerContainer: { flex: 1, marginTop: 10 },
   stepContent: { width: '100%' },
-  title: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: Fonts.semiBold, marginBottom: 12 },
   subtitle: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 20, marginBottom: 24 },
   helperText: { fontSize: 12, fontFamily: Fonts.regular, lineHeight: 18, marginTop: 12, marginBottom: 8 },
-  linkText: { color: '#0064E0', fontFamily: Fonts.bold },
+  linkText: { color: '#0064E0', fontFamily: Fonts.semiBold },
   errorText: { color: '#FF3040', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 12 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
+  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.semiBold, fontSize: 15 },
   secondaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%', marginTop: 12 },
-  secondaryButtonText: { fontFamily: Fonts.bold, fontSize: 15 },
+  secondaryButtonText: { fontFamily: Fonts.semiBold, fontSize: 15 },
   footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
-  loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
+  loginLinkText: { color: '#0064E0', fontFamily: Fonts.semiBold, fontSize: 15 },
   // Confirmation Modal Styles
   modalOverlay: {
     flex: 1,
@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 10,
     lineHeight: 24,
   },
@@ -432,12 +432,12 @@ const styles = StyleSheet.create({
   },
   modalButtonTextBlue: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   modalButtonTextRed: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   checkboxRow: {
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   },
   accountModalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 24,
     lineHeight: 24,
   },
@@ -485,13 +485,13 @@ const styles = StyleSheet.create({
   },
   accountModalButtonTextRed: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#FA3E3E',
     letterSpacing: 0.3,
   },
   accountModalButtonTextBlue: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#0064E0',
     letterSpacing: 0.3,
   },

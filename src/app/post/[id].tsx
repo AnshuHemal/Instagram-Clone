@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
     textAlign: 'center',
     letterSpacing: -0.3,
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   captionUsername: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
   },
   captionText: {
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   commentUsername: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 13,
   },
   commentText: {
@@ -1107,7 +1107,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   likedByTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
     textAlign: 'center',
   },

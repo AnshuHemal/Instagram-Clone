@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   bottomSheetTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   bottomSheetActionButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   switchTrack: {

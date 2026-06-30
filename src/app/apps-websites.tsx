@@ -82,7 +82,7 @@ export default function AppsWebsitesScreen() {
                 style={[
                   styles.tabLabel,
                   { color: isActive ? (isDark ? '#FFFFFF' : '#000000') : (isDark ? '#737373' : '#8E8E8F') },
-                  isActive && { fontFamily: Fonts.bold }
+                  isActive && { fontFamily: Fonts.semiBold }
                 ]}
               >
                 {label}
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   contentTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 25,
     marginBottom: 12,
     letterSpacing: -0.4,

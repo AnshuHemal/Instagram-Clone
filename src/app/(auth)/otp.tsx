@@ -423,13 +423,13 @@ const styles = StyleSheet.create({
   topBar: { height: 48, justifyContent: 'center', marginTop: 8 },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
   innerContainer: { flex: 1, marginTop: 10 },
-  title: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: Fonts.semiBold, marginBottom: 12 },
   subtitle: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 20, marginBottom: 24 },
   errorText: { color: '#FF3040', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 12 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
+  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.semiBold, fontSize: 15 },
   secondaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%', marginTop: 12 },
-  secondaryButtonText: { fontFamily: Fonts.bold, fontSize: 15 },
+  secondaryButtonText: { fontFamily: Fonts.semiBold, fontSize: 15 },
   
   // OTP Styles
   hiddenInput: {
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   },
   otpDigit: {
     fontSize: 22,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
 
   // Bottom Sheet Styles
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   },
   confirmModalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 10,
     lineHeight: 24,
   },
@@ -551,12 +551,12 @@ const styles = StyleSheet.create({
   },
   confirmModalButtonTextBlue: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   confirmModalButtonTextRed: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
 });

@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 16,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     textAlign: 'center',
     paddingVertical: 10,
   },
@@ -557,6 +557,6 @@ const styles = StyleSheet.create({
   newBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
 });

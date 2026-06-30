@@ -621,7 +621,7 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
               >
                 <Text style={[styles.replyBannerText, { color: colors.textSecondary }]}>
                   Replying to{' '}
-                  <Text style={{ color: colors.text, fontFamily: Fonts.bold }}>
+                  <Text style={{ color: colors.text, fontFamily: Fonts.semiBold }}>
                     @{replyTo}
                   </Text>
                 </Text>
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   sheetTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
     letterSpacing: -0.2,
   },
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   commentUsername: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
   },
   commentMeta: {
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   commentAction: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 12,
   },
   commentLikeBtn: {
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   emptyTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
   },
   emptySubtitle: {
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   postButtonText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
   },
 });

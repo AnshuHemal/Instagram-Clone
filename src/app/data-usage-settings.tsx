@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   sectionHeader: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17.5,
     marginBottom: 16,
     letterSpacing: -0.2,

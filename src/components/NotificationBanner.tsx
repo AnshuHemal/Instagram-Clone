@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
   },
   boldText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   body: {
     fontSize: 13,

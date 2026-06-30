@@ -626,16 +626,16 @@ const styles = StyleSheet.create({
   topBar: { height: 48, justifyContent: 'center', marginTop: 8 },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
   innerContainer: { flex: 1, marginTop: 10 },
-  title: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: Fonts.semiBold, marginBottom: 12 },
   subtitle: { fontSize: 14, fontFamily: Fonts.regular, lineHeight: 20, marginBottom: 24 },
   inputContainer: { marginTop: 4 },
   explanationLink: { alignSelf: 'flex-start', marginTop: 16 },
   linkText: { color: '#0064E0', fontFamily: Fonts.semiBold, fontSize: 14 },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
+  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.semiBold, fontSize: 15 },
   footerContainer: { width: '100%', alignItems: 'center', marginTop: 40, paddingBottom: 30 },
   loginLink: { paddingVertical: 12 },
-  loginLinkText: { color: '#0064E0', fontFamily: Fonts.bold, fontSize: 15 },
+  loginLinkText: { color: '#0064E0', fontFamily: Fonts.semiBold, fontSize: 15 },
   
   // Custom Date Picker Modal
   modalOverlay: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
   },
   sheetHeaderTitle: {
     fontSize: 16,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   sheetHeaderBtn: {
     paddingVertical: 4,
@@ -688,7 +688,7 @@ const styles = StyleSheet.create({
   },
   sheetHeaderBtnTextBlue: {
     fontSize: 15,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   
   // Scroller wheel container
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   },
   confirmModalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 10,
     lineHeight: 24,
   },
@@ -767,12 +767,12 @@ const styles = StyleSheet.create({
   },
   confirmModalButtonTextBlue: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   confirmModalButtonTextRed: {
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
   
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
   },
   explanationTitle: {
     fontSize: 22,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 12,
     textAlign: 'left',
   },
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   },
   accountModalTitle: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 24,
     lineHeight: 24,
   },
@@ -859,13 +859,13 @@ const styles = StyleSheet.create({
   },
   accountModalButtonTextRed: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#FA3E3E',
     letterSpacing: 0.3,
   },
   accountModalButtonTextBlue: {
     fontSize: 14,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     color: '#0064E0',
     letterSpacing: 0.3,
   },

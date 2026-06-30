@@ -919,7 +919,7 @@ const styles = StyleSheet.create({
   },
   username: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
     marginLeft: 10,
   },
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   stickerText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
 
   // Sticker input
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   viewersTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
     marginBottom: 14,
     textAlign: 'center',

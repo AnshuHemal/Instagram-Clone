@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   title: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 18,
     textAlign: 'center',
     letterSpacing: -0.3,

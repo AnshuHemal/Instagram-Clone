@@ -262,15 +262,15 @@ const styles = StyleSheet.create({
   topBar: { height: 48, justifyContent: 'center', marginTop: 8 },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'flex-start' },
   innerContainer: { flex: 1, marginTop: 10 },
-  title: { fontSize: 24, fontFamily: Fonts.bold, marginBottom: 12 },
+  title: { fontSize: 24, fontFamily: Fonts.semiBold, marginBottom: 12 },
   subtitle: { fontSize: 15, fontFamily: Fonts.regular, lineHeight: 20, marginBottom: 4 },
   helpLink: { marginBottom: 24 },
   helpLinkText: { color: '#0064E0', fontFamily: Fonts.semiBold, fontSize: 15 },
   inputContainer: { width: '100%' },
   primaryButton: { height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', width: '100%' },
-  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.bold, fontSize: 15 },
+  primaryButtonText: { color: '#FFFFFF', fontFamily: Fonts.semiBold, fontSize: 15 },
   switchModeButton: { alignSelf: 'center', marginTop: 24, paddingVertical: 8 },
-  switchModeText: { fontSize: 15, fontFamily: Fonts.bold },
+  switchModeText: { fontSize: 15, fontFamily: Fonts.semiBold },
   
   // Divider Styles
   dividerContainer: {
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   dividerText: {
     paddingHorizontal: 16,
     fontSize: 13,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
   },
 
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   },
   facebookButtonText: {
     fontSize: 15,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   
   // Help Bottom Sheet Styles
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   helpTitle: {
     fontSize: 22,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 12,
     textAlign: 'left',
     lineHeight: 28,

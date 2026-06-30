@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   modalTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 18,
     textAlign: 'center',
     letterSpacing: -0.3,

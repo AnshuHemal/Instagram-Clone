@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 16,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     textAlign: 'center',
   },
   closeBtn: {

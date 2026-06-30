@@ -299,7 +299,7 @@ export const PronounsModal: React.FC<PronounsModalProps> = ({
                           styles.languageText,
                           {
                             color: isSelected ? '#FFFFFF' : colors.text,
-                            fontFamily: isSelected ? Fonts.bold : Fonts.regular,
+                            fontFamily: isSelected ? Fonts.semiBold : Fonts.regular,
                           },
                         ]}
                       >
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
   },
   content: {
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   toggleTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15,
   },
   toggleSubtitle: {

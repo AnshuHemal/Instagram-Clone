@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#FFF',
     fontSize: 16,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   circleBtn: {
     width: 40,
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   },
   stickerUsername: {
     color: '#000000',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 13,
     marginLeft: 8,
     maxWidth: SCREEN_WIDTH * 0.45,
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   },
   shareBtnText: {
     color: '#000000',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15,
   },
 });

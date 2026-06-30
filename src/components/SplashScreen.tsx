@@ -55,7 +55,7 @@ const FromMetaLabel: React.FC<{ isDark: boolean }> = ({ isDark }) => {
             styles.metaText,
             {
               color: isDark ? '#FFFFFF' : '#0064E0',
-              fontFamily: Fonts.bold,
+              fontFamily: Fonts.semiBold,
             },
           ]}
         >

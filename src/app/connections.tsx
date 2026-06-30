@@ -579,7 +579,7 @@ export default function ConnectionsScreen() {
         ListHeaderComponent={
           <Animated.View entering={FadeInDown.duration(300)}>
             <ConnectionIllustration />
-            <ThemedText style={[styles.title, { color: colors.text, fontFamily: Fonts.bold }]}>
+            <ThemedText style={[styles.title, { color: colors.text, fontFamily: Fonts.semiBold }]}>
               {title}
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -641,7 +641,7 @@ export default function ConnectionsScreen() {
     }
     return (
       <Animated.View entering={FadeInDown.duration(350)} style={styles.flaggedContainer}>
-        <ThemedText style={[styles.titleFlagged, { color: colors.text, fontFamily: Fonts.bold }]}>
+        <ThemedText style={[styles.titleFlagged, { color: colors.text, fontFamily: Fonts.semiBold }]}>
           No flagged requests
         </ThemedText>
         <ThemedText style={[styles.subtitleFlagged, { color: colors.textSecondary }]}>
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 16.5,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   tabBarContainer: {
     height: 46,

@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
   },
   headerSpacer: {
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   sectionLabel: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14,
     marginBottom: 16,
   },
   mainTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 26,
     marginBottom: 8,
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   optionText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15,
   },
 });

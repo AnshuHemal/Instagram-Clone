@@ -153,7 +153,7 @@ const DrumPicker: React.FC<DrumPickerProps> = ({
             const isSelected = distance === 0;
             const opacity = isSelected ? 1 : 0.85;
             const fontSize = isSelected ? 19 : 15;
-            const fontFamily = isSelected ? Fonts.bold : Fonts.regular;
+            const fontFamily = isSelected ? Fonts.semiBold : Fonts.regular;
             const color = isSelected ? textSelected : textUnselected;
 
             return (
@@ -1063,7 +1063,7 @@ const styles = StyleSheet.create({
     height: 24,
   },
   metaText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 18,
     lineHeight: 22,
     marginLeft: 2,
@@ -1075,7 +1075,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     lineHeight: 28,
     marginBottom: 8,
   },
@@ -1091,7 +1091,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 15,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginTop: 20,
     marginBottom: 8,
   },
@@ -1184,7 +1184,7 @@ const bdStyles = StyleSheet.create({
   },
   heroDate: {
     fontSize: 21,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     marginBottom: 4,
   },
   heroAge: {
@@ -1273,7 +1273,7 @@ const editBdStyles = StyleSheet.create({
   },
   previewDate: {
     fontSize: 18,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   saveBtn: {
     marginHorizontal: 20,
@@ -1284,7 +1284,7 @@ const editBdStyles = StyleSheet.create({
   },
   saveBtnText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
     letterSpacing: 0.2,
   },
@@ -1306,7 +1306,7 @@ const contactStyles = StyleSheet.create({
   },
   deleteText: {
     color: '#FF3B30',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   addBtn: {
@@ -1317,7 +1317,7 @@ const contactStyles = StyleSheet.create({
   },
   addBtnText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   visibilityRow: {

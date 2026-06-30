@@ -1883,7 +1883,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   headerUsername: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
     maxWidth: SCREEN_WIDTH * 0.45,
   },
@@ -1969,7 +1969,7 @@ const styles = StyleSheet.create({
     minWidth: 70,
   },
   statCount: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
     lineHeight: 22,
   },
@@ -2207,7 +2207,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 22,
     textAlign: 'center',
     lineHeight: 28,
@@ -2321,7 +2321,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   // ── Mutual followers ──

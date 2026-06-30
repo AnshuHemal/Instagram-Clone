@@ -246,7 +246,7 @@ export default function HashtagScreen() {
                 onPress={() => { haptics.selection(); setActiveTab(tab); }}
                 style={[styles.tabBtn, activeTab === tab && { borderBottomColor: colors.text, borderBottomWidth: 2 }]}
               >
-                <Text style={[styles.tabLabel, { color: activeTab === tab ? colors.text : colors.textSecondary, fontFamily: activeTab === tab ? Fonts.bold : Fonts.regular }]}>
+                <Text style={[styles.tabLabel, { color: activeTab === tab ? colors.text : colors.textSecondary, fontFamily: activeTab === tab ? Fonts.semiBold : Fonts.regular }]}>
                   {tab === 'posts' ? 'Posts' : 'Reels'}
                 </Text>
               </Pressable>
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   navBtn: { padding: 8, width: 40 },
   navTitle: {
     flex: 1,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
     textAlign: 'center',
     letterSpacing: -0.3,
@@ -361,12 +361,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hashtagIconText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 38,
     color: '#FFF',
   },
   hashtagTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 26,
     letterSpacing: -0.5,
   },

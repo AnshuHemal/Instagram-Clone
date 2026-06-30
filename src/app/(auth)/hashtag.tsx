@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   // Hashtag Header
   hashtagHeader: { alignItems: 'center', paddingVertical: 24, gap: 8 },
   hashtagIcon: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
-  hashtagTitle: { fontSize: 24, fontFamily: Fonts.bold },
+  hashtagTitle: { fontSize: 24, fontFamily: Fonts.semiBold },
   hashtagCount: { fontSize: 14, fontFamily: Fonts.regular },
 
   // Grid
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 6, left: 6, right: 6,
   },
   gridStats: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  gridStatText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.bold },
+  gridStatText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.semiBold },
 
   // States
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 100 },

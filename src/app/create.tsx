@@ -1284,7 +1284,7 @@ export default function CreateScreen() {
           {/* Active pill indicator */}
           <View style={styles.modePillWrap}>
             <View style={[styles.modePillActive, { backgroundColor: isDarkTheme ? '#2C2C2E' : '#F0F0F0' }]}>
-              <ThemedText style={[styles.modeTabText, { color: colors.text, fontFamily: Fonts.bold }]}>
+              <ThemedText style={[styles.modeTabText, { color: colors.text, fontFamily: Fonts.semiBold }]}>
                 POST
               </ThemedText>
             </View>
@@ -1333,7 +1333,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerButton: { padding: 5, minWidth: 44, justifyContent: 'center' },
-  headerTitle: { fontFamily: Fonts.bold, fontSize: 18 },
+  headerTitle: { fontFamily: Fonts.semiBold, fontSize: 18 },
   scrollContent: { paddingBottom: 20 },
 
   // ── POST preview ──
@@ -1378,11 +1378,11 @@ const styles = StyleSheet.create({
   uploadOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0, 0, 0, 0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
   uploadCard: { width: 290, padding: 24, borderRadius: 20, alignItems: 'center', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   uploadIconRing: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-  uploadTitle: { fontFamily: Fonts.bold, fontSize: 16.5, textAlign: 'center' },
+  uploadTitle: { fontFamily: Fonts.semiBold, fontSize: 16.5, textAlign: 'center' },
   uploadSubtitle: { fontSize: 13, fontFamily: Fonts.regular },
   progressTrack: { width: '100%', height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 8 },
   progressFill: { height: '100%', borderRadius: 3 },
-  uploadPercent: { fontFamily: Fonts.bold, fontSize: 17 },
+  uploadPercent: { fontFamily: Fonts.semiBold, fontSize: 17 },
 
   // ── MediaPickStep ──
   pickScreen: { flex: 1, backgroundColor: '#000' },
@@ -1414,7 +1414,7 @@ const styles = StyleSheet.create({
   },
   pickModeActiveText: {
     color: '#FFF', fontSize: 13,
-    fontFamily: Fonts.bold, letterSpacing: 0.6,
+    fontFamily: Fonts.semiBold, letterSpacing: 0.6,
   },
 
   // center hint
@@ -1430,7 +1430,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginBottom: 18,
   },
   pickCenterTitle: {
-    color: '#FFF', fontSize: 24, fontFamily: Fonts.bold,
+    color: '#FFF', fontSize: 24, fontFamily: Fonts.semiBold,
     textAlign: 'center', marginBottom: 10,
   },
   pickCenterSub: {
@@ -1467,7 +1467,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', gap: 6,
     backgroundColor: '#0095F6', paddingVertical: 15, borderRadius: 16,
   },
-  pickNextBtnText: { color: '#FFF', fontSize: 16, fontFamily: Fonts.bold },
+  pickNextBtnText: { color: '#FFF', fontSize: 16, fontFamily: Fonts.semiBold },
 
   // kept for safety (legacy refs)
   gradientBorder: { ...StyleSheet.absoluteFill as any },
@@ -1484,7 +1484,7 @@ const styles = StyleSheet.create({
   pickBtnText: { color: '#FFF', fontFamily: Fonts.semiBold, fontSize: 15 },
   nextBtnWrapper: { marginTop: 8 },
   nextBtn: { backgroundColor: '#0095F6', paddingVertical: 14, paddingHorizontal: 48, borderRadius: 28 },
-  nextBtnText: { color: '#FFF', fontFamily: Fonts.bold, fontSize: 16 },
+  nextBtnText: { color: '#FFF', fontFamily: Fonts.semiBold, fontSize: 16 },
   switchToPostLink: { marginTop: 20 },
   switchToPostText: { color: 'rgba(255,255,255,0.6)', fontFamily: Fonts.regular, fontSize: 14 },
 
@@ -1541,8 +1541,8 @@ const styles = StyleSheet.create({
   processingContent: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 28, paddingHorizontal: 24 },
   ringWrapper: { position: 'relative', justifyContent: 'center', alignItems: 'center' },
   ringCenter: { position: 'absolute', justifyContent: 'center', alignItems: 'center' },
-  processingStatusText: { fontSize: 20, fontFamily: Fonts.bold, textAlign: 'center' },
-  processingProgressText: { fontSize: 32, fontFamily: Fonts.bold, textAlign: 'center', marginTop: 4 },
+  processingStatusText: { fontSize: 20, fontFamily: Fonts.semiBold, textAlign: 'center' },
+  processingProgressText: { fontSize: 32, fontFamily: Fonts.semiBold, textAlign: 'center', marginTop: 4 },
   processingActions: { flexDirection: 'column', gap: 12, width: '100%' },
   actionBtn: {
     width: '100%',
@@ -1550,5 +1550,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
-  actionBtnText: { color: '#FFF', fontFamily: Fonts.bold, fontSize: 16 },
+  actionBtnText: { color: '#FFF', fontFamily: Fonts.semiBold, fontSize: 16 },
 });

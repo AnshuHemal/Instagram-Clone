@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   toastTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 14.5,
     lineHeight: 18,
   },

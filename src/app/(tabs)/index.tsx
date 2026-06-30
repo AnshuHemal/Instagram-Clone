@@ -469,7 +469,7 @@ export default function FeedScreen({ isTabActive = true }: { isTabActive?: boole
                 Suggested for you
               </ThemedText>
               <Pressable onPress={() => router.push('/(auth)/follow-suggestions')}>
-                <ThemedText style={{ color: '#0095F6', fontFamily: Fonts.bold, fontSize: 13.5 }}>
+                <ThemedText style={{ color: '#0095F6', fontFamily: Fonts.semiBold, fontSize: 13.5 }}>
                   See All
                 </ThemedText>
               </Pressable>
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
   },
   tutorialTitle: {
     fontSize: 22,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     textAlign: 'center',
     lineHeight: 28,
     marginBottom: 10,
@@ -889,7 +889,7 @@ const styles = StyleSheet.create({
   },
   tutorialButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
   gradientRing: {
@@ -924,7 +924,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   emptyFeedTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 20,
     marginTop: 12,
     textAlign: 'center',
@@ -949,7 +949,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   suggestionsSectionTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15,
   },
   suggestionsCarouselList: {
@@ -987,7 +987,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   suggestionFeedUsername: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 12.5,
     textAlign: 'center',
     maxWidth: '80%',
@@ -1007,7 +1007,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   suggestionFeedFollowBtnText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 12,
   },
   emptyFeedPlaceholderContainer: {

@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   smallBold: {
     fontSize: 14,
     lineHeight: 20,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   default: {
     fontSize: 16,

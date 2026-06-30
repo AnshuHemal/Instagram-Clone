@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dropdownText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 18,
   },
   headerBtnPlaceholder: {
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
   doneText: {
     color: '#0095F6',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   onboardingBody: {
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 21,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     textAlign: 'center',
     lineHeight: 28,
   },
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loadingProgress: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 20,
     color: '#0095F6',
   },

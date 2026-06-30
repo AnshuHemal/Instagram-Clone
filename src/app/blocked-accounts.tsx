@@ -167,7 +167,7 @@ export default function BlockedAccountsScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
             <Ionicons name="person-remove-outline" size={44} color={isDark ? '#555' : '#BDBDBD'} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.text, fontFamily: Fonts.bold }]}>
+          <Text style={[styles.emptyTitle, { color: colors.text, fontFamily: Fonts.semiBold }]}>
             No blocked accounts
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontFamily: Fonts.regular }]}>
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   headerBtn: { padding: 8, width: 40 },
   headerTitle: {
     flex: 1,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 17,
     textAlign: 'center',
     letterSpacing: -0.3,

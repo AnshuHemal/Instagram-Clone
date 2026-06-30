@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   usernameText: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 23,
     marginBottom: 12,
     letterSpacing: -0.3,

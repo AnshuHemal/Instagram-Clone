@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     width: 30,
   },
   headerTitle: {
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
   },
   searchContainer: {

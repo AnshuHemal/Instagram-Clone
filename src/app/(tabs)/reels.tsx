@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 20,
     marginBottom: 8,
   },
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   },
   reelsTitle: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 22,
     letterSpacing: -0.3,
     textShadowColor: 'rgba(0,0,0,0.35)',

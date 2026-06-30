@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     lineHeight: 36,
     marginBottom: 36,
     letterSpacing: -0.5,
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
     fontSize: 15.5,
   },
 });

@@ -589,7 +589,7 @@ export default function ExploreScreen() {
               {exploreCategory === 'for_you' && trendingSounds.length > 0 && (
                 <Animated.View entering={FadeInDown.duration(250)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 }}>
-                    <Text style={{ fontFamily: Fonts.bold, fontSize: 15, color: colors.text }}>Trending Sounds</Text>
+                    <Text style={{ fontFamily: Fonts.semiBold, fontSize: 15, color: colors.text }}>Trending Sounds</Text>
                   </View>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 4, gap: 10 }}>
                     {trendingSounds.map((sound, idx) => (
@@ -690,14 +690,14 @@ const styles = StyleSheet.create({
   // History
   historyContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
   historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  historyTitle: { fontSize: 16, fontFamily: Fonts.bold },
+  historyTitle: { fontSize: 16, fontFamily: Fonts.semiBold },
   clearHistoryText: { color: '#0095F6', fontSize: 14, fontFamily: Fonts.medium },
   historyItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   historyText: { flex: 1, fontSize: 15, fontFamily: Fonts.regular },
 
   // Section
   sectionHeader: { paddingHorizontal: 15, paddingTop: 8, paddingBottom: 12 },
-  sectionTitle: { fontSize: 18, fontFamily: Fonts.bold },
+  sectionTitle: { fontSize: 18, fontFamily: Fonts.semiBold },
   sectionSubtitle: { fontSize: 13, fontFamily: Fonts.regular, marginTop: 2 },
 
   // Grid
@@ -708,7 +708,7 @@ const styles = StyleSheet.create({
   indicatorIcon: { backgroundColor: 'rgba(0,0,0,0.5)', padding: 4, borderRadius: 4, overflow: 'hidden' },
   gridBottomOverlay: { position: 'absolute', bottom: 6, left: 6, right: 6 },
   gridStats: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  gridStatText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.bold },
+  gridStatText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.semiBold },
 
   // Tabs
   tabsContainer: { flexDirection: 'row', borderBottomWidth: 0.5, height: 44 },
@@ -726,19 +726,19 @@ const styles = StyleSheet.create({
   userTextColumn: { flex: 1, justifyContent: 'center' },
   usernameRow: { flexDirection: 'row', alignItems: 'center' },
   followBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  followBtnText: { fontSize: 12, fontFamily: Fonts.bold },
+  followBtnText: { fontSize: 12, fontFamily: Fonts.semiBold },
 
   // Tag search results
   tagItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   tagIconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  tagIconText: { fontSize: 22, fontFamily: Fonts.bold },
+  tagIconText: { fontSize: 22, fontFamily: Fonts.semiBold },
   tagTextColumn: { flex: 1, justifyContent: 'center' },
 
   // Modal
   modalContainer: { flex: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, paddingVertical: 12, borderBottomWidth: 0.5 },
   backButton: { padding: 5 },
-  modalTitle: { fontFamily: Fonts.bold },
+  modalTitle: { fontFamily: Fonts.semiBold },
 
   // Category pills
   categoryPill: {
