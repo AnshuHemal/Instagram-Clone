@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { SocketProvider } from '@/contexts/SocketContext';
 import { StoriesProvider } from '@/contexts/StoriesContext';
@@ -119,6 +119,7 @@ export default function RootLayout() {
 
 function RootLayoutContent() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   // Handle notification taps: navigate to notifications screen
   useEffect(() => {
@@ -153,7 +154,7 @@ function RootLayoutContent() {
 
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
@@ -162,303 +163,327 @@ function RootLayoutContent() {
         <Stack.Screen name="create-story" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen
           name="connections"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="notifications"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="edit-profile"
-          options={{ animation: 'fade', animationDuration: 200 }}
+          options={{ animation: 'fade' }}
         />
         <Stack.Screen
           name="post/[id]"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="edit-post/[id]"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="hashtag/[tag]"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="reel/[id]"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="account-privacy"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="blocked-accounts"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="notification-preferences"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="sharing-across-apps"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="friends-feed-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="account-status"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="features-you-cant-use"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="under-18-availability"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="removed-content-status"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="about"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="about-profile"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="account-type-tools"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="app-website-permissions"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="apps-websites"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="message-links"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="browser-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="data-usage-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="language-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="accessibility"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="dark-mode-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="closed-captions"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="archive-download-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="device-permissions-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="device-permission-detail"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="like-share-counts"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="following-invites"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="limit-interactions"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="sharing-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="comments-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="tags-mentions-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="restricted-accounts"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="content-preferences"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="sensitive-content-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="political-content-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="add-words-phrases"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="hidden-words"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="review-tags"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="tagged-posts"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="pending-tags"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="messages-story-replies"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="story-replies-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="activity-status-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="read-receipts-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="security-alerts-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="message-requests-settings"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="message-deliver-followers"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="message-deliver-others"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="group-chat-add"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="story-live-location"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="hide-story-from"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="location-sharing-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="blocked-suggestions"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="close-friends-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="favorites-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="your-activity-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="saved-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="likes-activity-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="comments-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="reposts-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="stickers-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="reviews-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="deleted-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="posts-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="reels-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="highlights-activity"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="account-history-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="link-history-control"
-          options={{ animation: 'slide_from_right', animationDuration: 250 }}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="not-interested-control"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="interested-control"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="recent-searches-control"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="watch-history-control"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="archived-activity"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="muted-accounts-control"
+          options={{ animation: 'slide_from_right' }}
         />
       </Stack>
       <LoadingOverlay />

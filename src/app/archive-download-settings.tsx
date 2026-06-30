@@ -63,10 +63,8 @@ export default function ArchiveDownloadSettingsScreen() {
   const [saveStoryGallery, setSaveStoryGallery] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleLinkPress = (url: string, label: string) => {

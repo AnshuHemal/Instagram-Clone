@@ -61,10 +61,8 @@ export default function MessageLinksScreen() {
   const [openExternal, setOpenExternal] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleSwitchToggle = (newVal: boolean) => {

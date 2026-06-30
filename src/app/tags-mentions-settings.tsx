@@ -143,8 +143,8 @@ export default function TagsMentionsSettingsScreen() {
   const [boostStories, setBoostStories] = useState(true);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleReviewTags = () => {

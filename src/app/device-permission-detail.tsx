@@ -114,10 +114,8 @@ export default function DevicePermissionDetailScreen() {
   const config = configs[permissionId] || configs.camera;
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleLinkPress = () => {

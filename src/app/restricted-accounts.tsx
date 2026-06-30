@@ -30,8 +30,8 @@ export default function RestrictedAccountsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleLearnMore = () => {

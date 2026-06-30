@@ -19,10 +19,8 @@ export default function AboutProfileScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleOpenGuidelines = () => {

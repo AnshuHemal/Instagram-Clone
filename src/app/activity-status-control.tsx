@@ -88,8 +88,8 @@ export default function ActivityStatusControlScreen() {
   const [activityStatus, setActivityStatus] = useState(true);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleLearnMore = () => {

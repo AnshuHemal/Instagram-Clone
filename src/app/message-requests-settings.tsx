@@ -88,8 +88,8 @@ export default function MessageRequestsSettingsScreen() {
   const [hideRequests, setHideRequests] = useState(false);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleLearnMore = () => {

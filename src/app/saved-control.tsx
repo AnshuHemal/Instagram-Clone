@@ -28,8 +28,8 @@ export default function SavedControlScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('All');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleAddCollection = () => {

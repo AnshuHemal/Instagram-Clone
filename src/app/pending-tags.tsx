@@ -17,8 +17,8 @@ export default function PendingTagsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleManageSettings = () => {

@@ -36,10 +36,8 @@ export default function DarkModeSettingsScreen() {
   }, [theme, systemScheme]);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleSelectMode = (mode: ModeOption) => {

@@ -17,8 +17,8 @@ export default function ReviewTagsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handlePressOption = (option: string) => {

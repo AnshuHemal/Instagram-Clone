@@ -61,10 +61,8 @@ export default function DataUsageSettingsScreen() {
   const [uploadHighest, setUploadHighest] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleHighResMediaPress = () => {

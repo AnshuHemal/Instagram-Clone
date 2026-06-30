@@ -63,10 +63,8 @@ export default function FollowingInvitesScreen() {
   const [confirmFollow, setConfirmFollow] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleSwitchChange = (val: boolean) => {

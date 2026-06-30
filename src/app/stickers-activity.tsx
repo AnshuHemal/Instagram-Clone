@@ -16,8 +16,8 @@ export default function StickersActivityScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const divColor = isDark ? '#262626' : '#DBDBDB';

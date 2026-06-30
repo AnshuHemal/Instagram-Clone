@@ -50,8 +50,8 @@ export default function HideStoryFromScreen() {
   );
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSave = () => {

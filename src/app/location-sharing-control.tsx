@@ -88,8 +88,8 @@ export default function LocationSharingControlScreen() {
   const [shareLocation, setShareLocation] = useState(false);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSelectVisibility = () => {

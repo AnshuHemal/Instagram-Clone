@@ -16,10 +16,8 @@ export default function SharingAcrossAppsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleAction = (feature: string) => {

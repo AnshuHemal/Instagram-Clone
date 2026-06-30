@@ -5,22 +5,21 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Modal,
   FlatList,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { InstagramBottomSheet } from '@/components/InstagramBottomSheet';
 
 type SortOption = 'Newest to oldest' | 'Oldest to newest';
-type DateOption = 'All dates' | 'Last week' | 'Last month' | 'Last year';
-type UpdateTypeOption = 'All updates' | 'Privacy changes' | 'Email changes' | 'Account status';
+type DateOption = 'All dates' | 'Past week' | 'Past month' | 'Past year' | 'Date range';
 
 interface HistoryItem {
   id: string;
@@ -89,6 +88,24 @@ const mockHistoryData: GroupedHistory[] = [
   },
 ];
 
+interface UpdateTypeItem {
+  name: string;
+  icon: string;
+}
+
+const updateTypesList: UpdateTypeItem[] = [
+  { name: 'Account created', icon: 'info' },
+  { name: 'Bio', icon: 'edit-2' },
+  { name: 'Email', icon: 'mail' },
+  { name: 'Messaging', icon: 'message-circle' },
+  { name: 'Name', icon: 'user' },
+  { name: 'Password', icon: 'key' },
+  { name: 'Phone', icon: 'phone' },
+  { name: 'Privacy', icon: 'eye' },
+  { name: 'Username', icon: 'at-sign' },
+  { name: 'Website', icon: 'link' },
+];
+
 export default function AccountHistoryControlScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
@@ -97,13 +114,14 @@ export default function AccountHistoryControlScreen() {
 
   const [sortOrder, setSortOrder] = useState<SortOption>('Newest to oldest');
   const [dateRange, setDateRange] = useState<DateOption>('All dates');
-  const [updateType, setUpdateType] = useState<UpdateTypeOption>('All updates');
+  const [selectedUpdateTypes, setSelectedUpdateTypes] = useState<string[]>([]);
+  const [appliedUpdateTypeLabel, setAppliedUpdateTypeLabel] = useState<string>('Update type');
 
   const [activeModal, setActiveModal] = useState<'sort' | 'date' | 'type' | null>(null);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const selectSortOption = (opt: SortOption) => {
@@ -115,25 +133,75 @@ export default function AccountHistoryControlScreen() {
 
   const selectDateOption = (opt: DateOption) => {
     haptics.medium();
+    if (opt === 'Date range') {
+      setActiveModal(null);
+      showToast({ message: 'Custom date range picker coming soon', type: 'info' });
+      return;
+    }
     setDateRange(opt);
     setActiveModal(null);
     showToast({ message: `Date filter: ${opt}`, type: 'success' });
   };
 
-  const selectUpdateTypeOption = (opt: UpdateTypeOption) => {
-    haptics.medium();
-    setUpdateType(opt);
-    setActiveModal(null);
-    showToast({ message: `Update type: ${opt}`, type: 'success' });
+  const toggleUpdateType = (name: string) => {
+    haptics.light();
+    if (selectedUpdateTypes.includes(name)) {
+      setSelectedUpdateTypes((prev) => prev.filter((t) => t !== name));
+    } else {
+      setSelectedUpdateTypes((prev) => [...prev, name]);
+    }
   };
+
+  const clearUpdateTypes = () => {
+    haptics.medium();
+    setSelectedUpdateTypes([]);
+  };
+
+  const applyUpdateTypes = () => {
+    haptics.medium();
+    setActiveModal(null);
+    if (selectedUpdateTypes.length === 0) {
+      setAppliedUpdateTypeLabel('Update type');
+    } else if (selectedUpdateTypes.length === 1) {
+      setAppliedUpdateTypeLabel(selectedUpdateTypes[0]);
+    } else {
+      setAppliedUpdateTypeLabel(`${selectedUpdateTypes.length} updates`);
+    }
+    showToast({ message: 'Applied update type filters', type: 'success' });
+  };
+
+  // Custom radio UI component
+  const renderRadio = (selected: boolean) => (
+    <View
+      style={[
+        styles.radioOuter,
+        { borderColor: selected ? (isDark ? '#FFFFFF' : '#000000') : (isDark ? '#444444' : '#C7C7CC') },
+      ]}
+    >
+      {selected && <View style={[styles.radioInner, { backgroundColor: isDark ? '#FFFFFF' : '#000000' }]} />}
+    </View>
+  );
+
+  // Custom checkbox UI component
+  const renderCheckbox = (selected: boolean) => (
+    <View
+      style={[
+        styles.checkboxOuter,
+        {
+          borderColor: selected ? '#3897F0' : (isDark ? '#444444' : '#C7C7CC'),
+          backgroundColor: selected ? '#3897F0' : 'transparent',
+        },
+      ]}
+    >
+      {selected && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+    </View>
+  );
 
   const divColor = isDark ? '#262626' : '#DBDBDB';
   const labelColor = isDark ? '#FFFFFF' : '#000000';
   const descColor = isDark ? '#737373' : '#8E8E8F';
   const pillBg = isDark ? '#1C1C1E' : '#F5F5F5';
   const pillBorderColor = isDark ? '#333333' : '#EAEAEA';
-  const modalOverlayBg = 'rgba(0,0,0,0.5)';
-  const modalContentBg = isDark ? '#1C1C1E' : '#FFFFFF';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -185,7 +253,9 @@ export default function AccountHistoryControlScreen() {
             onPress={() => { haptics.light(); setActiveModal('type'); }}
             style={[styles.pill, { backgroundColor: pillBg, borderColor: pillBorderColor }]}
           >
-            <Text style={[styles.pillText, { color: labelColor }]}>{updateType}</Text>
+            <Text numberOfLines={1} style={[styles.pillText, { color: labelColor, maxWidth: 120 }]}>
+              {appliedUpdateTypeLabel}
+            </Text>
             <Feather name="chevron-down" size={14} color={labelColor} style={styles.pillIcon} />
           </Pressable>
         </ScrollView>
@@ -207,20 +277,14 @@ export default function AccountHistoryControlScreen() {
         }
         renderItem={({ item: section, index: sIdx }) => (
           <Animated.View entering={FadeInDown.delay(100 + sIdx * 50).duration(250)} style={styles.sectionContainer}>
-            <Text style={[styles.sectionTitle, { color: labelColor }]}>{section.sectionTitle}</Text>
+            <Text style={[styles.sectionTitleLabel, { color: labelColor }]}>{section.sectionTitle}</Text>
             <View style={styles.listCard}>
               {section.data.map((item, index) => (
                 <View key={item.id}>
                   {index > 0 && (
                     <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
                   )}
-                  <Pressable
-                    onPress={() => showToast({ message: `History item: ${item.title}`, type: 'info' })}
-                    style={({ pressed }) => [
-                      styles.row,
-                      pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
-                    ]}
-                  >
+                  <View style={styles.row}>
                     {/* Circle icon */}
                     <View style={[styles.iconCircle, { backgroundColor: isDark ? '#262626' : '#F5F5F5' }]}>
                       {item.iconName === 'eye' ? (
@@ -240,9 +304,7 @@ export default function AccountHistoryControlScreen() {
                         <Text style={[styles.timeText, { color: descColor }]}>{item.time}</Text>
                       </Text>
                     </View>
-
-                    <Ionicons name="chevron-forward" size={16} color={isDark ? '#555555' : '#C7C7CC'} />
-                  </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -250,61 +312,112 @@ export default function AccountHistoryControlScreen() {
         )}
       />
 
-      {/* Modals */}
-      {/* Sort Modal */}
-      <Modal visible={activeModal === 'sort'} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
-            <Text style={[styles.modalTitle, { color: labelColor }]}>Sort order</Text>
-            <Pressable onPress={() => selectSortOption('Newest to oldest')} style={styles.modalOption}>
-              <Text style={[styles.optionText, { color: labelColor, fontFamily: sortOrder === 'Newest to oldest' ? Fonts.semiBold : Fonts.regular }]}>
-                Newest to oldest
-              </Text>
-              {sortOrder === 'Newest to oldest' && <Ionicons name="checkmark" size={20} color="#3897F0" />}
-            </Pressable>
-            <Pressable onPress={() => selectSortOption('Oldest to newest')} style={styles.modalOption}>
-              <Text style={[styles.optionText, { color: labelColor, fontFamily: sortOrder === 'Oldest to newest' ? Fonts.semiBold : Fonts.regular }]}>
-                Oldest to newest
-              </Text>
-              {sortOrder === 'Oldest to newest' && <Ionicons name="checkmark" size={20} color="#3897F0" />}
-            </Pressable>
-          </Animated.View>
-        </Pressable>
-      </Modal>
+      {/* ─────────────────────────────────────────────
+          REUSABLE INSTAGRAM BOTTOM SHEETS
+          ───────────────────────────────────────────── */}
 
-      {/* Date Modal */}
-      <Modal visible={activeModal === 'date'} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
-            <Text style={[styles.modalTitle, { color: labelColor }]}>Select dates</Text>
-            {(['All dates', 'Last week', 'Last month', 'Last year'] as DateOption[]).map((opt) => (
-              <Pressable key={opt} onPress={() => selectDateOption(opt)} style={styles.modalOption}>
-                <Text style={[styles.optionText, { color: labelColor, fontFamily: dateRange === opt ? Fonts.semiBold : Fonts.regular }]}>
-                  {opt}
-                </Text>
-                {dateRange === opt && <Ionicons name="checkmark" size={20} color="#3897F0" />}
-              </Pressable>
-            ))}
-          </Animated.View>
-        </Pressable>
-      </Modal>
+      {/* Sort Sheet */}
+      <InstagramBottomSheet
+        visible={activeModal === 'sort'}
+        onClose={() => setActiveModal(null)}
+        title="Sort by"
+        fullHeight={true}
+      >
+        <View style={[styles.sheetContent, { flex: 1, paddingBottom: insets.bottom + 12 }]}>
+          <Pressable onPress={() => selectSortOption('Newest to oldest')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>Newest to oldest</Text>
+            {renderRadio(sortOrder === 'Newest to oldest')}
+          </Pressable>
+          <Pressable onPress={() => selectSortOption('Oldest to newest')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>Oldest to newest</Text>
+            {renderRadio(sortOrder === 'Oldest to newest')}
+          </Pressable>
+        </View>
+      </InstagramBottomSheet>
 
-      {/* Update Type Modal */}
-      <Modal visible={activeModal === 'type'} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
-            <Text style={[styles.modalTitle, { color: labelColor }]}>Update type</Text>
-            {(['All updates', 'Privacy changes', 'Email changes', 'Account status'] as UpdateTypeOption[]).map((opt) => (
-              <Pressable key={opt} onPress={() => selectUpdateTypeOption(opt)} style={styles.modalOption}>
-                <Text style={[styles.optionText, { color: labelColor, fontFamily: updateType === opt ? Fonts.semiBold : Fonts.regular }]}>
-                  {opt}
-                </Text>
-                {updateType === opt && <Ionicons name="checkmark" size={20} color="#3897F0" />}
-              </Pressable>
-            ))}
-          </Animated.View>
-        </Pressable>
-      </Modal>
+      {/* Date Sheet */}
+      <InstagramBottomSheet
+        visible={activeModal === 'date'}
+        onClose={() => setActiveModal(null)}
+        title="Filter by date"
+        fullHeight={true}
+      >
+        <View style={[styles.sheetContent, { flex: 1, paddingBottom: insets.bottom + 12 }]}>
+          <Pressable onPress={() => selectDateOption('All dates')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>All dates</Text>
+            {renderRadio(dateRange === 'All dates')}
+          </Pressable>
+          <Pressable onPress={() => selectDateOption('Past week')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>Past week</Text>
+            {renderRadio(dateRange === 'Past week')}
+          </Pressable>
+          <Pressable onPress={() => selectDateOption('Past month')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>Past month</Text>
+            {renderRadio(dateRange === 'Past month')}
+          </Pressable>
+          <Pressable onPress={() => selectDateOption('Past year')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>Past year</Text>
+            {renderRadio(dateRange === 'Past year')}
+          </Pressable>
+
+          <View style={[styles.sheetDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
+
+          <Pressable onPress={() => selectDateOption('Date range')} style={styles.sheetRow}>
+            <Text style={[styles.sheetRowText, { color: labelColor }]}>Date range</Text>
+            <Ionicons name="chevron-forward" size={18} color={isDark ? '#555555' : '#8E8E8F'} />
+          </Pressable>
+        </View>
+      </InstagramBottomSheet>
+
+      {/* Update Type Sheet */}
+      <InstagramBottomSheet
+        visible={activeModal === 'type'}
+        onClose={() => setActiveModal(null)}
+        title="Filter by update type"
+        fullHeight={true}
+        headerRight={
+          <Pressable onPress={clearUpdateTypes} hitSlop={8}>
+            <Text style={[styles.clearBtnText, { color: labelColor }]}>Clear</Text>
+          </Pressable>
+        }
+      >
+        <View style={[styles.sheetContent, { flex: 1, paddingBottom: insets.bottom + 12 }]}>
+          <ScrollView
+            style={[styles.typeScrollContainer, { flex: 1 }]}
+            contentContainerStyle={{ paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {updateTypesList.map((item) => {
+              const isChecked = selectedUpdateTypes.includes(item.name);
+              return (
+                <Pressable
+                  key={item.name}
+                  onPress={() => toggleUpdateType(item.name)}
+                  style={styles.sheetRow}
+                >
+                  <View style={styles.sheetRowLeft}>
+                    <Feather
+                      name={item.icon as any}
+                      size={18}
+                      color={labelColor}
+                      style={styles.rowIconMargin}
+                    />
+                    <Text style={[styles.sheetRowText, { color: labelColor }]}>{item.name}</Text>
+                  </View>
+                  {renderCheckbox(isChecked)}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Stretched Apply Button */}
+          <View style={styles.applyBtnWrapper}>
+            <Pressable onPress={applyUpdateTypes} style={styles.applyBtn}>
+              <Text style={styles.applyBtnText}>Apply</Text>
+            </Pressable>
+          </View>
+        </View>
+      </InstagramBottomSheet>
     </View>
   );
 }
@@ -337,8 +450,6 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'transparent',
   },
   filterScrollContent: {
     paddingHorizontal: 16,
@@ -380,7 +491,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 8,
   },
-  sectionTitle: {
+  sectionTitleLabel: {
     fontFamily: Fonts.semiBold,
     fontSize: 15,
     paddingHorizontal: 16,
@@ -425,32 +536,74 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginLeft: 70,
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
+  // Sheet custom styles
+  sheetContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 18,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  modalOption: {
+  sheetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#2C2C2E',
+    paddingVertical: 14,
   },
-  optionText: {
-    fontSize: 16,
+  sheetRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rowIconMargin: {
+    marginRight: 12,
+  },
+  sheetRowText: {
+    fontFamily: Fonts.regular,
+    fontSize: 15.5,
+  },
+  sheetDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 8,
+  },
+  clearBtnText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
+  },
+  typeScrollContainer: {
+    width: '100%',
+  },
+  applyBtnWrapper: {
+    paddingTop: 12,
+  },
+  applyBtn: {
+    backgroundColor: '#3897F0',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  applyBtnText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  // Radio
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  // Checkbox
+  checkboxOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -22,10 +22,8 @@ export default function AppWebsitePermissionsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handlePressOption = (item: OptionItem) => {

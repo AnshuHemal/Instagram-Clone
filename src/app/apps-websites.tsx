@@ -18,10 +18,8 @@ export default function AppsWebsitesScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('active');
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleTabPress = (tab: TabType) => {

@@ -822,7 +822,8 @@ export default function LimitInteractionsScreen() {
   const buttonScale = useSharedValue(1);
   const buttonStyle = useAnimatedStyle(() => ({ transform: [{ scale: buttonScale.value }] }));
 
-  const handleBack = () => { haptics.light(); router.back(); };
+  const handleBack = () => { router.back();
+    haptics.light(); };
 
   const handleToggle = () => {
     buttonScale.value = withSpring(0.96, { damping: 12 }, () => {

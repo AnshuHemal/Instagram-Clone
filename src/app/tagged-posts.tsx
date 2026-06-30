@@ -18,8 +18,8 @@ export default function TaggedPostsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleMenu = () => {

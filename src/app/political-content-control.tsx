@@ -88,8 +88,8 @@ export default function PoliticalContentControlScreen() {
   const [suggestPolitical, setSuggestPolitical] = useState(false);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleLearnMore = () => {

@@ -145,8 +145,8 @@ export default function ContentPreferencesScreen() {
   const [hideInstants, setHideInstants] = useState(false);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleOptionPress = (option: string) => {

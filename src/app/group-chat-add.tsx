@@ -83,8 +83,8 @@ export default function GroupChatAddScreen() {
   const [option, setOption] = useState<'everyone' | 'following'>('everyone');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSelectOption = (opt: 'everyone' | 'following') => {

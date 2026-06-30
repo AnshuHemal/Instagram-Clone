@@ -89,8 +89,8 @@ export default function SecurityAlertsControlScreen() {
   const [contactAlerts, setContactAlerts] = useState(false);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleLearnMore = () => {

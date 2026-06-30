@@ -78,8 +78,8 @@ export default function StoryRepliesControlScreen() {
   const [option, setOption] = useState<'all' | 'follow' | 'none'>('all');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSelectOption = (opt: 'all' | 'follow' | 'none') => {

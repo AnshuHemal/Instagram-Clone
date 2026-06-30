@@ -23,10 +23,8 @@ export default function DevicePermissionsSettingsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handlePressOption = (item: PermissionItem) => {

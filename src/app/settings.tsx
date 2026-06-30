@@ -82,10 +82,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,7 +272,7 @@ export default function SettingsScreen() {
         title: 'How you use Instagram',
         items: [
           { id: 'saved', icon: 'bookmark', iconType: 'feather', label: 'Saved', onPress: () => { haptics.light(); router.push('/saved-control' as any); } },
-          { id: 'archive', icon: 'clock', iconType: 'feather', label: 'Archive', onPress: () => setActiveSheet('archive') },
+          { id: 'archive', icon: 'clock', iconType: 'feather', label: 'Archive', onPress: () => { haptics.light(); router.push('/archived-activity' as any); } },
           { id: 'activity', icon: 'activity', iconType: 'feather', label: 'Your activity', onPress: () => { haptics.light(); router.push('/your-activity-control' as any); } },
           { id: 'notifications', icon: 'bell', iconType: 'feather', label: 'Notifications', onPress: () => router.push('/notification-preferences' as any) },
           { id: 'time', icon: 'hourglass-outline', iconType: 'ionicons', label: 'Time management', onPress: () => router.push('/time-management' as any) },
@@ -319,7 +317,7 @@ export default function SettingsScreen() {
         title: 'What you see',
         items: [
           { id: 'favorites', icon: 'star', iconType: 'feather', label: 'Favorites', value: String(favoritesCount), onPress: () => { haptics.light(); router.push('/favorites-control' as any); } },
-          { id: 'muted', icon: 'bell-off', iconType: 'feather', label: 'Muted accounts', value: '2', onPress: () => handleComingSoon('Muted accounts') },
+          { id: 'muted', icon: 'bell-off', iconType: 'feather', label: 'Muted accounts', value: '2', onPress: () => { haptics.light(); router.push('/muted-accounts-control' as any); } },
           { id: 'content_pref', icon: 'sliders', iconType: 'feather', label: 'Content preferences', onPress: () => { haptics.light(); router.push('/content-preferences' as any); } },
           { id: 'likes', icon: 'heart', iconType: 'feather', label: 'Like and share counts', onPress: () => { haptics.light(); router.push('/like-share-counts' as any); } },
         ],
@@ -1051,8 +1049,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     fontSize: 14.5,
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
   sectionItems: {
     width: '100%',
@@ -1061,7 +1059,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 10,
     gap: 14,
   },
   rowIcon: {

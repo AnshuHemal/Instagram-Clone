@@ -49,8 +49,8 @@ export default function FavoritesControlScreen() {
   );
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSave = () => {

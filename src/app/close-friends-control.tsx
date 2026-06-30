@@ -59,8 +59,8 @@ export default function CloseFriendsControlScreen() {
   }, []);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSave = () => {

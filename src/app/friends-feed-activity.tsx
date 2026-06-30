@@ -17,10 +17,8 @@ export default function FriendsFeedActivityScreen() {
   const [selectedOption, setSelectedOption] = useState<SelectionType>('followers');
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleSelect = (option: SelectionType) => {

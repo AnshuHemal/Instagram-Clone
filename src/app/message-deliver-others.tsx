@@ -78,8 +78,8 @@ export default function MessageDeliverOthersScreen() {
   const [option, setOption] = useState<'requests' | 'none'>('requests');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleSelectOption = (opt: 'requests' | 'none') => {

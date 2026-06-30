@@ -83,8 +83,8 @@ export default function SensitiveContentControlScreen() {
   const [option, setOption] = useState<'less' | 'standard' | 'more'>('standard');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleLearnMore = () => {

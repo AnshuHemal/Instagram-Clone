@@ -235,10 +235,8 @@ export default function SleepModeScreen() {
   };
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const toggleDay = (idx: number) => {

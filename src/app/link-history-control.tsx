@@ -41,8 +41,8 @@ export default function LinkHistoryControlScreen() {
   const [historyItems, setHistoryItems] = useState<LinkHistoryItem[]>(mockLinkData);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleClearAll = () => {

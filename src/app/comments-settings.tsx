@@ -114,8 +114,8 @@ export default function CommentsSettingsScreen() {
   const [allowPhoto, setAllowPhoto] = useState(true);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const toggle = (key: 'gif' | 'photo') => {

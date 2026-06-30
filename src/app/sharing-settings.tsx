@@ -84,8 +84,8 @@ export default function SharingSettingsScreen() {
   const [storyShares, setStoryShares] = useState(true);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const toggle = (key: 'storiesMentioned' | 'storyShares') => {

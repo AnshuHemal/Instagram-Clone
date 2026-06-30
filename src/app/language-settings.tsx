@@ -61,10 +61,8 @@ export default function LanguageSettingsScreen() {
   const [translateVoice, setTranslateVoice] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleOptionPress = (label: string) => {

@@ -91,10 +91,8 @@ export default function TimeManagementScreen() {
   }, []);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   // Helper to compile style of chart bars dynamically

@@ -17,10 +17,8 @@ export default function FeaturesYouCantUseScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleOpenGuidelines = () => {

@@ -59,10 +59,8 @@ export default function LikeShareCountsScreen() {
   const [hideCounts, setHideCounts] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleLinkPress = () => {

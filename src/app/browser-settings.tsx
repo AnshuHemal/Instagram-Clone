@@ -63,10 +63,8 @@ export default function BrowserSettingsScreen() {
   const [safeBrowsing, setSafeBrowsing] = useState(true);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleClearCookies = () => {

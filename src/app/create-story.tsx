@@ -211,8 +211,8 @@ export default function CreateStoryScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              haptics.light();
               router.back();
+    haptics.light();
             }}
             style={styles.circleBtn}
           >

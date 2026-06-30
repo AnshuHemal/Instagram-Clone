@@ -30,8 +30,8 @@ export default function AddWordsPhrasesScreen() {
   const [text, setText] = useState('');
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleDone = () => {

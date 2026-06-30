@@ -60,10 +60,8 @@ export default function AccessibilityScreen() {
   const [reduceMotion, setReduceMotion] = useState(false);
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleSwitchChange = (val: boolean) => {

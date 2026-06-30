@@ -88,8 +88,8 @@ export default function NotificationPreferencesScreen() {
   const [pauseAll, setPauseAll] = useState(false);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleComingSoon = (feature: string) => {

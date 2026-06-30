@@ -23,10 +23,8 @@ export default function AboutScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handlePressOption = (item: AboutOption) => {

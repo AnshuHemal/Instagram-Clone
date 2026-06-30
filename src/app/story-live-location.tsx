@@ -24,8 +24,8 @@ export default function StoryLiveLocationScreen() {
   }, []);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleHideStory = () => {

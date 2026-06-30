@@ -74,10 +74,8 @@ export default function DailyLimitScreen() {
   };
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   return (

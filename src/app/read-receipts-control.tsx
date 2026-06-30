@@ -88,8 +88,8 @@ export default function ShowReadReceiptsScreen() {
   const [readReceipts, setReadReceipts] = useState(true);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const divColor = isDark ? '#262626' : '#DBDBDB';

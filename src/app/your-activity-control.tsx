@@ -30,8 +30,8 @@ export default function YourActivityControlScreen() {
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleComingSoon = (feature: string) => {
@@ -66,7 +66,7 @@ export default function YourActivityControlScreen() {
       title: 'Removed and archived content',
       items: [
         { id: 'deleted', label: 'Recently deleted', icon: 'trash-2', iconType: 'feather', onPress: () => { haptics.light(); router.push('/deleted-activity' as any); } },
-        { id: 'archived', label: 'Archived', icon: 'clock', iconType: 'feather', onPress: () => handleComingSoon('Archived') },
+        { id: 'archived', label: 'Archived', icon: 'clock', iconType: 'feather', onPress: () => { haptics.light(); router.push('/archived-activity' as any); } },
       ],
     },
     {
@@ -80,17 +80,17 @@ export default function YourActivityControlScreen() {
     {
       title: 'Suggested content',
       items: [
-        { id: 'not_interested', label: 'Not interested', icon: 'eye-off', iconType: 'feather', onPress: () => handleComingSoon('Not interested preferences') },
-        { id: 'interested', label: 'Interested', icon: 'eye', iconType: 'feather', onPress: () => handleComingSoon('Interested preferences') },
+        { id: 'not_interested', label: 'Not interested', icon: 'eye-off', iconType: 'feather', onPress: () => { haptics.light(); router.push('/not-interested-control' as any); } },
+        { id: 'interested', label: 'Interested', icon: 'eye', iconType: 'feather', onPress: () => { haptics.light(); router.push('/interested-control' as any); } },
       ],
     },
     {
       title: 'How you use Instagram',
       items: [
-        { id: 'time', label: 'Time management', icon: 'hourglass', iconType: 'feather', onPress: () => { haptics.light(); router.push('/time-management' as any); } },
-        { id: 'watch_history', label: 'Watch history', icon: 'play-circle', iconType: 'feather', onPress: () => handleComingSoon('Watch history') },
+        { id: 'time', label: 'Time management', icon: 'hourglass-outline', iconType: 'ionicons', onPress: () => { haptics.light(); router.push('/time-management' as any); } },
+        { id: 'watch_history', label: 'Watch history', icon: 'play-circle', iconType: 'feather', onPress: () => { haptics.light(); router.push('/watch-history-control' as any); } },
         { id: 'account_history', label: 'Account history', icon: 'file-text', iconType: 'feather', onPress: () => { haptics.light(); router.push('/account-history-control' as any); } },
-        { id: 'recent_searches', label: 'Recent searches', icon: 'search', iconType: 'feather', onPress: () => handleComingSoon('Recent searches') },
+        { id: 'recent_searches', label: 'Recent searches', icon: 'search', iconType: 'feather', onPress: () => { haptics.light(); router.push('/recent-searches-control' as any); } },
         { id: 'link_history', label: 'Link History', icon: 'link', iconType: 'feather', onPress: () => { haptics.light(); router.push('/link-history-control' as any); } },
       ],
     },
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 16,
   },
   rowLeft: {
@@ -269,6 +269,6 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 10,
-    marginVertical: 14,
+    marginVertical: 10,
   },
 });

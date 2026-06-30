@@ -6,12 +6,14 @@ import {
   Pressable,
   ScrollView,
   Modal,
+  FlatList,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -19,27 +21,75 @@ import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
 type SortOption = 'Newest to oldest' | 'Oldest to newest';
-type DateOption = 'All dates' | 'Last week' | 'Last month' | 'Last year';
-type ContentTypeOption = 'All content types' | 'Posts' | 'Reels';
-type AuthorOption = 'All authors' | 'Suggested' | 'People you follow';
+type DateOption = 'All dates' | 'Last week' | 'Last month';
+type AuthorOption = 'All authors' | 'Followed accounts' | 'Suggested';
 
-export default function LikesActivityControlScreen() {
+interface ReelWatchItem {
+  id: string;
+  uri: string;
+}
+
+const mockReels: ReelWatchItem[] = [
+  { id: '1', uri: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400' },
+  { id: '2', uri: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400' },
+  { id: '3', uri: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400' },
+  { id: '4', uri: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400' },
+  { id: '5', uri: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=400' },
+  { id: '6', uri: 'https://images.unsplash.com/photo-1472214222541-d510753a8707?w=400' },
+];
+
+const screenWidth = Dimensions.get('window').width;
+const imageSize = (screenWidth - 4) / 3;
+
+export default function WatchHistoryControlScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const [reels, setReels] = useState<ReelWatchItem[]>(mockReels);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+
   const [sortOrder, setSortOrder] = useState<SortOption>('Newest to oldest');
   const [dateRange, setDateRange] = useState<DateOption>('All dates');
-  const [contentType, setContentType] = useState<ContentTypeOption>('All content types');
-  const [author, setAuthor] = useState<AuthorOption>('All authors');
+  const [authorType, setAuthorType] = useState<AuthorOption>('All authors');
 
-  // Modal active controls
-  const [activeModal, setActiveModal] = useState<'sort' | 'date' | 'content' | 'author' | null>(null);
+  const [activeModal, setActiveModal] = useState<'sort' | 'date' | 'author' | null>(null);
 
   const handleBack = () => {
     router.back();
     haptics.light();
+  };
+
+  const toggleSelectMode = () => {
+    haptics.light();
+    if (isSelectMode) {
+      setSelectedIds([]);
+    }
+    setIsSelectMode(!isSelectMode);
+  };
+
+  const handleItemPress = (id: string) => {
+    if (isSelectMode) {
+      haptics.light();
+      if (selectedIds.includes(id)) {
+        setSelectedIds((prev) => prev.filter((item) => item !== id));
+      } else {
+        setSelectedIds((prev) => [...prev, id]);
+      }
+    } else {
+      showToast({ message: 'Playing watched reel', type: 'info' });
+    }
+  };
+
+  const handleRemoveSelected = () => {
+    if (selectedIds.length === 0) return;
+    haptics.medium();
+    setReels((prev) => prev.filter((r) => !selectedIds.includes(r.id)));
+    setSelectedIds([]);
+    setIsSelectMode(false);
+    showToast({ message: 'Removed reels from watch history', type: 'success' });
   };
 
   const selectSortOption = (opt: SortOption) => {
@@ -56,18 +106,11 @@ export default function LikesActivityControlScreen() {
     showToast({ message: `Date filter: ${opt}`, type: 'success' });
   };
 
-  const selectContentTypeOption = (opt: ContentTypeOption) => {
-    haptics.medium();
-    setContentType(opt);
-    setActiveModal(null);
-    showToast({ message: `Content type: ${opt}`, type: 'success' });
-  };
-
   const selectAuthorOption = (opt: AuthorOption) => {
     haptics.medium();
-    setAuthor(opt);
+    setAuthorType(opt);
     setActiveModal(null);
-    showToast({ message: `Author filter: ${opt}`, type: 'success' });
+    showToast({ message: `Author: ${opt}`, type: 'success' });
   };
 
   const divColor = isDark ? '#262626' : '#DBDBDB';
@@ -93,9 +136,11 @@ export default function LikesActivityControlScreen() {
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-          Likes
+          Watch history
         </Text>
-        <View style={{ width: 38 }} />
+        <Pressable onPress={toggleSelectMode} hitSlop={12}>
+          <Text style={styles.selectBtnText}>{isSelectMode ? 'Cancel' : 'Select'}</Text>
+        </Pressable>
       </View>
 
       {/* Filter Horizontal Row */}
@@ -123,58 +168,86 @@ export default function LikesActivityControlScreen() {
             <Feather name="chevron-down" size={14} color={labelColor} style={styles.pillIcon} />
           </Pressable>
 
-          {/* Content Type Pill */}
-          <Pressable
-            onPress={() => { haptics.light(); setActiveModal('content'); }}
-            style={[styles.pill, { backgroundColor: pillBg, borderColor: pillBorderColor }]}
-          >
-            <Text style={[styles.pillText, { color: labelColor }]}>{contentType}</Text>
-            <Feather name="chevron-down" size={14} color={labelColor} style={styles.pillIcon} />
-          </Pressable>
-
-          {/* Authors Pill */}
+          {/* Author Pill */}
           <Pressable
             onPress={() => { haptics.light(); setActiveModal('author'); }}
             style={[styles.pill, { backgroundColor: pillBg, borderColor: pillBorderColor }]}
           >
-            <Text style={[styles.pillText, { color: labelColor }]}>{author}</Text>
+            <Text style={[styles.pillText, { color: labelColor }]}>{authorType}</Text>
             <Feather name="chevron-down" size={14} color={labelColor} style={styles.pillIcon} />
           </Pressable>
         </ScrollView>
       </View>
 
-      {/* Empty State Layout */}
-      <Animated.View entering={FadeIn.delay(100).duration(300)} style={styles.content}>
-        <View style={styles.emptyWrap}>
-          {/* Instagram style colorful gradient border circle */}
-          <LinearGradient
-            colors={['#F58529', '#DD2A7B', '#8134AF', '#515BD4']}
-            style={styles.gradientCircle}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <View style={[styles.innerCircle, { backgroundColor: colors.background }]}>
-              <Text style={styles.exclamationMark}>!</Text>
-            </View>
-          </LinearGradient>
+      <FlatList
+        data={reels}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+        ListHeaderComponent={
+          <View style={styles.infoBlock}>
+            <Text style={[styles.infoDesc, { color: descColor }]}>
+              These are reels you've watched in the past 30 days. Select to remove them from your watch history.
+            </Text>
+          </View>
+        }
+        renderItem={({ item, index }) => {
+          const isSelected = selectedIds.includes(item.id);
+          return (
+            <Animated.View entering={FadeInDown.delay(index * 50).duration(200)}>
+              <Pressable
+                onPress={() => handleItemPress(item.id)}
+                style={({ pressed }) => [
+                  styles.imageBtn,
+                  { width: imageSize, height: imageSize },
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                <Image source={{ uri: item.uri }} style={styles.thumbnail} />
 
-          <Text style={[styles.emptyTitle, { color: labelColor }]}>
-            You haven't liked anything
-          </Text>
-          <Text style={[styles.emptyDesc, { color: descColor }]}>
-            When you like a photo or video, it'll show up here.
-          </Text>
-        </View>
-      </Animated.View>
+                <View style={styles.reelIndicator}>
+                  <Ionicons name="play" size={12} color="#FFFFFF" />
+                </View>
 
-      {/* ─────────────────────────────────────────────
-          SELECTION MODALS
-          ───────────────────────────────────────────── */}
+                {/* Selection overlays */}
+                {isSelectMode && (
+                  <View style={[styles.checkboxOverlay, isSelected && styles.checkboxOverlaySelected]}>
+                    {isSelected ? (
+                      <Ionicons name="checkmark-circle" size={24} color="#3897F0" />
+                    ) : (
+                      <View style={[styles.checkboxOutline, { borderColor: '#FFFFFF' }]} />
+                    )}
+                  </View>
+                )}
+              </Pressable>
+            </Animated.View>
+          );
+        }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyTitle, { color: labelColor }]}>No watch history</Text>
+            <Text style={[styles.emptyDesc, { color: descColor }]}>
+              Reels you watch on Instagram will appear here.
+            </Text>
+          </View>
+        }
+      />
 
+      {/* Select Mode Footer Action */}
+      {isSelectMode && selectedIds.length > 0 && (
+        <Animated.View entering={FadeIn} style={[styles.selectFooter, { paddingBottom: insets.bottom + 12, backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+          <Pressable onPress={handleRemoveSelected} style={styles.removeActionBtn}>
+            <Text style={styles.removeActionText}>Remove ({selectedIds.length})</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+
+      {/* Modals */}
       {/* Sort Modal */}
       <Modal visible={activeModal === 'sort'} transparent animationType="fade">
         <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View entering={FadeInDown.duration(200)} style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
+          <Animated.View style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
             <Text style={[styles.modalTitle, { color: labelColor }]}>Sort order</Text>
             <Pressable onPress={() => selectSortOption('Newest to oldest')} style={styles.modalOption}>
               <Text style={[styles.optionText, { color: labelColor, fontFamily: sortOrder === 'Newest to oldest' ? Fonts.semiBold : Fonts.regular }]}>
@@ -192,12 +265,12 @@ export default function LikesActivityControlScreen() {
         </Pressable>
       </Modal>
 
-      {/* Date Filter Modal */}
+      {/* Date Modal */}
       <Modal visible={activeModal === 'date'} transparent animationType="fade">
         <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View entering={FadeInDown.duration(200)} style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
+          <Animated.View style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
             <Text style={[styles.modalTitle, { color: labelColor }]}>Select dates</Text>
-            {(['All dates', 'Last week', 'Last month', 'Last year'] as DateOption[]).map((opt) => (
+            {(['All dates', 'Last week', 'Last month'] as DateOption[]).map((opt) => (
               <Pressable key={opt} onPress={() => selectDateOption(opt)} style={styles.modalOption}>
                 <Text style={[styles.optionText, { color: labelColor, fontFamily: dateRange === opt ? Fonts.semiBold : Fonts.regular }]}>
                   {opt}
@@ -209,34 +282,17 @@ export default function LikesActivityControlScreen() {
         </Pressable>
       </Modal>
 
-      {/* Content Type Filter Modal */}
-      <Modal visible={activeModal === 'content'} transparent animationType="fade">
-        <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View entering={FadeInDown.duration(200)} style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
-            <Text style={[styles.modalTitle, { color: labelColor }]}>Content type</Text>
-            {(['All content types', 'Posts', 'Reels'] as ContentTypeOption[]).map((opt) => (
-              <Pressable key={opt} onPress={() => selectContentTypeOption(opt)} style={styles.modalOption}>
-                <Text style={[styles.optionText, { color: labelColor, fontFamily: contentType === opt ? Fonts.semiBold : Fonts.regular }]}>
-                  {opt}
-                </Text>
-                {contentType === opt && <Ionicons name="checkmark" size={20} color="#3897F0" />}
-              </Pressable>
-            ))}
-          </Animated.View>
-        </Pressable>
-      </Modal>
-
-      {/* Author Filter Modal */}
+      {/* Author Modal */}
       <Modal visible={activeModal === 'author'} transparent animationType="fade">
         <Pressable style={[styles.modalOverlay, { backgroundColor: modalOverlayBg }]} onPress={() => setActiveModal(null)}>
-          <Animated.View entering={FadeInDown.duration(200)} style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
-            <Text style={[styles.modalTitle, { color: labelColor }]}>Select author</Text>
-            {(['All authors', 'Suggested', 'People you follow'] as AuthorOption[]).map((opt) => (
+          <Animated.View style={[styles.modalContent, { backgroundColor: modalContentBg }]}>
+            <Text style={[styles.modalTitle, { color: labelColor }]}>Select authors</Text>
+            {(['All authors', 'Followed accounts', 'Suggested'] as AuthorOption[]).map((opt) => (
               <Pressable key={opt} onPress={() => selectAuthorOption(opt)} style={styles.modalOption}>
-                <Text style={[styles.optionText, { color: labelColor, fontFamily: author === opt ? Fonts.semiBold : Fonts.regular }]}>
+                <Text style={[styles.optionText, { color: labelColor, fontFamily: authorType === opt ? Fonts.semiBold : Fonts.regular }]}>
                   {opt}
                 </Text>
-                {author === opt && <Ionicons name="checkmark" size={20} color="#3897F0" />}
+                {authorType === opt && <Ionicons name="checkmark" size={20} color="#3897F0" />}
               </Pressable>
             ))}
           </Animated.View>
@@ -257,12 +313,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
-    padding: 6,
+    paddingVertical: 6,
   },
   headerTitle: {
     fontFamily: Fonts.semiBold,
@@ -272,10 +328,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingLeft: 0,
   },
+  selectBtnText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 16,
+    color: '#3897F0',
+  },
   filterContainer: {
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'transparent',
   },
   filterScrollContent: {
     paddingHorizontal: 16,
@@ -296,50 +355,92 @@ const styles = StyleSheet.create({
   pillIcon: {
     marginLeft: 6,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
+  infoBlock: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+  infoDesc: {
+    fontFamily: Fonts.regular,
+    fontSize: 13.5,
+    lineHeight: 18,
+  },
+  gridRow: {
+    gap: 2,
+    marginBottom: 2,
+  },
+  imageBtn: {
+    position: 'relative',
+    marginRight: 2,
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  reelIndicator: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 4,
+    borderRadius: 4,
+  },
+  checkboxOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    padding: 8,
+  },
+  checkboxOverlaySelected: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  checkboxOutline: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    backgroundColor: 'transparent',
+  },
+  selectFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#2C2C2E',
     alignItems: 'center',
   },
-  emptyWrap: {
+  removeActionBtn: {
+    width: '100%',
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  removeActionText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  emptyContainer: {
+    paddingVertical: 80,
     alignItems: 'center',
     paddingHorizontal: 48,
   },
-  gradientCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 2.5,
-    marginBottom: 24,
-  },
-  innerCircle: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  exclamationMark: {
-    fontSize: 48,
-    fontFamily: Fonts.regular,
-    color: '#FF3B30',
-    textAlign: 'center',
-    lineHeight: 52,
-  },
   emptyTitle: {
     fontFamily: Fonts.semiBold,
-    fontSize: 22,
+    fontSize: 20,
     textAlign: 'center',
-    marginBottom: 10,
-    letterSpacing: -0.4,
+    marginBottom: 8,
   },
   emptyDesc: {
     fontFamily: Fonts.regular,
     fontSize: 14.5,
-    lineHeight: 20,
     textAlign: 'center',
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,

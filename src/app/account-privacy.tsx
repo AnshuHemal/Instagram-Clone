@@ -164,10 +164,8 @@ export default function AccountPrivacyScreen() {
   });
 
   const handleBack = () => {
+    router.back();
     haptics.light();
-    requestAnimationFrame(() => {
-      router.back();
-    });
   };
 
   const handleToggleValueChange = (newVal: boolean) => {

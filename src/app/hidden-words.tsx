@@ -33,8 +33,8 @@ export default function HiddenWordsScreen() {
   const [words, setWords] = useState<string[]>([]);
 
   const handleBack = () => {
-    haptics.light();
     router.back();
+    haptics.light();
   };
 
   const handleShare = () => {
