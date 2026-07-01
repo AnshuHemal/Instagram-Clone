@@ -112,7 +112,18 @@ function TabLayout() {
   const { tab: tabParam } = useLocalSearchParams<{ tab: string }>();
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [visitedTabs, setVisitedTabs] = useState<boolean[]>([true, false, false, false, false]);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+
+  useEffect(() => {
+    if (!visitedTabs[activeIndex]) {
+      setVisitedTabs((prev) => {
+        const next = [...prev];
+        next[activeIndex] = true;
+        return next;
+      });
+    }
+  }, [activeIndex, visitedTabs]);
 
   const scrollX = useSharedValue(0);
   const viewPagerRef = useRef<Animated.ScrollView>(null);
@@ -184,10 +195,6 @@ function TabLayout() {
     const index = Math.round(offsetX / SCREEN_WIDTH);
     if (index !== activeIndex) {
       setActiveIndex(index);
-
-      // Update segment route path matching the active page index
-      const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
-      router.setParams({ tab: routes[index] });
     }
   };
 
@@ -219,8 +226,7 @@ function TabLayout() {
     haptics.onTabSwitch();
     setActiveIndex(index);
     viewPagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: false });
-    const routes = ['index', 'reels', 'chat', 'explore', 'profile'];
-    router.setParams({ tab: routes[index] });
+    
     // Clear badge when user navigates to the relevant tab
     if (index === 2) clearChat();          // Chat tab
   };
@@ -245,27 +251,37 @@ function TabLayout() {
       >
         {/* Page 0: Home */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ErrorBoundary><HomeScreen isTabActive={activeIndex === 0} /></ErrorBoundary>
+          {visitedTabs[0] ? (
+            <ErrorBoundary><HomeScreen isTabActive={activeIndex === 0} /></ErrorBoundary>
+          ) : null}
         </View>
 
         {/* Page 1: Reels (Full screen underneath absolute tab bar) */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', backgroundColor: '#000000' }}>
-          <ErrorBoundary><ReelsScreen isTabActive={activeIndex === 1} /></ErrorBoundary>
+          {visitedTabs[1] ? (
+            <ErrorBoundary><ReelsScreen isTabActive={activeIndex === 1} /></ErrorBoundary>
+          ) : null}
         </View>
 
         {/* Page 2: Chat */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ErrorBoundary><InboxScreen /></ErrorBoundary>
+          {visitedTabs[2] ? (
+            <ErrorBoundary><InboxScreen /></ErrorBoundary>
+          ) : null}
         </View>
 
         {/* Page 3: Explore */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ErrorBoundary><ExploreScreen /></ErrorBoundary>
+          {visitedTabs[3] ? (
+            <ErrorBoundary><ExploreScreen /></ErrorBoundary>
+          ) : null}
         </View>
 
         {/* Page 4: Profile */}
         <View style={{ width: SCREEN_WIDTH, height: '100%', paddingBottom: activeIndex === 1 ? 0 : tabHeight }}>
-          <ErrorBoundary><ProfileScreen /></ErrorBoundary>
+          {visitedTabs[4] ? (
+            <ErrorBoundary><ProfileScreen /></ErrorBoundary>
+          ) : null}
         </View>
       </Animated.ScrollView>
 
