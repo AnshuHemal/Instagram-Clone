@@ -8,6 +8,7 @@ import {
   Image,
   ScrollView,
   Animated,
+  Text,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,9 +16,12 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTabPager } from '@/contexts/TabPagerContext';
 import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/contexts/AuthContext';
+import { haptics } from '@/utils/haptics';
 import { api } from '@/services/api';
 import { useSocket } from '@/contexts/SocketContext';
 import { NewMessageBottomSheet } from '@/components/NewMessageBottomSheet';
+import { AccountSwitcherSheet } from '@/components/AccountSwitcherSheet';
 import { MOCK_STORIES } from '@/constants/mockData';
 import { useSharedValue } from 'react-native-reanimated';
 import { GradientPullRefresh } from '@/components/GradientPullRefresh';
@@ -72,29 +76,90 @@ const ChatConversationSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => 
   return <View>{Array.from({ length: 7 }).map((_, i) => <Row key={i} />)}</View>;
 };
 
+const MOCK_CHAT_DATA: Conversation[] = [
+  {
+    id: 'mock-1',
+    isGroup: false,
+    partner: {
+      id: 'user-harsh',
+      username: 'Harsh',
+      displayName: 'Harsh',
+      avatarUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=150',
+      isOnline: true,
+    },
+    lastMessage: 'Sent a post by naughtyyhun',
+    lastMessageTime: new Date(Date.now() - 12 * 3600000).toISOString(),
+    lastMessageSenderId: 'user-harsh',
+    unreadCount: 0,
+  },
+  {
+    id: 'mock-2',
+    isGroup: false,
+    partner: {
+      id: 'user-himanshi',
+      username: '_himanshi_dudani_',
+      displayName: '_himanshi_dudani_',
+      avatarUrl: '',
+      isOnline: false,
+    },
+    lastMessage: 'Ehhh esa thodi 😭😭',
+    lastMessageTime: new Date(Date.now() - 3 * 24 * 3600000).toISOString(),
+    lastMessageSenderId: 'user-himanshi',
+    unreadCount: 0,
+  }
+];
+
 export default function InboxScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { setPagerScrollEnabled } = useTabPager();
   const { socket, onlineUsers } = useSocket();
+  const { user } = useAuth();
   const scrollY = useSharedValue(0);
 
   const [search, setSearch] = useState('');
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(MOCK_CHAT_DATA);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [composeVisible, setComposeVisible] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+  const [suggestedAccounts, setSuggestedAccounts] = useState([
+    {
+      id: 's-1',
+      username: 'kataria_harshal_18',
+      displayName: 'Harshal✨🏐',
+      avatarUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=150',
+      isFollowing: false,
+    },
+    {
+      id: 's-2',
+      username: 'jainil_1459',
+      displayName: 'JAINIL kasodariya',
+      avatarUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=150',
+      isFollowing: false,
+    },
+    {
+      id: 's-3',
+      username: 'darshu_.9011',
+      displayName: 'Panchal Darshan 👑',
+      avatarUrl: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=150',
+      isFollowing: false,
+    }
+  ]);
 
   const fetchConversations = async (showLoader = false) => {
     try {
       if (showLoader) setLoading(true);
       const res = await api.get('/chat/conversations');
-      if (res.data && res.data.data) {
+      if (res.data && res.data.data && res.data.data.length > 0) {
         setConversations(res.data.data);
+      } else {
+        setConversations(MOCK_CHAT_DATA);
       }
     } catch (err) {
       console.error('[InboxScreen] Failed to fetch conversations:', err);
+      setConversations(MOCK_CHAT_DATA);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -201,11 +266,15 @@ export default function InboxScreen() {
       edges={['left', 'right']}
     >
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: insets.top, height: 56 + insets.top }]}>
-        <ThemedText style={styles.headerTitle} type="subtitle">
-          Messages
-        </ThemedText>
-        <Pressable style={styles.headerButton} onPress={() => setComposeVisible(true)}>
+      <View style={[styles.header, { borderBottomWidth: 0, paddingTop: insets.top, height: 50 + insets.top }]}>
+        <View style={{ width: 32 }} />
+        <Pressable style={styles.headerTitleRow} onPress={() => { haptics.light(); setShowAccountSwitcher(true); }}>
+          <ThemedText style={styles.headerTitle} type="subtitle">
+            {user?.username || 'insforgetester'}
+          </ThemedText>
+          <Ionicons name="chevron-down" size={16} color={colors.text} style={{ marginLeft: 4, marginTop: 2 }} />
+        </Pressable>
+        <Pressable style={styles.headerButton} onPress={() => { haptics.light(); router.push('/(chat)/new-message'); }}>
           <Feather name="edit" size={22} color={colors.text} />
         </Pressable>
       </View>
@@ -226,7 +295,7 @@ export default function InboxScreen() {
               <View>
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
-                  <View style={[styles.searchBar, { backgroundColor: isDark ? '#121212' : '#F0F0F0' }]}>
+                  <View style={[styles.searchBar, { backgroundColor: isDark ? '#262626' : '#F0F2F5' }]}>
                     <Ionicons
                       name="search-outline"
                       size={18}
@@ -234,7 +303,7 @@ export default function InboxScreen() {
                       style={styles.searchIcon}
                     />
                     <TextInput
-                      placeholder="Search"
+                      placeholder="Search or ask Meta AI"
                       placeholderTextColor={isDark ? '#8E8E8F' : '#8E8E8F'}
                       value={search}
                       onChangeText={setSearch}
@@ -243,9 +312,12 @@ export default function InboxScreen() {
                   </View>
                 </View>
 
-                {/* Active Users Horizontal Scroll */}
-                <View style={[styles.activeUsersSection, { borderBottomColor: colors.border }]}>
-                  <View
+                {/* Notes and Map Section */}
+                <View style={styles.notesSection}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.notesList}
                     onStartShouldSetResponderCapture={() => {
                       setPagerScrollEnabled(false);
                       return false;
@@ -253,55 +325,44 @@ export default function InboxScreen() {
                     onTouchEnd={() => setPagerScrollEnabled(true)}
                     onTouchCancel={() => setPagerScrollEnabled(true)}
                   >
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.activeUsersList}
-                      nestedScrollEnabled={true}
-                    >
-                      {onlinePartnersList.length > 0 ? (
-                        onlinePartnersList.map((partner) => (
-                          <View key={partner.id} style={styles.activeUserContainer}>
-                            <View style={styles.avatarWrapper}>
-                              <Image
-                                source={{
-                                  uri:
-                                    partner.avatarUrl ||
-                                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                                }}
-                                style={styles.activeAvatar}
-                              />
-                              <View style={[styles.onlineDot, { borderColor: colors.background }]} />
-                            </View>
-                            <ThemedText
-                              type="small"
-                              numberOfLines={1}
-                              style={[styles.activeUsername, { color: colors.textSecondary }]}
-                            >
-                              {partner.username}
-                            </ThemedText>
-                          </View>
-                        ))
-                      ) : (
-                        // Fallback to MOCK_STORIES if no active conversations are online
-                        MOCK_STORIES.map((story) => (
-                          <View key={story.id} style={styles.activeUserContainer}>
-                            <View style={styles.avatarWrapper}>
-                              <Image source={{ uri: story.avatar }} style={styles.activeAvatar} />
-                              <View style={[styles.onlineDot, { borderColor: colors.background }]} />
-                            </View>
-                            <ThemedText
-                              type="small"
-                              numberOfLines={1}
-                              style={[styles.activeUsername, { color: colors.textSecondary }]}
-                            >
-                              {story.username}
-                            </ThemedText>
-                          </View>
-                        ))
-                      )}
-                    </ScrollView>
-                  </View>
+                    {/* Your Note */}
+                    <View style={styles.noteItem}>
+                      <View style={styles.avatarWrapper}>
+                        {/* Thought Bubble */}
+                        <View style={[styles.thoughtBubble, { backgroundColor: isDark ? '#262626' : '#FFFFFF', borderColor: isDark ? '#3A3A3C' : '#E5E5E5' }]}>
+                          <Text numberOfLines={1} style={[styles.thoughtText, { color: colors.text }]}>Today in emojis...</Text>
+                        </View>
+                        <Image
+                          source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150' }}
+                          style={styles.noteAvatar}
+                        />
+                      </View>
+                      <ThemedText style={styles.noteLabel}>Your note</ThemedText>
+                      <View style={styles.locationRow}>
+                        <Ionicons name="location" size={10} color="#FF3B30" />
+                        <Text style={styles.locationText}>Location off</Text>
+                      </View>
+                    </View>
+
+                    {/* Map */}
+                    <View style={styles.noteItem}>
+                      <View style={styles.avatarWrapper}>
+                        <Image
+                          source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=200' }}
+                          style={styles.noteAvatar}
+                        />
+                      </View>
+                      <ThemedText style={styles.noteLabel}>Map</ThemedText>
+                    </View>
+                  </ScrollView>
+                </View>
+
+                {/* Section Header Row */}
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Messages</Text>
+                  <Pressable onPress={() => {}}>
+                    <Text style={styles.blueLinkText}>Requests</Text>
+                  </Pressable>
                 </View>
               </View>
             }
@@ -326,14 +387,16 @@ export default function InboxScreen() {
                   ]}
                 >
                   <View style={styles.avatarWrapper}>
-                    <Image
-                      source={{
-                        uri:
-                          partner.avatarUrl ||
-                          'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                      }}
-                      style={styles.chatAvatar}
-                    />
+                    {partner.avatarUrl ? (
+                      <Image
+                        source={{ uri: partner.avatarUrl }}
+                        style={styles.chatAvatar}
+                      />
+                    ) : (
+                      <View style={[styles.chatAvatarPlaceholder, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
+                        <Ionicons name="person" size={28} color={isDark ? '#8E8E8F' : '#8E8E8F'} />
+                      </View>
+                    )}
                     {isOnline && <View style={[styles.onlineDot, { borderColor: colors.background }]} />}
                   </View>
                   <View style={styles.chatDetails}>
@@ -372,6 +435,47 @@ export default function InboxScreen() {
                 <ThemedText style={{ color: colors.textSecondary }}>No messages found.</ThemedText>
               </View>
             }
+            ListFooterComponent={
+              suggestedAccounts.length > 0 ? (
+                <View style={styles.footerSection}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Accounts to follow</Text>
+                    <Pressable onPress={() => {}}>
+                      <Text style={styles.blueLinkText}>See all</Text>
+                    </Pressable>
+                  </View>
+                  {suggestedAccounts.map((account) => (
+                    <View key={account.id} style={styles.suggestionRow}>
+                      <Image
+                        source={{ uri: account.avatarUrl || 'https://ui-avatars.com/api/?name=U&size=80' }}
+                        style={styles.suggestionAvatar}
+                      />
+                      <View style={styles.suggestionDetails}>
+                        <Text style={[styles.suggestionUsername, { color: colors.text }]}>{account.username}</Text>
+                        <Text style={[styles.suggestionName, { color: colors.textSecondary }]}>{account.displayName}</Text>
+                      </View>
+                      <Pressable
+                        style={[styles.followBtn, account.isFollowing && { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
+                        onPress={() => {
+                          haptics.light();
+                          setSuggestedAccounts(prev => prev.map(a => a.id === account.id ? { ...a, isFollowing: !a.isFollowing } : a));
+                        }}
+                      >
+                        <Text style={[styles.followBtnText, { color: account.isFollowing ? colors.text : '#FFFFFF' }]}>
+                          {account.isFollowing ? 'Following' : 'Follow'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.dismissBtn}
+                        onPress={() => setSuggestedAccounts(prev => prev.filter(a => a.id !== account.id))}
+                      >
+                        <Ionicons name="close" size={18} color={isDark ? '#8E8E8F' : '#8E8E8F'} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null
+            }
           />
         )}
       </GradientPullRefresh>
@@ -383,6 +487,12 @@ export default function InboxScreen() {
         onSelectUser={(conversationId) => {
           router.push({ pathname: '/(chat)/[id]', params: { id: conversationId } });
         }}
+      />
+
+      {/* Account Switcher Bottom Sheet */}
+      <AccountSwitcherSheet
+        visible={showAccountSwitcher}
+        onClose={() => setShowAccountSwitcher(false)}
       />
     </SafeAreaView>
   );
@@ -398,24 +508,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 15,
     height: 56,
-    borderBottomWidth: 0.5,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerButton: {
     padding: 5,
   },
   headerTitle: {
     fontFamily: Fonts.semiBold,
+    fontSize: 20,
+    letterSpacing: -0.5,
   },
   searchContainer: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 10,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 38,
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 14,
   },
   searchIcon: {
     marginRight: 8,
@@ -425,66 +541,115 @@ const styles = StyleSheet.create({
     fontSize: 15,
     padding: 0,
   },
-  activeUsersSection: {
-    paddingVertical: 10,
-    borderBottomWidth: 0.5,
+  notesSection: {
+    paddingVertical: 2,
   },
-  activeUsersList: {
-    paddingHorizontal: 15,
-    gap: 15,
+  notesList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
+    gap: 20,
   },
-  activeUserContainer: {
+  noteItem: {
     alignItems: 'center',
-    width: 65,
+    width: 72,
   },
   avatarWrapper: {
     position: 'relative',
+    marginBottom: 6,
   },
-  activeAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  noteAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
   },
-  onlineDot: {
+  thoughtBubble: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#4CD964',
-    borderWidth: 2,
+    top: -12,
+    left: -12,
+    width: 96,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  activeUsername: {
-    fontSize: 11,
-    marginTop: 4,
+  thoughtText: {
+    fontSize: 9.5,
+    fontFamily: Fonts.regular,
     textAlign: 'center',
+  },
+  noteLabel: {
+    fontSize: 12.5,
+    fontFamily: Fonts.regular,
+    textAlign: 'center',
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+    gap: 2.5,
+  },
+  locationText: {
+    fontSize: 10.5,
+    fontFamily: Fonts.medium,
+    color: '#8E8E8F',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: Fonts.semiBold,
+  },
+  blueLinkText: {
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
+    color: '#0095F6',
   },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   chatAvatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  chatAvatarPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chatDetails: {
     flex: 1,
-    marginLeft: 15,
+    marginLeft: 14,
     justifyContent: 'center',
   },
   lastMessageText: {
     marginTop: 3,
+    fontSize: 14,
   },
   chatMeta: {
     alignItems: 'flex-end',
     marginLeft: 10,
   },
   metaTime: {
-    fontSize: 12,
+    fontSize: 13,
     marginBottom: 5,
   },
   unreadBadge: {
@@ -502,9 +667,59 @@ const styles = StyleSheet.create({
     padding: 40,
     alignItems: 'center',
   },
-  loadingContainer: {
+  footerSection: {
+    marginTop: 2,
+    paddingBottom: 40,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  suggestionAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  suggestionDetails: {
     flex: 1,
+  },
+  suggestionUsername: {
+    fontSize: 14.5,
+    fontFamily: Fonts.semiBold,
+  },
+  suggestionName: {
+    fontSize: 13,
+    fontFamily: Fonts.regular,
+    marginTop: 2,
+  },
+  followBtn: {
+    backgroundColor: '#0095F6',
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+    borderRadius: 8,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  followBtnText: {
+    fontSize: 13.5,
+    fontFamily: Fonts.semiBold,
+  },
+  dismissBtn: {
+    padding: 6,
+    marginLeft: 4,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#4CD964',
+    borderWidth: 2,
   },
 });

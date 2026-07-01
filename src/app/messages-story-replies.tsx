@@ -38,7 +38,6 @@ export default function MessagesStoryRepliesScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
       <View
         style={[
           styles.header,
@@ -51,14 +50,13 @@ export default function MessagesStoryRepliesScreen() {
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
           Messages and story replies
         </Text>
-        <View style={{ width: 38 }} /> {/* Spacer to balance back button */}
+        <View style={{ width: 38 }} />
       </View>
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section 1: How people can reach you */}
         <Animated.View entering={FadeInDown.delay(100).duration(300)}>
           <Text style={[styles.sectionHeader, { color: sectionTitleColor }]}>
             How people can reach you
@@ -91,10 +89,8 @@ export default function MessagesStoryRepliesScreen() {
           </View>
         </Animated.View>
 
-        {/* Section Separator */}
         <View style={[styles.blockSeparator, { backgroundColor: separatorBg }]} />
 
-        {/* Section 2: Who can see you're online */}
         <Animated.View entering={FadeInDown.delay(180).duration(300)}>
           <Text style={[styles.sectionHeader, { color: sectionTitleColor }]}>
             Who can see you're online
@@ -127,10 +123,8 @@ export default function MessagesStoryRepliesScreen() {
           </View>
         </Animated.View>
 
-        {/* Section Separator */}
         <View style={[styles.blockSeparator, { backgroundColor: separatorBg }]} />
 
-        {/* Section 3: End-to-end encryption */}
         <Animated.View entering={FadeInDown.delay(260).duration(300)}>
           <Text style={[styles.sectionHeader, { color: sectionTitleColor }]}>
             End-to-end encryption

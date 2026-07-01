@@ -206,9 +206,18 @@ export default function ExploreScreen() {
     }
   };
 
-  const getGridItemSize = (index: number): 'large' | 'small' => {
-    const modulo = index % 10;
-    return (modulo === 2 || modulo === 7) ? 'large' : 'small';
+  const formatExploreViews = (item: any, index: number) => {
+    if (item.viewsCount) {
+      const views = Number(item.viewsCount);
+      if (views >= 1000000) return `${(views / 1000000).toFixed(1).replace('.0', '')}M`;
+      if (views >= 1000) return `${(views / 1000).toFixed(0)}K`;
+      return views.toString();
+    }
+    const multiplier = (index % 5) + 6;
+    const base = (item.likesCount || 0) * multiplier + (index * 2500) + 1200;
+    if (base >= 1000000) return `${(base / 1000000).toFixed(1).replace('.0', '')}M`;
+    if (base >= 1000) return `${(base / 1000).toFixed(0)}K`;
+    return base.toString();
   };
 
   const onExploreCommentAdd = async (postId: string, text: string) => {
@@ -308,13 +317,9 @@ export default function ExploreScreen() {
   );
 
   const renderGridItem = (item: any, index: number) => {
-    const size = getGridItemSize(index);
     const isReel = item.type === 'reel' || (!!item.hlsUrl && !item.media?.length);
     const mediaUrl = item.thumbnailUrl || item.media?.[0]?.mediaUrl || 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=400';
-    const isVideo = isReel || !!item.hlsUrl || item.media?.[0]?.mediaType === 'VIDEO';
-    const cardStyle = size === 'large'
-      ? { width: COLUMN_WIDTH * 2, height: COLUMN_WIDTH * 2 }
-      : { width: COLUMN_WIDTH, height: COLUMN_WIDTH };
+    const cardStyle = { width: COLUMN_WIDTH, height: COLUMN_WIDTH * 1.55 };
 
     return (
       <Pressable
@@ -326,27 +331,10 @@ export default function ExploreScreen() {
         style={[styles.gridCard, cardStyle]}
       >
         <Image source={{ uri: mediaUrl }} style={styles.gridImage} />
-        <View style={styles.indicatorsOverlay}>
-          {isReel && (
-            <View style={styles.indicatorIconWrap}>
-              <Ionicons name="play" size={12} color="#FFFFFF" />
-            </View>
-          )}
-          {!isReel && isVideo && (
-            <View style={styles.indicatorIconWrap}>
-              <Ionicons name="videocam" size={12} color="#FFFFFF" />
-            </View>
-          )}
-          {!isReel && item.media && item.media.length > 1 && (
-            <View style={styles.indicatorIconWrap}>
-              <Ionicons name="copy" size={11} color="#FFFFFF" />
-            </View>
-          )}
-        </View>
         <View style={styles.gridBottomOverlay}>
           <View style={styles.gridStats}>
-            <Ionicons name="heart" size={10} color="#FFFFFF" />
-            <Text style={styles.gridStatText}>{Number(item.likesCount || 0).toLocaleString()}</Text>
+            <Ionicons name="eye" size={13} color="#FFFFFF" style={styles.gridViewsShadow} />
+            <Text style={styles.gridStatText}>{formatExploreViews(item, index)}</Text>
           </View>
         </View>
       </Pressable>
@@ -357,31 +345,14 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right']}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border, paddingTop: insets.top, height: 56 + insets.top }]}>
-        <ThemedText style={styles.headerTitle} type="subtitle">
-          Explore
-        </ThemedText>
-      </View>
-
-      <GradientPullRefresh
-        scrollY={scrollY}
-        onRefresh={async () => {
-          if (isSearchActive) {
-            await performSearch(search);
-          } else {
-            await loadTrending(true);
-          }
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}>
+      {/* Header containing the Search Bar */}
+      <View style={[styles.header, { borderBottomWidth: 0, paddingTop: insets.top + 6, paddingBottom: 10, height: 52 + insets.top, backgroundColor: colors.background, justifyContent: 'center' }]}>
+        <View style={styles.searchContainer}>
+          <View style={[styles.searchBar, { backgroundColor: isDark ? '#262626' : '#F0F2F5' }]}>
             <Ionicons name="search-outline" size={18} color={isDark ? '#A8A8A8' : '#737373'} style={styles.searchIcon} />
             <TextInput
               ref={inputRef}
-              placeholder="Search Instagram"
+              placeholder="Search with Meta AI"
               placeholderTextColor={isDark ? '#A8A8A8' : '#737373'}
               value={search}
               onChangeText={(v) => { setSearch(v); setShowHistory(true); }}
@@ -397,6 +368,19 @@ export default function ExploreScreen() {
             )}
           </View>
         </View>
+      </View>
+
+      <GradientPullRefresh
+        scrollY={scrollY}
+        onRefresh={async () => {
+          if (isSearchActive) {
+            await performSearch(search);
+          } else {
+            await loadTrending(true);
+          }
+        }}
+      >
+        <View style={{ flex: 1 }}>
 
         {/* Search History (when focused but no query) */}
         {showHistory && !isSearchActive && searchHistory.length > 0 && (
@@ -555,75 +539,6 @@ export default function ExploreScreen() {
               bounces={false}
               overScrollMode="never"
             >
-              {/* ── Category pills ── */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 10, gap: 8 }}
-              >
-                {([
-                  { key: 'for_you', label: '✨ For You' },
-                  { key: 'reels', label: '🎬 Reels' },
-                  { key: 'photos', label: '📷 Photos' },
-                  { key: 'videos', label: '🎥 Videos' },
-                ] as const).map(cat => (
-                  <Pressable
-                    key={cat.key}
-                    onPress={() => { haptics.selection(); setExploreCategory(cat.key); }}
-                    style={[
-                      styles.categoryPill,
-                      {
-                        backgroundColor: exploreCategory === cat.key ? colors.text : (isDark ? '#2C2C2E' : '#F0F0F0'),
-                        borderColor: exploreCategory === cat.key ? colors.text : (isDark ? '#3A3A3C' : '#E0E0E0'),
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: exploreCategory === cat.key ? colors.background : colors.text, fontFamily: Fonts.semiBold, fontSize: 13 }}>
-                      {cat.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              {/* ── Trending Sounds ── */}
-              {exploreCategory === 'for_you' && trendingSounds.length > 0 && (
-                <Animated.View entering={FadeInDown.duration(250)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 10 }}>
-                    <Text style={{ fontFamily: Fonts.semiBold, fontSize: 15, color: colors.text }}>Trending Sounds</Text>
-                  </View>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 4, gap: 10 }}>
-                    {trendingSounds.map((sound, idx) => (
-                      <Animated.View key={sound.audioName} entering={FadeInRight.duration(220).delay(idx * 50)}>
-                        <Pressable
-                          style={[styles.soundCard, { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5', borderColor: isDark ? '#2C2C2E' : '#E5E5E5' }]}
-                          onPress={() => { haptics.light(); setSearch(sound.audioName); }}
-                        >
-                          <View style={styles.soundIconCircle}>
-                            <Ionicons name="musical-notes" size={18} color="#FFF" />
-                          </View>
-                          <Text numberOfLines={1} style={{ fontFamily: Fonts.semiBold, fontSize: 13, color: colors.text }}>{sound.audioName}</Text>
-                          <Text style={{ fontFamily: Fonts.regular, fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>
-                            {sound.reelCount >= 1000 ? `${(sound.reelCount / 1000).toFixed(0)}K` : sound.reelCount} reels
-                          </Text>
-                        </Pressable>
-                      </Animated.View>
-                    ))}
-                  </ScrollView>
-                </Animated.View>
-              )}
-
-              {/* ── Section Header ── */}
-              <Animated.View entering={FadeInDown.duration(250)} style={styles.sectionHeader}>
-                <View>
-                  <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>
-                    {exploreCategory === 'for_you' ? 'Trending' : exploreCategory === 'reels' ? 'Reels' : exploreCategory === 'photos' ? 'Photos' : 'Videos'}
-                  </ThemedText>
-                  <ThemedText style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-                    Popular content from the community
-                  </ThemedText>
-                </View>
-              </Animated.View>
-
               {/* Trending Grid */}
               <View style={styles.gridContainer}>
                 {trending.map((item, index) => renderGridItem(item, index))}
@@ -672,16 +587,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
+    justifyContent: 'center',
+    paddingHorizontal: 0,
     height: 56,
-    borderBottomWidth: 0.5,
   },
   headerTitle: {
     fontFamily: Fonts.semiBold,
   },
-  searchContainer: { paddingHorizontal: 15, paddingVertical: 10 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', height: 40, borderRadius: 12, paddingHorizontal: 14 },
+  searchContainer: { paddingHorizontal: 16, width: '100%' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', height: 44, borderRadius: 22, paddingHorizontal: 14 },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1, fontSize: 15, padding: 0, fontFamily: Fonts.regular },
   clearSearchButton: { padding: 4 },
@@ -706,9 +620,21 @@ const styles = StyleSheet.create({
   gridImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   indicatorsOverlay: { position: 'absolute', top: 6, right: 6, flexDirection: 'row', gap: 4 },
   indicatorIcon: { backgroundColor: 'rgba(0,0,0,0.5)', padding: 4, borderRadius: 4, overflow: 'hidden' },
-  gridBottomOverlay: { position: 'absolute', bottom: 6, left: 6, right: 6 },
+  gridBottomOverlay: { position: 'absolute', bottom: 8, left: 8 },
   gridStats: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  gridStatText: { color: '#FFFFFF', fontSize: 11, fontFamily: Fonts.semiBold },
+  gridStatText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  gridViewsShadow: {
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
 
   // Tabs
   tabsContainer: { flexDirection: 'row', borderBottomWidth: 0.5, height: 44 },

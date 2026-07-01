@@ -81,6 +81,7 @@ interface CommentsSheetProps {
   onClose: () => void;
   /** Fired when a new comment is successfully submitted (for parent count update) */
   onCommentAdded?: (newCount: number) => void;
+  useModal?: boolean;
 }
 
 // ─── Hashtag highlighter ──────────────────────────────────────────────────────
@@ -140,8 +141,10 @@ const CommentRow: React.FC<CommentRowProps> = React.memo(
     const isOwn = item.user?.id === currentUserId;
 
     const handleLikePress = () => {
-      heartScale.value = withSpring(1.4, { damping: 6 }, () => {
-        heartScale.value = withSpring(1, { damping: 10 });
+      heartScale.value = withTiming(1.3, { duration: 110, easing: Easing.out(Easing.quad) }, (finished) => {
+        if (finished) {
+          heartScale.value = withTiming(1, { duration: 90, easing: Easing.in(Easing.quad) });
+        }
       });
       onLike(item.id);
     };
@@ -270,10 +273,36 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
   entityType = 'post',
   onClose,
   onCommentAdded,
+  useModal = true,
 }) => {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+
+  const sheetIsDark = entityType === 'reel' ? true : isDark;
+
+  const sheetColors = React.useMemo(() => {
+    if (entityType === 'reel') {
+      return {
+        background: '#151517',
+        card: '#1C1C1E',
+        text: '#FFFFFF',
+        textSecondary: '#A8A8A8',
+        border: '#2C2C2E',
+        inputBackground: '#252528',
+        primary: '#0095F6',
+      };
+    }
+    return {
+      background: isDark ? '#1C1C1E' : '#FFFFFF',
+      card: isDark ? '#2C2C2E' : '#FFFFFF',
+      text: colors.text,
+      textSecondary: colors.textSecondary,
+      border: isDark ? '#2C2C2E' : '#F2F2F7',
+      inputBackground: isDark ? '#2C2C2E' : '#F2F2F7',
+      primary: colors.primary,
+    };
+  }, [entityType, isDark, colors]);
 
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -512,57 +541,51 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
 
   const inputPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={closeSheet}
-    >
-      <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
-        {/* Backdrop */}
-        <Animated.View
-          style={[styles.backdrop, backdropAnimStyle]}
-          pointerEvents="auto"
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
-        </Animated.View>
+  const renderSheetContent = () => (
+    <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
+      {/* Backdrop */}
+      <Animated.View
+        style={[styles.backdrop, backdropAnimStyle, entityType === 'reel' && { backgroundColor: 'transparent' }]}
+        pointerEvents="auto"
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
+      </Animated.View>
 
-        {/* Sheet container */}
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          {/* Sheet */}
-          <Animated.View
-            style={[
-              styles.sheet,
-              {
-                backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                maxHeight: SHEET_MAX_HEIGHT,
-                paddingBottom: inputPadding + keyboardHeight,
-              },
-              sheetAnimStyle,
-            ]}
-          >
-            <View style={{ flex: 1 }}>
+      {/* Sheet container */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        {/* Sheet */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: sheetColors.background,
+              maxHeight: SHEET_MAX_HEIGHT,
+              paddingBottom: inputPadding + keyboardHeight,
+            },
+            sheetAnimStyle,
+          ]}
+        >
+          <View style={{ flex: 1 }}>
             {/* Drag handle + header */}
             <GestureDetector gesture={panGesture}>
               <View style={styles.sheetHeader}>
-                <View style={[styles.dragHandle, { backgroundColor: isDark ? '#48484A' : '#C7C7CC' }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                <View style={[styles.dragHandle, { backgroundColor: sheetIsDark ? '#48484A' : '#C7C7CC' }]} />
+                <Text style={[styles.sheetTitle, { color: sheetColors.text }]}>
                   Comments
                 </Text>
-                <Text style={[styles.sheetCount, { color: colors.textSecondary }]}>
+                <Text style={[styles.sheetCount, { color: sheetColors.textSecondary }]}>
                   {localCount.toLocaleString()}
                 </Text>
               </View>
             </GestureDetector>
 
-            <View style={[styles.divider, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]} />
+            <View style={[styles.divider, { backgroundColor: sheetColors.border }]} />
 
             {/* Comment list */}
             {isLoading && comments.length === 0 ? (
               <View style={styles.skeletonContainer}>
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <SkeletonRow key={i} isDark={isDark} />
+                  <SkeletonRow key={i} isDark={sheetIsDark} />
                 ))}
               </View>
             ) : (
@@ -577,20 +600,20 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
                 ListFooterComponent={
                   isLoading && comments.length > 0 ? (
                     <View style={styles.footerLoader}>
-                      <ActivityIndicator size="small" color={colors.primary} />
+                      <ActivityIndicator size="small" color={sheetColors.primary} />
                     </View>
                   ) : null
                 }
                 ListEmptyComponent={
                   !isLoading ? (
                     <Animated.View entering={FadeIn.duration(300)} style={styles.emptyState}>
-                      <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
-                        <Feather name="message-circle" size={32} color={colors.textSecondary} />
+                      <View style={[styles.emptyIcon, { backgroundColor: sheetColors.inputBackground }]}>
+                        <Feather name="message-circle" size={32} color={sheetColors.textSecondary} />
                       </View>
-                      <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                      <Text style={[styles.emptyTitle, { color: sheetColors.text }]}>
                         No comments yet
                       </Text>
-                      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                      <Text style={[styles.emptySubtitle, { color: sheetColors.textSecondary }]}>
                         Be the first to comment.
                       </Text>
                     </Animated.View>
@@ -601,8 +624,8 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
                     <CommentRow
                       item={item}
                       currentUserId={user?.id ?? ''}
-                      isDark={isDark}
-                      colors={colors}
+                      isDark={sheetIsDark}
+                      colors={sheetColors}
                       onReply={handleReply}
                       onDelete={handleDeleteComment}
                       onLike={handleLikeComment}
@@ -617,11 +640,11 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
               <Animated.View
                 entering={FadeIn.duration(150)}
                 exiting={FadeOut.duration(150)}
-                style={[styles.replyBanner, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
+                style={[styles.replyBanner, { backgroundColor: sheetColors.inputBackground }]}
               >
-                <Text style={[styles.replyBannerText, { color: colors.textSecondary }]}>
+                <Text style={[styles.replyBannerText, { color: sheetColors.textSecondary }]}>
                   Replying to{' '}
-                  <Text style={{ color: colors.text, fontFamily: Fonts.semiBold }}>
+                  <Text style={{ color: sheetColors.text, fontFamily: Fonts.semiBold }}>
                     @{replyTo}
                   </Text>
                 </Text>
@@ -629,13 +652,26 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
                   onPress={() => { setReplyTo(null); setInputText(''); }}
                   hitSlop={10}
                 >
-                  <Ionicons name="close" size={16} color={colors.textSecondary} />
+                  <Ionicons name="close" size={16} color={sheetColors.textSecondary} />
                 </Pressable>
               </Animated.View>
             )}
 
+            {/* Quick Emoji Shortcuts Row */}
+            <View style={[styles.emojiRow, { borderTopColor: sheetColors.border }]}>
+              {['🤣', '🙌', '🔥', '👏', '😢', '😍', '😮', '😂'].map((emoji) => (
+                <Pressable
+                  key={emoji}
+                  onPress={() => setInputText((prev) => prev + emoji)}
+                  style={styles.emojiButton}
+                >
+                  <Text style={styles.emojiText}>{emoji}</Text>
+                </Pressable>
+              ))}
+            </View>
+
             {/* Input bar */}
-            <View style={[styles.inputBar, { borderTopColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+            <View style={[styles.inputBar, { borderTopColor: sheetColors.border }]}>
               <Image
                 source={{
                   uri: user?.avatar ||
@@ -645,47 +681,64 @@ export const CommentsSheet: React.FC<CommentsSheetProps> = ({
               />
               <View style={[
                 styles.inputWrapper,
-                { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' },
+                { backgroundColor: sheetColors.inputBackground },
               ]}>
                 <TextInput
                   ref={inputRef}
                   value={inputText}
                   onChangeText={setInputText}
                   placeholder="Add a comment..."
-                  placeholderTextColor={colors.textSecondary}
-                  style={[styles.input, { color: colors.text }]}
+                  placeholderTextColor={sheetColors.textSecondary}
+                  style={[styles.input, { color: sheetColors.text }]}
                   returnKeyType="send"
                   onSubmitEditing={handleSubmit}
                   multiline
                   maxLength={2200}
                 />
+                <Pressable style={styles.inputIconButton} hitSlop={6}>
+                  <Feather name="image" size={18} color={sheetColors.textSecondary} />
+                </Pressable>
+                <Pressable style={styles.gifIcon} hitSlop={6}>
+                  <Text style={[styles.gifText, { color: sheetColors.textSecondary }]}>GIF</Text>
+                </Pressable>
               </View>
-              <Pressable
-                onPress={handleSubmit}
-                disabled={!inputText.trim() || isSubmitting}
-                style={styles.postButton}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.postButtonText,
-                      {
-                        color: inputText.trim() ? '#0095F6' : colors.textSecondary,
-                      },
-                    ]}
-                  >
-                    Post
-                  </Text>
-                )}
-              </Pressable>
+              {inputText.trim() ? (
+                <Pressable
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  style={styles.postButton}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={sheetColors.primary} />
+                  ) : (
+                    <Text style={[styles.postButtonText, { color: '#0095F6' }]}>Post</Text>
+                  )}
+                </Pressable>
+              ) : (
+                <Pressable style={styles.giftButton} hitSlop={8}>
+                  <Ionicons name="gift-outline" size={24} color={sheetColors.text} />
+                </Pressable>
+              )}
             </View>
           </View>
         </Animated.View>
       </View>
     </View>
-  </Modal>
+  );
+
+  if (!useModal) {
+    return renderSheetContent();
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={closeSheet}
+    >
+      {renderSheetContent()}
+    </Modal>
   );
 };
 
@@ -876,9 +929,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 10 : 6,
     maxHeight: 100,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   input: {
+    flex: 1,
     fontFamily: Fonts.regular,
     fontSize: 14,
     padding: 0,
@@ -893,5 +948,42 @@ const styles = StyleSheet.create({
   postButtonText: {
     fontFamily: Fonts.semiBold,
     fontSize: 14,
+  },
+  emojiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+  },
+  emojiButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  emojiText: {
+    fontSize: 22,
+  },
+  gifIcon: {
+    borderWidth: 1.5,
+    borderRadius: 5,
+    borderColor: '#A8A8A8',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gifText: {
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+  },
+  inputIconButton: {
+    marginLeft: 10,
+  },
+  giftButton: {
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

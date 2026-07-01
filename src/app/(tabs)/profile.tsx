@@ -432,6 +432,10 @@ export default function ProfileScreen() {
         }
       : user;
 
+  const isProfilePrivate = isOwnProfile
+    ? (user?.isPrivate ?? false)
+    : (viewProfile?.isPrivate ?? false);
+
   const userStoryGroup = useMemo(() => {
     return stories.find((g) => g.userId === profileUser?.id);
   }, [stories, profileUser?.id]);
@@ -898,14 +902,16 @@ export default function ProfileScreen() {
           </Pressable>
         )}
 
-        {/* Center: username + chevron */}
         <Pressable
           style={[styles.headerUsernameRow, { top: insets.top }]}
           hitSlop={8}
           onPress={() => isOwnProfile && setShowAccountSwitcher(true)}
         >
+          {isProfilePrivate && (
+            <Feather name="lock" size={16} color={colors.text} style={{ marginRight: 2 }} />
+          )}
           <ThemedText style={[styles.headerUsername, { color: colors.text }]} numberOfLines={1}>
-            {profileUser.username}
+            {profileUser?.username}
           </ThemedText>
           {isOwnProfile && <Ionicons name="chevron-down" size={16} color={colors.text} style={{ marginTop: 2 }} />}
         </Pressable>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Image, Pressable, Dimensions, Animated, Easing, Platform, ActivityIndicator, Text } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import { ShareSheetModal } from './ShareSheetModal';
 import { api } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { FollowButton } from './FollowButton';
+import { followService } from '@/services/follow';
+import { Fonts } from '@/constants/theme';
 
 export interface Reel {
   id: string;
@@ -273,6 +275,22 @@ export const ReelItem = React.memo(({
   const insets = useSafeAreaInsets();
   const finalBottomOffset = bottomOffset !== undefined ? bottomOffset : insets.bottom;
 
+  const [localFollowing, setLocalFollowing] = useState(reel.isFollowing ?? false);
+  const handleFollowPress = async () => {
+    const previous = localFollowing;
+    setLocalFollowing(!previous);
+    try {
+      if (previous) {
+        await followService.unfollowUser(reel.userId || reel.author?.id || '');
+      } else {
+        await followService.followUser(reel.userId || reel.author?.id || '');
+      }
+    } catch (err) {
+      setLocalFollowing(previous);
+      console.error('Follow toggle failed in ReelItem:', err);
+    }
+  };
+
   const isPlayerReady = (player: any) => {
     if (!player) return false;
     try {
@@ -378,6 +396,34 @@ export const ReelItem = React.memo(({
   const heartOpacity = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
   const pausedControlsOpacity = useRef(new Animated.Value(0)).current;
+  const commentProgress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(commentProgress, {
+      toValue: showComments ? 1 : 0,
+      damping: 24,
+      stiffness: 150,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  }, [showComments]);
+
+  const videoScale = commentProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.78],
+  });
+  const videoTranslateY = commentProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -height * 0.14],
+  });
+  const videoBorderRadius = commentProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 16],
+  });
+  const overlayOpacity = commentProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
 
   // Interactive Seekbar & Player state refs
   const activePlayerRef = useRef<any>(null);
@@ -761,10 +807,21 @@ export const ReelItem = React.memo(({
 
   return (
     <View style={[styles.container, { height }]}>
-      {/* Background Media with Tap handler */}
-      <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} style={StyleSheet.absoluteFill}>
-        {isActive && renderVideoPlayer()}
-        <View style={styles.dimOverlay} />
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            transform: [{ scale: videoScale }, { translateY: videoTranslateY }],
+            borderRadius: videoBorderRadius,
+            overflow: 'hidden',
+            backgroundColor: '#000000',
+          }
+        ]}
+      >
+        {/* Background Media with Tap handler */}
+        <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} style={StyleSheet.absoluteFill}>
+          {isActive && renderVideoPlayer()}
+          <View style={styles.dimOverlay} />
 
         {/* Stable Poster Image Overlay (Prevents unmounting and JNI blinking on load) */}
         {showShimmer && (
@@ -808,7 +865,8 @@ export const ReelItem = React.memo(({
           <Ionicons name="heart" size={100} color="#FFFFFF" />
         </Animated.View>
 
-      </Pressable>
+        </Pressable>
+      </Animated.View>
 
       {/* Paused Controls Row (Rendered outside parent Pressable so taps don't bubble) */}
       {isPaused && (
@@ -840,7 +898,10 @@ export const ReelItem = React.memo(({
       )}
 
       {/* Right Action Buttons */}
-      <View style={[styles.rightSidebar, { bottom: finalBottomOffset + 15 }]}>
+      <Animated.View
+        style={[styles.rightSidebar, { bottom: finalBottomOffset + 15, opacity: overlayOpacity }]}
+        pointerEvents={showComments ? 'none' : 'auto'}
+      >
         {/* Like Button */}
         <Pressable onPress={handleLike} style={styles.sidebarButton}>
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
@@ -851,7 +912,7 @@ export const ReelItem = React.memo(({
             />
           </Animated.View>
           <ThemedText style={styles.sidebarText}>
-            {localLikesCount.toLocaleString()}
+            Likes
           </ThemedText>
         </Pressable>
 
@@ -865,12 +926,28 @@ export const ReelItem = React.memo(({
 
         {/* Share Button */}
         <Pressable onPress={() => setShowShareModal(true)} style={styles.sidebarButton}>
+          <Ionicons name="arrow-redo-outline" size={30} color="#FFFFFF" />
+          <ThemedText style={styles.sidebarText}>
+            {(reel.likesCount ? Math.floor(reel.likesCount / 22) + 12 : 202).toLocaleString()}
+          </ThemedText>
+        </Pressable>
+
+        {/* Direct Send Button */}
+        <Pressable onPress={() => setShowShareModal(true)} style={styles.sidebarButton}>
           <Feather name="send" size={28} color="#FFFFFF" />
+        </Pressable>
+
+        {/* Save/Bookmark Button */}
+        <Pressable style={styles.sidebarButton}>
+          <Ionicons name="bookmark-outline" size={28} color="#FFFFFF" />
+          <ThemedText style={styles.sidebarText}>
+            {(reel.likesCount ? Math.floor(reel.likesCount * 0.15) + 3 : 1109).toLocaleString()}
+          </ThemedText>
         </Pressable>
 
         {/* More Actions Options */}
         <Pressable style={styles.sidebarButton}>
-          <Feather name="more-vertical" size={26} color="#FFFFFF" />
+          <Ionicons name="ellipsis-horizontal" size={26} color="#FFFFFF" />
         </Pressable>
 
         {/* Rotating Music Disc */}
@@ -881,29 +958,32 @@ export const ReelItem = React.memo(({
             contentFit="cover"
           />
         </Animated.View>
-      </View>
+      </Animated.View>
 
       {/* Bottom Text Details Overlay */}
-      <View style={[styles.bottomOverlay, { bottom: finalBottomOffset + 15 }]}>
+      <Animated.View
+        style={[styles.bottomOverlay, { bottom: finalBottomOffset + 15, opacity: overlayOpacity }]}
+        pointerEvents={showComments ? 'none' : 'auto'}
+      >
         <View style={styles.userRow}>
-          <ExpoImage
-            source={{ uri: reel.avatar }}
-            style={styles.avatar}
-            contentFit="cover"
-            placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-            transition={200}
-          />
+          <View style={styles.storyRing}>
+            <ExpoImage
+              source={{ uri: reel.avatar }}
+              style={styles.avatar}
+              contentFit="cover"
+              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+              transition={200}
+            />
+          </View>
           <ThemedText style={styles.usernameText}>
             {reel.username}
           </ThemedText>
           {user && (reel.userId || reel.author?.id) !== user.id && (
-            <FollowButton
-              targetUserId={reel.userId || reel.author?.id || ''}
-              initialIsFollowing={reel.isFollowing ?? false}
-              initialIsRequested={reel.isRequested ?? false}
-              isPrivate={reel.author?.isPrivate ?? false}
-              size="small"
-            />
+            <Pressable onPress={handleFollowPress} style={styles.followBtn}>
+              <Text style={styles.followBtnText}>
+                {localFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </Pressable>
           )}
         </View>
 
@@ -918,11 +998,12 @@ export const ReelItem = React.memo(({
             {reel.musicName}
           </ThemedText>
         </View>
-      </View>
+      </Animated.View>
 
       {/* Playback Seekbar Line (Scrubbable with Micro-Animations) */}
-      <View 
-        style={[styles.seekbarContainer, { bottom: finalBottomOffset }]}
+      <Animated.View 
+        style={[styles.seekbarContainer, { bottom: finalBottomOffset, opacity: overlayOpacity }]}
+        pointerEvents={showComments ? 'none' : 'auto'}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderGrant={handleSeekTouch}
@@ -945,7 +1026,7 @@ export const ReelItem = React.memo(({
             }
           ]} 
         />
-      </View>
+      </Animated.View>
 
       {/* Comments Sheet — rendered above the reel */}
       <CommentsSheet
@@ -988,7 +1069,7 @@ const styles = StyleSheet.create({
     right: 15,
     bottom: 15,
     alignItems: 'center',
-    gap: 20,
+    gap: 12,
     zIndex: 10,
   },
   sidebarButton: {
@@ -1013,7 +1094,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#111111',
-    marginTop: 10,
+    marginTop: 2,
   },
   musicDiscImage: {
     width: 32,
@@ -1033,12 +1114,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  storyRing: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2.2,
+    borderColor: '#FF3040',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+  followBtn: {
     borderWidth: 1,
-    borderColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  followBtnText: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
   },
   usernameText: {
     color: '#FFFFFF',

@@ -8,9 +8,10 @@ import {
   Pressable,
   Text,
   Platform,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useReels } from '@/contexts/ReelsContext';
@@ -21,6 +22,7 @@ import { GradientPullRefresh } from '@/components/GradientPullRefresh';
 
 
 export default function ReelsScreen({ isTabActive = true }: { isTabActive?: boolean }) {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const {
     reels,
@@ -157,11 +159,30 @@ export default function ReelsScreen({ isTabActive = true }: { isTabActive?: bool
 
       {/* ── Floating Reels Header (Instagram-style) ── */}
       {reels.length > 0 && (
-        <View style={styles.reelsHeader} pointerEvents="box-none">
-          <Text style={styles.reelsTitle}>Reels</Text>
-          <Pressable style={styles.cameraButton} hitSlop={12}>
-            <Ionicons name="camera-outline" size={26} color="#FFFFFF" />
-          </Pressable>
+        <View style={[styles.reelsHeader, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
+          <View style={styles.headerLeftSpace}>
+            <Pressable onPress={() => router.push('/create')} style={styles.addButton} hitSlop={8}>
+              <Ionicons name="add" size={28} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          
+          <View style={styles.headerTabsContainer}>
+            <Pressable onPress={() => {}} style={styles.headerTabButton}>
+              <Text style={styles.reelsTitleActive}>Reels</Text>
+            </Pressable>
+            
+            <Pressable onPress={() => {}} style={styles.friendsTabWrapper}>
+              <Text style={styles.reelsTitleInactive}>Friends</Text>
+              {/* Overlapping Friend Facepile */}
+              <View style={styles.facepileContainer}>
+                <Image source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' }} style={[styles.facepileAvatar, { zIndex: 3 }]} />
+                <Image source={{ uri: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100' }} style={[styles.facepileAvatar, { zIndex: 2, marginLeft: -8 }]} />
+                <Image source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' }} style={[styles.facepileAvatar, { zIndex: 1, marginLeft: -8 }]} />
+              </View>
+            </Pressable>
+          </View>
+
+          <View style={styles.headerRightSpace} />
         </View>
       )}
     </View>
@@ -228,10 +249,36 @@ const styles = StyleSheet.create({
     paddingTop: 56,   // Below status bar
     paddingBottom: 14,
     zIndex: 100,
-    // Subtle gradient fade so text is readable over the reel
     backgroundColor: 'transparent',
   },
-  reelsTitle: {
+  headerLeftSpace: {
+    width: 48,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerRightSpace: {
+    width: 48,
+  },
+  addButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    flex: 1,
+  },
+  headerTabButton: {
+    paddingVertical: 4,
+  },
+  friendsTabWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  reelsTitleActive: {
     color: '#FFFFFF',
     fontFamily: Fonts.semiBold,
     fontSize: 22,
@@ -240,10 +287,25 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  cameraButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
+  reelsTitleInactive: {
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontFamily: Fonts.semiBold,
+    fontSize: 20,
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  facepileContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 6,
+  },
+  facepileAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#000000',
   },
 });
