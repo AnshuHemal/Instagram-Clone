@@ -35,21 +35,15 @@ export const FeedHeader: React.FC = () => {
         }}
         style={({ pressed }) => [styles.iconButton, pressed && { opacity: 0.6 }]}
       >
-        <Ionicons name="add" size={30} color={colors.text} />
+        <Ionicons name="add" size={28} color={colors.text} />
       </Pressable>
 
-      {/* Center: Instagram Text Logo with filter dropdown */}
+      {/* Center: Instagram Text Logo — tap cycles between For You / Following */}
       <Pressable onPress={() => setShowDropdown(!showDropdown)} style={styles.logoPressable}>
         <InstagramLogo color={colors.text} />
-        <Ionicons
-          name={showDropdown ? "chevron-up" : "chevron-down"}
-          size={14}
-          color={colors.text}
-          style={styles.chevronIcon}
-        />
       </Pressable>
 
-      {/* Right side: Notification Bell with unread count */}
+      {/* Right side: Heart activity icon with unread badge */}
       <Pressable
         onPress={() => {
           haptics.onButtonPress();
@@ -59,24 +53,14 @@ export const FeedHeader: React.FC = () => {
       >
         <View style={styles.badgeWrapper}>
           <Ionicons
-            name={notificationCount > 0 ? "notifications" : "notifications-outline"}
+            name={notificationCount > 0 ? 'heart' : 'heart-outline'}
             size={26}
             color={colors.text}
           />
           {notificationCount > 0 && (
             <Animated.View style={[styles.badge, badgeAnimatedStyle]}>
               <View style={[styles.badgeDot, { backgroundColor: '#FF3040', borderColor: colors.background }]}>
-                {notificationCount > 9 ? (
-                  <View style={styles.badgeTextContainer}>
-                    <View style={[styles.badgeText, { backgroundColor: '#FF3040' }]}>
-                      <View style={styles.badgeTextInner}>
-                        <Ionicons name="notifications" size={8} color="#FFFFFF" />
-                      </View>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.badgeDotInner} />
-                )}
+                <View style={styles.badgeDotInner} />
               </View>
             </Animated.View>
           )}

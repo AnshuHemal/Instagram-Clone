@@ -22,6 +22,7 @@ import ReAnimated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  FadeInDown,
 } from 'react-native-reanimated';
 
 const WINDOW_WIDTH = Dimensions.get('window').width;
@@ -199,11 +200,32 @@ export const PostCard: React.FC<PostCardProps> = ({
   const { isSaved, toggleSave } = useSaved();
   const [activeIndex, setActiveIndex] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(post.user?.isFollowing ?? false);
+
+  const handleFollowToggle = async () => {
+    const targetId = post.userId || post.user?.id;
+    if (!targetId) return;
+    haptics.onButtonPress();
+    const previous = isFollowing;
+    setIsFollowing(!previous);
+    try {
+      const { followService } = require('@/services/follow');
+      if (previous) {
+        await followService.unfollowUser(targetId);
+      } else {
+        await followService.followUser(targetId);
+      }
+    } catch (err) {
+      console.error('[PostCard] Follow toggle error:', err);
+      setIsFollowing(previous);
+    }
+  };
 
   // Sync count from prop when feed refreshes
   useEffect(() => {
     setLocalCommentsCount(post.commentsCount);
-  }, [post.commentsCount]);
+    setIsFollowing(post.user?.isFollowing ?? false);
+  }, [post.commentsCount, post.user?.isFollowing]);
 
   const scrollX = useRef(new Animated.Value(0)).current;
 
@@ -316,11 +338,15 @@ export const PostCard: React.FC<PostCardProps> = ({
   const isReelCard = post.type === 'reel';
 
   return (
-    <View style={[styles.container, { borderBottomColor: colors.border }]}>
+    <ReAnimated.View entering={FadeInDown.duration(280).springify()} style={[styles.container, { borderBottomColor: colors.border }]}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <Pressable
+          style={styles.headerLeft}
+          onPress={() => router.push(`/profile/${post.user?.id}` as any)}
+          hitSlop={4}
+        >
           <ExpoImage
             source={{ uri: avatarUrl }}
             style={styles.avatar}
@@ -341,7 +367,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                   style={{ marginLeft: 3 }}
                 />
               )}
-
             </View>
             {post.location ? (
               <ThemedText
@@ -352,10 +377,36 @@ export const PostCard: React.FC<PostCardProps> = ({
               </ThemedText>
             ) : null}
           </View>
-        </View>
-        <Pressable style={styles.moreBtn} hitSlop={10}>
-          <Feather name="more-horizontal" size={20} color={colors.text} />
         </Pressable>
+
+        <View style={styles.headerRight}>
+          {/* Follow button — shown for other users' posts */}
+          {post.user?.id !== user?.id && (
+            <>
+              <Pressable
+                onPress={handleFollowToggle}
+                style={({ pressed }) => [
+                  styles.followBtn,
+                  isFollowing && styles.followingBtn,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.followBtnText,
+                    isFollowing && { color: colors.text },
+                  ]}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </ThemedText>
+              </Pressable>
+              <View style={[styles.headerDot, { backgroundColor: colors.textSecondary }]} />
+            </>
+          )}
+          <Pressable style={styles.moreBtn} hitSlop={10}>
+            <Feather name="more-horizontal" size={20} color={colors.text} />
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Media (Reel thumbnail or Post carousel) ── */}
@@ -616,7 +667,7 @@ export const PostCard: React.FC<PostCardProps> = ({
         previewCaption={post.caption}
         onClose={() => setShowShareModal(false)}
       />
-    </View>
+    </ReAnimated.View>
   );
 };
 
@@ -637,9 +688,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   headerLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   avatar: {
     width: 34,
@@ -653,6 +710,28 @@ const styles = StyleSheet.create({
   location: {
     fontSize: 11,
     marginTop: 1,
+  },
+  followBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: '#0095F6',
+  },
+  followingBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#DBDBDB',
+  },
+  followBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  headerDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 2,
   },
   moreBtn: { padding: 5 },
   reelBadge: {

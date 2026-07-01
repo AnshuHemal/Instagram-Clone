@@ -29,6 +29,7 @@ export interface UserInfo {
   displayName: string;
   avatarUrl: string;
   isVerified: boolean;
+  isFollowing?: boolean;
 }
 
 export interface Post {

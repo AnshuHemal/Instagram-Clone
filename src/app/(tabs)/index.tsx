@@ -425,6 +425,7 @@ export default function FeedScreen({ isTabActive = true }: { isTabActive?: boole
                   avatar={item.avatar}
                   isSeen={item.isSeen}
                   onPress={() => openStoriesGroup(globalIndex)}
+                  showAddFriendBadge={item.userId !== user?.id}
                 />
               );
             }}

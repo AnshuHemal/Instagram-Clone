@@ -12,6 +12,7 @@ interface StoryCircleProps {
   onPress?: () => void;
   size?: number;
   showUsername?: boolean;
+  showAddFriendBadge?: boolean;
 }
 
 export const StoryCircle: React.FC<StoryCircleProps> = ({
@@ -21,6 +22,7 @@ export const StoryCircle: React.FC<StoryCircleProps> = ({
   onPress,
   size = 60,
   showUsername = true,
+  showAddFriendBadge = false,
 }) => {
   const { colors } = useTheme();
   const ringSize = size + 6;
@@ -33,54 +35,64 @@ export const StoryCircle: React.FC<StoryCircleProps> = ({
     }
   };
 
+  const Ionicons = require('@expo/vector-icons').Ionicons;
+
   return (
     <Pressable
       onPress={handlePress}
       style={({ pressed }) => [styles.container, pressed && { opacity: 0.6 }]}
     >
-      {isSeen ? (
-        <View
-          style={[
-            styles.seenRing,
-            {
-              width: ringSize,
-              height: ringSize,
-              borderRadius: ringSize / 2,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Image source={{ uri: avatar }} style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]} />
-        </View>
-      ) : (
-        <LinearGradient
-          colors={colors.storyRing as any}
-          start={{ x: 0, y: 1 }}
-          end={{ x: 1, y: 0 }}
-          style={[
-            styles.gradientRing,
-            {
-              width: ringSize,
-              height: ringSize,
-              borderRadius: ringSize / 2,
-            },
-          ]}
-        >
+      <View style={{ position: 'relative' }}>
+        {isSeen || showAddFriendBadge ? (
           <View
             style={[
-              styles.innerRing,
+              styles.seenRing,
               {
-                width: innerSize,
-                height: innerSize,
-                borderRadius: innerSize / 2,
-                backgroundColor: colors.background,
+                width: ringSize,
+                height: ringSize,
+                borderRadius: ringSize / 2,
+                borderColor: colors.border,
               },
             ]}
           >
             <Image source={{ uri: avatar }} style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]} />
           </View>
-        </LinearGradient>
-      )}
+        ) : (
+          <LinearGradient
+            colors={colors.storyRing as any}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.gradientRing,
+              {
+                width: ringSize,
+                height: ringSize,
+                borderRadius: ringSize / 2,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.innerRing,
+                {
+                  width: innerSize,
+                  height: innerSize,
+                  borderRadius: innerSize / 2,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              <Image source={{ uri: avatar }} style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]} />
+            </View>
+          </LinearGradient>
+        )}
+        
+        {showAddFriendBadge && (
+          <View style={[styles.friendAddBadge, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Ionicons name="person-add" size={9} color={colors.text} />
+          </View>
+        )}
+      </View>
       {showUsername && (
         <ThemedText type="small" numberOfLines={1} style={[styles.username, { color: colors.textSecondary }]}>
           {username}
@@ -116,5 +128,21 @@ const styles = StyleSheet.create({
     marginTop: 5,
     maxWidth: 70,
     textAlign: 'center',
+  },
+  friendAddBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 2,
   },
 });
