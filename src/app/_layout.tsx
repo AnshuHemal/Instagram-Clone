@@ -258,6 +258,14 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="messages-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="posts-stories-comments-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="sharing-across-apps"
           options={{ animation: 'slide_from_right' }}
         />

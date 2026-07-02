@@ -273,6 +273,10 @@ export default function NotificationPreferencesScreen() {
                     router.push('/accounts-follow-settings' as any);
                   } else if (item.id === 'live') {
                     router.push('/live-reels-settings' as any);
+                  } else if (item.id === 'messages') {
+                    router.push('/messages-settings' as any);
+                  } else if (item.id === 'posts') {
+                    router.push('/posts-stories-comments-settings' as any);
                   } else {
                     handleComingSoon(item.label);
                   }
