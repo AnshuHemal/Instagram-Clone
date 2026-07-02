@@ -21,6 +21,7 @@ import {
   Modal,
   Dimensions,
   FlatList,
+  InteractionManager,
 } from 'react-native';
 import Animated, {
   FadeIn,
@@ -95,6 +96,14 @@ export default function SettingsScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [closeFriendsCount, setCloseFriendsCount] = useState(closeFriendsStore.getCloseFriendsCount());
   const [favoritesCount, setFavoritesCount] = useState(favoritesStore.getFavoritesCount());
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setIsReady(true);
+    });
+    return () => task.cancel();
+  }, []);
 
   useEffect(() => {
     // Initial sync
@@ -481,7 +490,12 @@ export default function SettingsScreen() {
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>Settings and activity</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+      {!isReady ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         {/* Search Input */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchBox, { backgroundColor: isDark ? '#262626' : '#F2F2F7' }]}>
@@ -610,6 +624,7 @@ export default function SettingsScreen() {
         ))}
 
       </ScrollView>
+      )}
 
       {/* ────────────────────────────────────────────────────────────────────────
           DASHBOARD OVERLAY MODALS (PRODUCTION LEVEL DETAIL SHEETS)

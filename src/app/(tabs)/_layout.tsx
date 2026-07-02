@@ -135,17 +135,19 @@ function TabLayout() {
     const routes: TabType[] = ['index', 'reels', 'chat', 'explore', 'profile'];
     
     // Check local search param tab first, then fall back to segment check
-    let activeSegment: TabType = 'index';
+    let activeSegment: TabType | null = null;
     if (tabParam && routes.includes(tabParam as TabType)) {
       activeSegment = tabParam as TabType;
-    } else {
-      activeSegment = (!lastSegment || lastSegment === '(tabs)') ? 'index' : lastSegment as TabType;
+    } else if (lastSegment && lastSegment !== '(tabs)' && routes.includes(lastSegment as TabType)) {
+      activeSegment = lastSegment as TabType;
     }
-    const targetIndex = routes.indexOf(activeSegment);
 
-    if (targetIndex !== -1 && targetIndex !== activeIndex) {
-      setActiveIndex(targetIndex);
-      viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: false });
+    if (activeSegment) {
+      const targetIndex = routes.indexOf(activeSegment);
+      if (targetIndex !== -1 && targetIndex !== activeIndex) {
+        setActiveIndex(targetIndex);
+        viewPagerRef.current?.scrollTo({ x: targetIndex * SCREEN_WIDTH, animated: false });
+      }
     }
   }, [lastSegment, tabParam]);
 
