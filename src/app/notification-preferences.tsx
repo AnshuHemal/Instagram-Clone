@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -86,6 +86,46 @@ export default function NotificationPreferencesScreen() {
   const insets = useSafeAreaInsets();
 
   const [pauseAll, setPauseAll] = useState(false);
+  const [showDurationModal, setShowDurationModal] = useState(false);
+  const [pauseUntil, setPauseUntil] = useState<Date | null>(null);
+
+  const durationOptions = [
+    { label: '15 minutes', value: 15 },
+    { label: '1 hour', value: 60 },
+    { label: '2 hours', value: 120 },
+    { label: '4 hours', value: 240 },
+    { label: '8 hours', value: 480 },
+  ];
+
+  const handleSelectDuration = (minutes: number) => {
+    haptics.light();
+    const until = new Date(Date.now() + minutes * 60 * 1000);
+    setPauseUntil(until);
+    setPauseAll(true);
+    setShowDurationModal(false);
+
+    let durationText = `${minutes} minutes`;
+    if (minutes === 60) durationText = '1 hour';
+    else if (minutes > 60) durationText = `${minutes / 60} hours`;
+
+    showToast({
+      message: `Notifications paused for ${durationText}`,
+      type: 'info',
+    });
+  };
+
+  const handleCancelModal = () => {
+    haptics.light();
+    setShowDurationModal(false);
+  };
+
+  const getPauseDesc = () => {
+    if (pauseAll && pauseUntil) {
+      const timeStr = pauseUntil.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `Paused until ${timeStr}`;
+    }
+    return 'Temporarily pause notifications';
+  };
 
   const handleBack = () => {
     router.back();
@@ -166,17 +206,22 @@ export default function NotificationPreferencesScreen() {
             <View style={styles.labelCol}>
               <Text style={[styles.rowTitle, { color: labelColor }]}>Pause all</Text>
               <Text style={[styles.rowDesc, { color: descColor }]}>
-                Temporarily pause notifications
+                {getPauseDesc()}
               </Text>
             </View>
             <CustomSwitch
               value={pauseAll}
               onValueChange={(val) => {
-                setPauseAll(val);
-                showToast({
-                  message: val ? 'Notifications paused' : 'Notifications active',
-                  type: 'info',
-                });
+                if (val) {
+                  setShowDurationModal(true);
+                } else {
+                  setPauseAll(false);
+                  setPauseUntil(null);
+                  showToast({
+                    message: 'Notifications active',
+                    type: 'info',
+                  });
+                }
               }}
               isDark={isDark}
             />
@@ -251,6 +296,58 @@ export default function NotificationPreferencesScreen() {
           ))}
         </Animated.View>
       </ScrollView>
+
+      {/* Custom Duration Selection Modal Dialog */}
+      <Modal
+        visible={showDurationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCancelModal}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={handleCancelModal}
+        >
+          <View style={[styles.modalCard, { backgroundColor: isDark ? '#262626' : '#FFFFFF' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalHeaderText, { color: isDark ? '#A8A8A8' : '#737373' }]}>
+                You won't get push notifications, but you'll be able to see new notifications when you open Instagram
+              </Text>
+            </View>
+            
+            <View style={[styles.modalDivider, { backgroundColor: isDark ? '#3C3C3E' : '#EFEFEF' }]} />
+            
+            {durationOptions.map((opt) => (
+              <View key={opt.value}>
+                <Pressable
+                  onPress={() => handleSelectDuration(opt.value)}
+                  style={({ pressed }) => [
+                    styles.modalOption,
+                    pressed && { backgroundColor: isDark ? '#333333' : '#F5F5F5' }
+                  ]}
+                >
+                  <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#262626' }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+                <View style={[styles.modalDivider, { backgroundColor: isDark ? '#3C3C3E' : '#EFEFEF' }]} />
+              </View>
+            ))}
+            
+            <Pressable
+              onPress={handleCancelModal}
+              style={({ pressed }) => [
+                styles.modalOption,
+                pressed && { backgroundColor: isDark ? '#333333' : '#F5F5F5' }
+              ]}
+            >
+              <Text style={[styles.modalOptionText, { color: isDark ? '#FFFFFF' : '#262626' }]}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -331,5 +428,46 @@ const styles = StyleSheet.create({
   separator: {
     height: 10,
     marginVertical: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '82%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  modalHeader: {
+    paddingVertical: 22,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalHeaderText: {
+    fontFamily: Fonts.regular,
+    fontSize: 14.5,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  modalDivider: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
+  },
+  modalOption: {
+    paddingVertical: 15,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+  },
+  modalOptionText: {
+    fontFamily: Fonts.regular,
+    fontSize: 16,
   },
 });
