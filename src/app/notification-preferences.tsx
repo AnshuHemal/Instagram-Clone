@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   rowTitle: {
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.regular,
     fontSize: 16.5,
     marginBottom: 4,
   },

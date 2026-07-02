@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { CustomSwitch } from '@/components/CustomSwitch';
 
 export default function ShoppingSettingsScreen() {
   const { colors, isDark } = useTheme();
@@ -69,18 +70,16 @@ export default function ShoppingSettingsScreen() {
                 Get notified when accounts you follow add new products to their shops.
               </Text>
             </View>
-            <Switch
+            <CustomSwitch
               value={accountsFollow}
               onValueChange={(val) => {
-                haptics.light();
                 setAccountsFollow(val);
                 showToast({
                   message: val ? 'Accounts follow shopping enabled' : 'Accounts follow shopping disabled',
                   type: 'info',
                 });
               }}
-              trackColor={{ false: isDark ? '#262626' : '#EFEFEF', true: '#3897F0' }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+              isDark={isDark}
             />
           </View>
 
@@ -94,18 +93,16 @@ export default function ShoppingSettingsScreen() {
                 Get notified about products and shops you may like based on your activity on Instagram. If you've set up your Accounts Center with Facebook, it will also be based on your activity on Facebook.
               </Text>
             </View>
-            <Switch
+            <CustomSwitch
               value={suggestedForYou}
               onValueChange={(val) => {
-                haptics.light();
                 setSuggestedForYou(val);
                 showToast({
                   message: val ? 'Suggested shopping enabled' : 'Suggested shopping disabled',
                   type: 'info',
                 });
               }}
-              trackColor={{ false: isDark ? '#262626' : '#EFEFEF', true: '#3897F0' }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+              isDark={isDark}
             />
           </View>
 

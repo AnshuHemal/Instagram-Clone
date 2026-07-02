@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { CustomSwitch } from '@/components/CustomSwitch';
 
 export default function VotingRemindersSettingsScreen() {
   const { colors, isDark } = useTheme();
@@ -98,18 +99,16 @@ export default function VotingRemindersSettingsScreen() {
                 </Text>
               </Text>
             </View>
-            <Switch
+            <CustomSwitch
               value={votingReminders}
               onValueChange={(val) => {
-                haptics.light();
                 setVotingReminders(val);
                 showToast({
                   message: val ? 'Voting reminders enabled' : 'Voting reminders disabled',
                   type: 'info',
                 });
               }}
-              trackColor={{ false: isDark ? '#262626' : '#EFEFEF', true: '#3897F0' }}
-              thumbColor={Platform.OS === 'android' ? '#FFFFFF' : undefined}
+              isDark={isDark}
             />
           </View>
 
