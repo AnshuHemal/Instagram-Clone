@@ -214,6 +214,18 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="voting-reminders-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="shopping-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="email-notifications-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="sharing-across-apps"
           options={{ animation: 'slide_from_right' }}
         />

@@ -283,7 +283,18 @@ export default function NotificationPreferencesScreen() {
                 <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
               )}
               <Pressable
-                onPress={() => handleComingSoon(item.label)}
+                onPress={() => {
+                  haptics.light();
+                  if (item.id === 'email') {
+                    router.push('/email-notifications-settings' as any);
+                  } else if (item.id === 'shopping') {
+                    router.push('/shopping-settings' as any);
+                  } else if (item.id === 'voting') {
+                    router.push('/voting-reminders-settings' as any);
+                  } else {
+                    handleComingSoon(item.label);
+                  }
+                }}
                 style={({ pressed }) => [
                   styles.simpleRow,
                   pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
