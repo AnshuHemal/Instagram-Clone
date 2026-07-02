@@ -277,6 +277,8 @@ export default function NotificationPreferencesScreen() {
                     router.push('/messages-settings' as any);
                   } else if (item.id === 'posts') {
                     router.push('/posts-stories-comments-settings' as any);
+                  } else if (item.id === 'following') {
+                    router.push('/following-followers-settings' as any);
                   } else {
                     handleComingSoon(item.label);
                   }

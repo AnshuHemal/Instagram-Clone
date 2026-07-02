@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   sectionTitle: {
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.semiBold,
     fontSize: 16,
     marginBottom: 10,
   },

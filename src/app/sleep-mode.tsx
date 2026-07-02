@@ -31,54 +31,12 @@ import * as SecureStore from 'expo-secure-store';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
+import { CustomSwitch } from '@/components/CustomSwitch';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const DAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-// ─── Custom Animated Switch component (iOS-style Modern design) ──────────────
-
-interface CustomSwitchProps {
-  value: boolean;
-  onValueChange: (val: boolean) => void;
-  isDark: boolean;
-}
-
-function CustomSwitch({ value, onValueChange, isDark }: CustomSwitchProps) {
-  // Translate offset of thumb circle (width of track: 50, thumb: 24, padding: 3)
-  // translateX moves from 0 to (50 - 24 - 6 = 20)
-  const translateX = useSharedValue(value ? 20 : 0);
-
-  useEffect(() => {
-    translateX.value = withTiming(value ? 20 : 0, { duration: 150 });
-  }, [value]);
-
-  const thumbAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
-
-  return (
-    <Pressable
-      onPress={() => {
-        haptics.light();
-        onValueChange(!value);
-      }}
-      style={[
-        styles.switchTrack,
-        {
-          backgroundColor: value
-            ? '#3897F0' // Modern vibrant blue
-            : (isDark ? '#262626' : '#0F1419'), // Modern black/charcoal when inactive
-        }
-      ]}
-    >
-      <Animated.View style={[styles.switchThumb, thumbAnimatedStyle]} />
-    </Pressable>
-  );
-}
 
 // ─── Custom ScrollPicker Wheel Subcomponent ───────────────────────────────────
 

@@ -10,15 +10,16 @@ import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
-export default function MapSettingsScreen() {
+export default function FollowingFollowersSettingsScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [locationRequest, setLocationRequest] = useState<'off' | 'on'>('on');
-  const [sharingReminder, setSharingReminder] = useState<'off' | 'on'>('on');
-  const [locationLikes, setLocationLikes] = useState<'off' | 'on'>('on');
+  const [followerRequests, setFollowerRequests] = useState<'off' | 'on'>('off');
+  const [acceptedFollowRequests, setAcceptedFollowRequests] = useState<'off' | 'on'>('off');
+  const [accountSuggestions, setAccountSuggestions] = useState<'off' | 'on'>('on');
+  const [mentionsInBio, setMentionsInBio] = useState<'off' | 'follow' | 'everyone'>('off');
 
   const handleBack = () => {
     router.back();
@@ -40,57 +41,25 @@ export default function MapSettingsScreen() {
   const descColor = isDark ? '#737373' : '#8E8E8F';
   const labelColor = isDark ? '#FFFFFF' : '#000000';
 
-  const renderRadioSection = (
-    title: string,
-    currentValue: 'off' | 'on',
-    setValue: (val: 'off' | 'on') => void,
-    subtext: string
+  const renderRadioOption = (
+    label: string,
+    value: string,
+    currentValue: string,
+    onPress: () => void
   ) => {
+    const isSelected = currentValue === value;
     return (
-      <View style={styles.sectionContainer}>
-        <Text style={[styles.sectionTitle, { color: labelColor }]}>{title}</Text>
-        
-        {/* Off */}
-        <Pressable
-          onPress={() => {
-            haptics.light();
-            setValue('off');
-          }}
-          style={styles.radioRow}
-        >
-          <Text style={[styles.radioLabel, { color: labelColor }]}>Off</Text>
-          <View style={[
-            styles.radioOuter,
-            { borderColor: currentValue === 'off' ? (isDark ? '#FFFFFF' : '#000000') : '#BDBDBD' }
-          ]}>
-            {currentValue === 'off' && (
-              <View style={[styles.radioInner, { backgroundColor: isDark ? '#FFFFFF' : '#000000' }]} />
-            )}
-          </View>
-        </Pressable>
-
-        {/* On */}
-        <Pressable
-          onPress={() => {
-            haptics.light();
-            setValue('on');
-          }}
-          style={styles.radioRow}
-        >
-          <Text style={[styles.radioLabel, { color: labelColor }]}>On</Text>
-          <View style={[
-            styles.radioOuter,
-            { borderColor: currentValue === 'on' ? (isDark ? '#FFFFFF' : '#000000') : '#BDBDBD' }
-          ]}>
-            {currentValue === 'on' && (
-              <View style={[styles.radioInner, { backgroundColor: isDark ? '#FFFFFF' : '#000000' }]} />
-            )}
-          </View>
-        </Pressable>
-
-        <Text style={[styles.sectionDesc, { color: descColor }]}>{subtext}</Text>
-        <View style={[styles.divider, { backgroundColor: divColor }]} />
-      </View>
+      <Pressable onPress={onPress} style={styles.radioRow}>
+        <Text style={[styles.radioLabel, { color: labelColor }]}>{label}</Text>
+        <View style={[
+          styles.radioOuter,
+          { borderColor: isSelected ? (isDark ? '#FFFFFF' : '#000000') : '#BDBDBD' }
+        ]}>
+          {isSelected && (
+            <View style={[styles.radioInner, { backgroundColor: isDark ? '#FFFFFF' : '#000000' }]} />
+          )}
+        </View>
+      </Pressable>
     );
   };
 
@@ -109,7 +78,7 @@ export default function MapSettingsScreen() {
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-          Map
+          Following and followers
         </Text>
         <View style={{ width: 38 }} />
       </View>
@@ -119,9 +88,42 @@ export default function MapSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(300)}>
-          {renderRadioSection('Location sharing request', locationRequest, setLocationRequest, 'johnappleseed requested your location.')}
-          {renderRadioSection('Location sharing reminder', sharingReminder, setSharingReminder, 'You are sharing your location on the map. Make sure your settings are up to date.')}
-          {renderRadioSection('Location likes', locationLikes, setLocationLikes, 'janeappleseed liked your location on the map.')}
+          {/* Follower requests */}
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: labelColor }]}>Follower requests</Text>
+            {renderRadioOption('Off', 'off', followerRequests, () => { haptics.light(); setFollowerRequests('off'); })}
+            {renderRadioOption('On', 'on', followerRequests, () => { haptics.light(); setFollowerRequests('on'); })}
+            <Text style={[styles.sectionDesc, { color: descColor }]}>John Appleseed (johnappleseed) has requested to follow you.</Text>
+            <View style={[styles.divider, { backgroundColor: divColor }]} />
+          </View>
+
+          {/* Accepted follow requests */}
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: labelColor }]}>Accepted follow requests</Text>
+            {renderRadioOption('Off', 'off', acceptedFollowRequests, () => { haptics.light(); setAcceptedFollowRequests('off'); })}
+            {renderRadioOption('On', 'on', acceptedFollowRequests, () => { haptics.light(); setAcceptedFollowRequests('on'); })}
+            <Text style={[styles.sectionDesc, { color: descColor }]}>John Appleseed (johnappleseed) accepted your follow request.</Text>
+            <View style={[styles.divider, { backgroundColor: divColor }]} />
+          </View>
+
+          {/* Account suggestions */}
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: labelColor }]}>Account suggestions</Text>
+            {renderRadioOption('Off', 'off', accountSuggestions, () => { haptics.light(); setAccountSuggestions('off'); })}
+            {renderRadioOption('On', 'on', accountSuggestions, () => { haptics.light(); setAccountSuggestions('on'); })}
+            <Text style={[styles.sectionDesc, { color: descColor }]}>johnappleseed, who you might know, is on Instagram, and other similar notifications.</Text>
+            <View style={[styles.divider, { backgroundColor: divColor }]} />
+          </View>
+
+          {/* Mentions in bio */}
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: labelColor }]}>Mentions in bio</Text>
+            {renderRadioOption('Off', 'off', mentionsInBio, () => { haptics.light(); setMentionsInBio('off'); })}
+            {renderRadioOption('From profiles I follow', 'follow', mentionsInBio, () => { haptics.light(); setMentionsInBio('follow'); })}
+            {renderRadioOption('From everyone', 'everyone', mentionsInBio, () => { haptics.light(); setMentionsInBio('everyone'); })}
+            <Text style={[styles.sectionDesc, { color: descColor }]}>johnappleseed mentioned you in their bio.</Text>
+            <View style={[styles.divider, { backgroundColor: divColor }]} />
+          </View>
 
           {/* Additional Options */}
           <Pressable

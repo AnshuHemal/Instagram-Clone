@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Linking } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,9 +33,12 @@ export default function MessagesSettingsScreen() {
 
   const handleSystemSettingsPress = () => {
     haptics.light();
-    showToast({
-      message: 'Opening system settings details...',
-      type: 'info',
+    Linking.openSettings().catch((err) => {
+      console.error('Failed to open settings:', err);
+      showToast({
+        message: 'Unable to open system settings',
+        type: 'error',
+      });
     });
   };
 
@@ -223,7 +226,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   sectionTitle: {
-    fontFamily: Fonts.regular,
+    fontFamily: Fonts.semiBold,
     fontSize: 16.5,
     marginBottom: 8,
   },

@@ -266,6 +266,10 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="following-followers-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="sharing-across-apps"
           options={{ animation: 'slide_from_right' }}
         />
