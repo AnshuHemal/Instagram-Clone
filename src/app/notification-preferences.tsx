@@ -271,6 +271,8 @@ export default function NotificationPreferencesScreen() {
                     router.push('/from-instagram-settings' as any);
                   } else if (item.id === 'accounts_follow') {
                     router.push('/accounts-follow-settings' as any);
+                  } else if (item.id === 'live') {
+                    router.push('/live-reels-settings' as any);
                   } else {
                     handleComingSoon(item.label);
                   }

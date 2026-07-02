@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   usernameText: {
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.regular,
     fontSize: 15,
   },
   fullNameText: {

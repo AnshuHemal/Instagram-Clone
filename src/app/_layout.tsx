@@ -254,6 +254,10 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="live-reels-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="sharing-across-apps"
           options={{ animation: 'slide_from_right' }}
         />
