@@ -1128,7 +1128,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   accountsLabel: {
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.regular,
     fontSize: 16.5,
     marginBottom: 3,
   },

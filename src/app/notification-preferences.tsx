@@ -255,7 +255,22 @@ export default function NotificationPreferencesScreen() {
                 <View style={[styles.innerDivider, { backgroundColor: isDark ? '#262626' : '#EEEEEE' }]} />
               )}
               <Pressable
-                onPress={() => handleComingSoon(item.label)}
+                onPress={() => {
+                  haptics.light();
+                  if (item.id === 'instants') {
+                    router.push('/instants-settings' as any);
+                  } else if (item.id === 'map') {
+                    router.push('/map-settings' as any);
+                  } else if (item.id === 'birthdays') {
+                    router.push('/birthdays-settings' as any);
+                  } else if (item.id === 'fundraisers') {
+                    router.push('/fundraisers-settings' as any);
+                  } else if (item.id === 'calls') {
+                    router.push('/calls-settings' as any);
+                  } else {
+                    handleComingSoon(item.label);
+                  }
+                }}
                 style={({ pressed }) => [
                   styles.simpleRow,
                   pressed && { backgroundColor: isDark ? '#1C1C1E' : '#F5F5F5' },
