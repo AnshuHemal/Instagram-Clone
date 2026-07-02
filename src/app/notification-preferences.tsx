@@ -267,6 +267,10 @@ export default function NotificationPreferencesScreen() {
                     router.push('/fundraisers-settings' as any);
                   } else if (item.id === 'calls') {
                     router.push('/calls-settings' as any);
+                  } else if (item.id === 'from_insta') {
+                    router.push('/from-instagram-settings' as any);
+                  } else if (item.id === 'accounts_follow') {
+                    router.push('/accounts-follow-settings' as any);
                   } else {
                     handleComingSoon(item.label);
                   }

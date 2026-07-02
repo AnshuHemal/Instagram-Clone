@@ -10,14 +10,18 @@ import { useToast } from '@/contexts/ToastContext';
 import { Fonts } from '@/constants/theme';
 import { haptics } from '@/utils/haptics';
 
-export default function FundraisersSettingsScreen() {
+export default function FromInstagramSettingsScreen() {
   const { colors, isDark } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [yourFundraisers, setYourFundraisers] = useState<'off' | 'on'>('on');
-  const [fundraisersByOthers, setFundraisersByOthers] = useState<'off' | 'on'>('on');
+  const [reminders, setReminders] = useState<'off' | 'on'>('off');
+  const [productAnnouncements, setProductAnnouncements] = useState<'off' | 'on'>('off');
+  const [uploadsSharing, setUploadsSharing] = useState<'off' | 'on'>('on');
+  const [contentIntegrity, setContentIntegrity] = useState<'off' | 'on'>('on');
+  const [supportRequests, setSupportRequests] = useState<'off' | 'on'>('off');
+  const [trendingPlaces, setTrendingPlaces] = useState<'off' | 'on'>('on');
 
   const handleBack = () => {
     router.back();
@@ -105,7 +109,7 @@ export default function FundraisersSettingsScreen() {
           <Ionicons name="arrow-back" size={26} color={isDark ? '#FFFFFF' : '#000000'} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: isDark ? '#FFFFFF' : '#000000' }]}>
-          Fundraisers
+          From Instagram
         </Text>
         <View style={{ width: 38 }} />
       </View>
@@ -115,8 +119,12 @@ export default function FundraisersSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(300)}>
-          {renderRadioSection('Your fundraisers', yourFundraisers, setYourFundraisers, 'johnappleseed donated to your fundraiser.')}
-          {renderRadioSection('Fundraisers by others', fundraisersByOthers, setFundraisersByOthers, 'johnappleseed started a fundraiser.')}
+          {renderRadioSection('Reminders', reminders, setReminders, 'You have unseen notifications, and other similar notifications.')}
+          {renderRadioSection('Product announcements & feedback', productAnnouncements, setProductAnnouncements, "Download Boomerang, Instagram's latest app.")}
+          {renderRadioSection('Uploads and sharing', uploadsSharing, setUploadsSharing, 'Your post shared to Instagram, but was unable to share to Facebook.')}
+          {renderRadioSection('Content integrity', contentIntegrity, setContentIntegrity, "We're recommending your reel instead of others that feature your original content.")}
+          {renderRadioSection('Support requests', supportRequests, setSupportRequests, 'Your support request from July 10 was just updated.')}
+          {renderRadioSection('Trending places', trendingPlaces, setTrendingPlaces, "John Appleseed Park is a trending place near you. See what's being shared.")}
 
           {/* Additional Options */}
           <Pressable
@@ -197,6 +205,7 @@ const styles = StyleSheet.create({
   sectionDesc: {
     fontFamily: Fonts.regular,
     fontSize: 13.5,
+    lineHeight: 18.5,
     marginTop: 6,
     marginBottom: 16,
   },

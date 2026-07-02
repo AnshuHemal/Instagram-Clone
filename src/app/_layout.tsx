@@ -246,6 +246,14 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="accounts-follow-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="from-instagram-settings"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="sharing-across-apps"
           options={{ animation: 'slide_from_right' }}
         />
