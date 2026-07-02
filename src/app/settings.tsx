@@ -31,6 +31,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withRepeat,
   runOnJS,
 } from 'react-native-reanimated';
 import { useRouter, Stack } from 'expo-router';
@@ -97,6 +98,21 @@ export default function SettingsScreen() {
   const [closeFriendsCount, setCloseFriendsCount] = useState(closeFriendsStore.getCloseFriendsCount());
   const [favoritesCount, setFavoritesCount] = useState(favoritesStore.getFavoritesCount());
   const [isReady, setIsReady] = useState(false);
+  const skeletonOpacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    if (!isReady) {
+      skeletonOpacity.value = withRepeat(
+        withTiming(0.8, { duration: 800, easing: Easing.ease }),
+        -1,
+        true
+      );
+    }
+  }, [isReady]);
+
+  const animatedSkeletonStyle = useAnimatedStyle(() => ({
+    opacity: skeletonOpacity.value,
+  }));
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -491,8 +507,77 @@ export default function SettingsScreen() {
       </View>
 
       {!isReady ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="small" color={colors.primary} />
+        <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16 }}>
+          {/* Search Bar Skeleton */}
+          <Animated.View
+            style={[
+              animatedSkeletonStyle,
+              {
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: isDark ? '#2C2C2E' : '#EAEAEA',
+                marginBottom: 24,
+              }
+            ]}
+          />
+          
+          {/* Section Title Pill */}
+          <Animated.View
+            style={[
+              animatedSkeletonStyle,
+              {
+                width: 95,
+                height: 16,
+                borderRadius: 8,
+                backgroundColor: isDark ? '#2C2C2E' : '#EAEAEA',
+                marginBottom: 22,
+              }
+            ]}
+          />
+
+          {/* Setting Item Rows */}
+          {[1, 2, 3, 4, 5].map((item) => (
+            <View key={item} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 14 }}>
+              {/* Left Circle Icon */}
+              <Animated.View
+                style={[
+                  animatedSkeletonStyle,
+                  {
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: isDark ? '#2C2C2E' : '#EAEAEA',
+                    marginRight: 14,
+                  }
+                ]}
+              />
+              {/* Center Bar */}
+              <Animated.View
+                style={[
+                  animatedSkeletonStyle,
+                  {
+                    flex: 1,
+                    height: 14,
+                    borderRadius: 7,
+                    backgroundColor: isDark ? '#2C2C2E' : '#EAEAEA',
+                    marginRight: 20,
+                  }
+                ]}
+              />
+              {/* Right Chevron Box */}
+              <Animated.View
+                style={[
+                  animatedSkeletonStyle,
+                  {
+                    width: 12,
+                    height: 12,
+                    borderRadius: 3,
+                    backgroundColor: isDark ? '#2C2C2E' : '#EAEAEA',
+                  }
+                ]}
+              />
+            </View>
+          ))}
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
