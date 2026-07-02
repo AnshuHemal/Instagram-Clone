@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
   },
   gifText: {
     fontSize: 9,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.semiBold,
   },
   inputIconButton: {
     marginLeft: 10,

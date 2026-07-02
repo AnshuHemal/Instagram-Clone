@@ -6,6 +6,7 @@ export interface NotificationActor {
   displayName: string;
   avatarUrl: string | null;
   isVerified: boolean;
+  isFollowing?: boolean;
 }
 
 export interface Notification {

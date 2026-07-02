@@ -170,6 +170,14 @@ function RootLayoutContent() {
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
+          name="feed-following"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="feed-favorites"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="edit-profile"
           options={{ animation: 'fade' }}
         />

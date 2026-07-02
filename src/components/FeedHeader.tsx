@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import { InstagramLogo } from '@/components/InstagramLogo';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn, FadeOut } from 'react-native-reanimated';
 import { ThemedText } from '@/components/themed-text';
 import { usePosts } from '@/contexts/PostsContext';
 import { useBadge } from '@/contexts/BadgeContext';
@@ -41,6 +41,14 @@ export const FeedHeader: React.FC = () => {
       {/* Center: Instagram Text Logo — tap cycles between For You / Following */}
       <Pressable onPress={() => setShowDropdown(!showDropdown)} style={styles.logoPressable}>
         <InstagramLogo color={colors.text} />
+        {showDropdown && (
+          <Ionicons
+            name="chevron-up"
+            size={14}
+            color={colors.text}
+            style={styles.chevronIcon}
+          />
+        )}
       </Pressable>
 
       {/* Right side: Heart activity icon with unread badge */}
@@ -71,48 +79,55 @@ export const FeedHeader: React.FC = () => {
       <Modal
         visible={showDropdown}
         transparent={true}
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setShowDropdown(false)}
       >
         <TouchableWithoutFeedback onPress={() => setShowDropdown(false)}>
           <View style={styles.modalBackdrop}>
-            <View style={[styles.dropdownContainer, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF', borderColor: isDark ? '#2C2C2E' : '#E5E5E5' }]}>
-              {/* Option: For You */}
-              <Pressable
-                style={styles.dropdownOption}
-                onPress={() => {
-                  haptics.onButtonPress();
-                  setFeedType('for_you');
-                  setShowDropdown(false);
-                }}
+            {showDropdown && (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(150)}
+                style={[
+                  styles.dropdownContainer,
+                  {
+                    top: 50 + insets.top,
+                    backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+                    borderColor: isDark ? '#2C2C2E' : '#E5E5E5',
+                  }
+                ]}
               >
-                <Ionicons name="sparkles-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
-                <ThemedText style={[styles.dropdownOptionText, feedType === 'for_you' && { fontFamily: Fonts.semiBold, color: colors.primary }]}>
-                  For You
-                </ThemedText>
-                {feedType === 'for_you' && (
-                  <Ionicons name="checkmark" size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />
-                )}
-              </Pressable>
-              
-              {/* Option: Following */}
-              <Pressable
-                style={styles.dropdownOption}
-                onPress={() => {
-                  haptics.onButtonPress();
-                  setFeedType('following');
-                  setShowDropdown(false);
-                }}
-              >
-                <Ionicons name="people-outline" size={18} color={colors.text} style={{ marginRight: 8 }} />
-                <ThemedText style={[styles.dropdownOptionText, feedType === 'following' && { fontFamily: Fonts.semiBold, color: colors.primary }]}>
-                  Following
-                </ThemedText>
-                {feedType === 'following' && (
-                  <Ionicons name="checkmark" size={16} color={colors.primary} style={{ marginLeft: 'auto' }} />
-                )}
-              </Pressable>
-            </View>
+                {/* Option: Following */}
+                <Pressable
+                  style={styles.dropdownOption}
+                  onPress={() => {
+                    haptics.onButtonPress();
+                    setShowDropdown(false);
+                    router.push('/feed-following');
+                  }}
+                >
+                  <Ionicons name="person-add-outline" size={20} color={colors.text} style={{ marginRight: 12 }} />
+                  <ThemedText style={[styles.dropdownOptionText, { color: colors.text, fontFamily: Fonts.regular }]}>
+                    Following
+                  </ThemedText>
+                </Pressable>
+                
+                {/* Option: Favorites */}
+                <Pressable
+                  style={styles.dropdownOption}
+                  onPress={() => {
+                    haptics.onButtonPress();
+                    setShowDropdown(false);
+                    router.push('/feed-favorites');
+                  }}
+                >
+                  <Ionicons name="star-outline" size={20} color={colors.text} style={{ marginRight: 12 }} />
+                  <ThemedText style={[styles.dropdownOptionText, { color: colors.text, fontFamily: Fonts.regular }]}>
+                    Favorites
+                  </ThemedText>
+                </Pressable>
+              </Animated.View>
+            )}
           </View>
         </TouchableWithoutFeedback>
       </Modal>
@@ -186,24 +201,23 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     position: 'absolute',
-    top: 52, // sits right below the header
     left: '50%',
-    marginLeft: -90, // centers the 180 width dropdown under the logo pressable
-    width: 180,
-    borderRadius: 12,
+    marginLeft: -100, // centers the 200 width dropdown
+    width: 200,
+    borderRadius: 20,
     borderWidth: 0.5,
-    paddingVertical: 4,
+    paddingVertical: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
   },
   dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
   },
   dropdownOptionText: {
     fontSize: 14,

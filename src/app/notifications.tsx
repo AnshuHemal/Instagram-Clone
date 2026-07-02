@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, SectionList, Pressable, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View, SectionList, Pressable, ActivityIndicator, Image, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeIn, useSharedValue } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, useSharedValue, SlideOutDown } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemedText } from '@/components/themed-text';
 import { NotificationItem } from '@/components/NotificationItem';
@@ -22,6 +22,7 @@ export default function NotificationsScreen() {
   const { clearNotifications } = useBadge();
   const { showToast } = useToast();
   const scrollY = useSharedValue(0);
+  const insets = useSafeAreaInsets();
 
   const [sections, setSections] = useState<NotificationSection[]>([]);
   const [flatNotifications, setFlatNotifications] = useState<Notification[]>([]);
@@ -31,6 +32,7 @@ export default function NotificationsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [showBanner, setShowBanner] = useState(true);
 
   const fetchFollowRequests = useCallback(async () => {
     try {
@@ -133,13 +135,12 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleRefresh = () => {
-    fetchNotifications(true);
-  };
-
   const renderHeader = () => (
-    <Animated.View entering={FadeInDown.duration(300)} style={[styles.header, { borderBottomColor: colors.border }]}>
-      <ThemedText type="subtitle" style={styles.headerTitle}>
+    <Animated.View entering={FadeInDown.duration(300)} style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={26} color={colors.text} />
+      </Pressable>
+      <ThemedText type="subtitle" style={[styles.headerTitle, { color: colors.text, fontSize: 20, marginLeft: 8 }]}>
         Notifications
       </ThemedText>
     </Animated.View>
@@ -173,34 +174,52 @@ export default function NotificationsScreen() {
 
   const renderSectionHeader = ({ section }: { section: NotificationSection }) => (
     <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
-      <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
+      <ThemedText style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</ThemedText>
     </View>
   );
 
   const renderFollowRequests = () => {
-    if (followRequests.length === 0) return null;
+    const count = followRequests.length;
+    if (count === 0) return null;
 
     return (
-      <View style={[styles.requestsSection, { borderBottomColor: isDark ? '#262626' : '#F2F2F7' }]}>
+      <View style={[styles.requestsSection, { borderBottomColor: isDark ? '#262626' : '#EFEFEF' }]}>
         <Pressable
           onPress={() => setShowRequests(prev => !prev)}
           style={styles.requestsHeader}
         >
           <View style={styles.requestsHeaderLeft}>
-            <View style={styles.requestsBadge}>
-              <ThemedText type="smallBold" style={{ color: '#FFFFFF' }}>
-                {followRequests.length}
+            <View style={[styles.requestsIconCircle, { backgroundColor: isDark ? '#262626' : '#F5F5F5', borderColor: colors.border }]}>
+              <Ionicons name="person-add-outline" size={20} color={colors.text} />
+              {count > 0 && (
+                <View style={styles.requestsBadgeMini}>
+                  <View style={styles.requestsBadgeMiniDot} />
+                </View>
+              )}
+            </View>
+            <View style={{ marginLeft: 14 }}>
+              <ThemedText type="smallBold" style={{ fontSize: 15, color: colors.text }}>
+                Follow requests
+              </ThemedText>
+              <ThemedText type="small" style={{ color: colors.textSecondary, marginTop: 2 }}>
+                Approve or ignore requests
               </ThemedText>
             </View>
-            <ThemedText type="smallBold" style={{ marginLeft: 10, color: colors.text }}>
-              Follow Requests
-            </ThemedText>
           </View>
-          <Ionicons
-            name={showRequests ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color={colors.textSecondary}
-          />
+          <View style={styles.requestsHeaderRight}>
+            {count > 0 && (
+              <View style={[styles.requestsCountBadge, { backgroundColor: '#0095F6' }]}>
+                <ThemedText type="smallBold" style={{ color: '#FFFFFF', fontSize: 11 }}>
+                  {count}
+                </ThemedText>
+              </View>
+            )}
+            <Ionicons
+              name={showRequests ? 'chevron-up' : 'chevron-forward'}
+              size={18}
+              color={colors.textSecondary}
+            />
+          </View>
         </Pressable>
 
         {showRequests && (
@@ -265,7 +284,6 @@ export default function NotificationsScreen() {
               notification={item}
               onDelete={handleDeleteNotification}
               onPress={() => {
-                // Deep link based on notification type
                 try {
                   const type = item.type;
                   if (type === 'LIKE_POST' || type === 'COMMENT_POST') {
@@ -298,6 +316,37 @@ export default function NotificationsScreen() {
           contentContainerStyle={styles.listContent}
         />
       </GradientPullRefresh>
+
+      {/* Floating Permission Notification Banner at the bottom */}
+      {showBanner && (
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          exiting={SlideOutDown.duration(300)}
+          style={[
+            styles.bannerContainer,
+            {
+              backgroundColor: isDark ? '#1C1C1E' : '#F5F6F8',
+              paddingBottom: Platform.OS === 'android'
+                ? (insets.bottom > 0 ? insets.bottom + 12 : 54)
+                : Math.max(insets.bottom, 12),
+              paddingTop: 12,
+            }
+          ]}
+        >
+          <View style={styles.bannerLeft}>
+            <Ionicons name="notifications-off-outline" size={18} color={isDark ? '#8E8E93' : '#3E3E42'} />
+            <ThemedText style={[styles.bannerText, { color: colors.text, fontSize: 13.5, marginLeft: 10 }]}>
+              Your notifications are off.{' '}
+              <ThemedText style={{ color: '#0095F6', fontWeight: '600', fontSize: 14 }}>
+                Turn on
+              </ThemedText>
+            </ThemedText>
+          </View>
+          <Pressable onPress={() => setShowBanner(false)} style={styles.bannerCloseBtn} hitSlop={10}>
+            <Ionicons name="close" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -314,25 +363,26 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 4,
   },
   headerTitle: {
     fontFamily: Fonts.semiBold,
   },
   listContent: {
     flexGrow: 1,
+    paddingBottom: 80,
   },
   sectionHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    marginTop: 6,
   },
   sectionTitle: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: 16,
   },
   emptyContainer: {
     flex: 1,
@@ -379,8 +429,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  requestsBadge: {
+  requestsIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  requestsBadgeMini: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#FF3B30',
+  },
+  requestsBadgeMiniDot: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#FF3B30',
+  },
+  requestsHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  requestsCountBadge: {
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -425,5 +503,29 @@ const styles = StyleSheet.create({
   declineBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1,
+  },
+  bannerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+    zIndex: 100,
+  },
+  bannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bannerText: {
+    fontFamily: Fonts.regular,
+  },
+  bannerCloseBtn: {
+    padding: 2,
   },
 });

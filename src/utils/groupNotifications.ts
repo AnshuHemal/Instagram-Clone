@@ -1,7 +1,7 @@
 import { Notification } from '@/services/notifications';
 
 export interface NotificationSection {
-  title: 'Today' | 'This week' | 'Earlier';
+  title: 'Today' | 'Last 7 days' | 'Last 30 days';
   data: Notification[];
 }
 
@@ -32,8 +32,8 @@ export function groupNotificationsByPeriod(
 
   const sections: NotificationSection[] = [];
   if (today.length > 0) sections.push({ title: 'Today', data: today });
-  if (thisWeek.length > 0) sections.push({ title: 'This week', data: thisWeek });
-  if (earlier.length > 0) sections.push({ title: 'Earlier', data: earlier });
+  if (thisWeek.length > 0) sections.push({ title: 'Last 7 days', data: thisWeek });
+  if (earlier.length > 0) sections.push({ title: 'Last 30 days', data: earlier });
 
   return sections;
 }

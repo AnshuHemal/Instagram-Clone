@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, View, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Notification } from '@/services/notifications';
 import { timeAgo } from '@/utils/timeAgo';
 import { useRouter } from 'expo-router';
+import { followService } from '@/services/follow';
 
 interface NotificationItemProps {
   notification: Notification;
@@ -24,6 +25,30 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
   const swipeableRef = useRef<Swipeable>(null);
+
+  const [isFollowingState, setIsFollowingState] = useState(notification.actor.isFollowing ?? false);
+
+  const handleFollowPress = async () => {
+    try {
+      const previous = isFollowingState;
+      setIsFollowingState(!previous);
+      if (previous) {
+        await followService.unfollowUser(notification.actor.id);
+      } else {
+        await followService.followUser(notification.actor.id);
+      }
+    } catch (err) {
+      console.error('Failed to toggle follow in notification item:', err);
+      setIsFollowingState(prev => !prev);
+    }
+  };
+
+  const handleMessagePress = () => {
+    router.push({
+      pathname: '/(tabs)/chat',
+      params: { userId: notification.actor.id, username: notification.actor.username }
+    } as any);
+  };
 
   const handlePressIn = () => {
     Animated.spring(scale, {
@@ -168,8 +193,8 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
             </ThemedText>
           </View>
 
-          {/* Post/Reel thumbnail */}
-          {(notification.postId || notification.reelId) && (
+          {/* Post/Reel thumbnail or Action button */}
+          {notification.postId || notification.reelId ? (
             <View style={styles.thumbnailContainer}>
               {thumbnailUrl ? (
                 <Image
@@ -183,7 +208,36 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
                 </View>
               )}
             </View>
-          )}
+          ) : (notification.type === 'FOLLOW' || notification.type === 'FOLLOW_REQUEST' || notification.type === 'FOLLOW_REQUEST_ACCEPTED') ? (
+            <View style={styles.actionButtonContainer}>
+              {isFollowingState ? (
+                <Pressable
+                  onPress={handleMessagePress}
+                  style={({ pressed }) => [
+                    styles.messageBtn,
+                    { backgroundColor: isDark ? '#262626' : '#EFEFEF' },
+                    pressed && { opacity: 0.7 }
+                  ]}
+                >
+                  <ThemedText type="smallBold" style={{ color: colors.text }}>
+                    Message
+                  </ThemedText>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleFollowPress}
+                  style={({ pressed }) => [
+                    styles.followBtn,
+                    pressed && { opacity: 0.7 }
+                  ]}
+                >
+                  <ThemedText type="smallBold" style={{ color: '#FFFFFF' }}>
+                    Follow
+                  </ThemedText>
+                </Pressable>
+              )}
+            </View>
+          ) : null}
         </Pressable>
       </Animated.View>
     </Swipeable>
@@ -250,6 +304,27 @@ const styles = StyleSheet.create({
   deleteAction: {
     minWidth: 80,
     backgroundColor: '#FF3040',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButtonContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  followBtn: {
+    backgroundColor: '#0095F6',
+    paddingHorizontal: 20,
+    paddingVertical: 7,
+    borderRadius: 8,
+    minWidth: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    minWidth: 90,
     justifyContent: 'center',
     alignItems: 'center',
   },

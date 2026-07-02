@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import { api } from '@/services/api';
 import { feedCache } from '@/services/feedCache';
 import { useActionError } from '@/contexts/ActionErrorContext';
+import { favoritesStore } from '@/store/favorites-store';
 
 export interface Comment {
   id: string;
@@ -51,7 +52,7 @@ export interface Post {
   audioName?: string;
 }
 
-export type FeedType = 'for_you' | 'following';
+export type FeedType = 'for_you' | 'following' | 'favorites';
 
 interface PostsContextType {
   posts: Post[];
@@ -106,24 +107,32 @@ export const PostsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const activeCursor = refresh ? null : nextCursor;
+      const apiType = feedType === 'favorites' ? 'following' : feedType;
       // Use the new unified feed endpoint
       const response = await api.get('/feed/unified', {
         params: {
-          limit: 10,
+          limit: feedType === 'favorites' ? 30 : 10, // Fetch more for filtering
           cursor: activeCursor,
-          type: feedType,
+          type: apiType,
         },
       });
 
       const { data, meta } = response.data;
       
-      const newPosts: Post[] = data.map((item: any) => ({
+      const mappedPosts: Post[] = data.map((item: any) => ({
         ...item,
         // Ensure standard boolean format for isLiked
         isLiked: !!item.isLiked,
         likesCount: item.likesCount ?? 0,
         commentsCount: item.commentsCount ?? 0,
       }));
+
+      const newPosts = feedType === 'favorites'
+        ? mappedPosts.filter((item: any) => {
+            const favIds = favoritesStore.getSelectedUserIds();
+            return favIds.includes(item.userId) || favIds.includes(item.user?.id);
+          })
+        : mappedPosts;
 
       setPosts((prev) => (refresh ? newPosts : [...prev, ...newPosts]));
       setCursor(meta.nextCursor);
