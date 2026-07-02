@@ -325,10 +325,8 @@ export default function ProfileScreen() {
   const [loadingSaved, setLoadingSaved] = useState(false);
 
   const tabsList = useMemo<ProfileTab[]>(() => {
-    return isOwnProfile
-      ? ['posts', 'reels', 'tagged', 'saved']
-      : ['posts', 'reels', 'tagged'];
-  }, [isOwnProfile]);
+    return ['posts', 'reels', 'tagged'];
+  }, []);
 
   const totalTabs = tabsList.length;
 
@@ -1347,8 +1345,6 @@ export default function ProfileScreen() {
                     resizeMode="contain"
                   />
                 );
-              } else if (tab === 'saved') {
-                icon = tabIcon('bookmark-outline', 'bookmark', 'saved');
               }
 
               return (
@@ -1603,60 +1599,7 @@ export default function ProfileScreen() {
               )}
             </View>
 
-            {/* Page 4: Saved (only if own profile) */}
-            {isOwnProfile && (
-              <View style={{ width: SCREEN_WIDTH }}>
-                {visibleSavedPosts.length > 0 ? (
-                  <FlatList
-                    data={visibleSavedPosts}
-                    keyExtractor={(item) => item.id}
-                    numColumns={3}
-                    scrollEnabled={false}
-                    renderItem={({ item }) => {
-                      const hasMultipleMedia = item.media && item.media.length > 1;
-                      const isVideo = item.media && item.media[0]?.mediaType === 'VIDEO';
-                      return (
-                        <Pressable
-                          onPress={() => {
-                            haptics.light();
-                            router.push(`/post/${item.id}` as any);
-                          }}
-                          style={styles.gridItem}
-                        >
-                          <Image source={{ uri: item.media[0]?.mediaUrl }} style={styles.gridImage} />
-                          {hasMultipleMedia && (
-                            <View style={styles.gridBadge}>
-                              <Feather name="layers" size={12} color="#FFFFFF" />
-                            </View>
-                          )}
-                          {!hasMultipleMedia && isVideo && (
-                            <View style={styles.gridBadge}>
-                              <Ionicons name="play" size={12} color="#FFFFFF" />
-                            </View>
-                          )}
-                        </Pressable>
-                      );
-                    }}
-                  />
-                ) : (
-                  <Animated.View
-                    entering={FadeInDown.duration(400).delay(80)}
-                    layout={LinearTransition}
-                    style={styles.emptyStateContainer}
-                  >
-                    <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#1C1C1E' : '#F0F0F0' }]}>
-                      <Ionicons name="bookmark-outline" size={36} color={isDark ? '#555' : '#BDBDBD'} />
-                    </View>
-                    <ThemedText style={[styles.emptyTitle, { color: colors.text }]}>
-                      Save posts
-                    </ThemedText>
-                    <ThemedText style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-                      Save photos and videos that you want to see again. No one will be notified, and only you can see what you've saved.
-                    </ThemedText>
-                  </Animated.View>
-                )}
-              </View>
-            )}
+
           </Animated.ScrollView>
         </View>
       </Animated.ScrollView>
